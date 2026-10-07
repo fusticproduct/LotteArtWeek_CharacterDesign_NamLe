@@ -1,0 +1,205 @@
+{
+  "source": "reference.png",
+  "sha256": "4aedd339cb7a535d3d91546df4c77fdbd9a8cb5f03c6993e965003b522c852e9",
+  "method": "saturation-stratified median-cut, 18 centroids stratified by hue and value",
+  "colors": [
+    {
+      "id": "neutral_1",
+      "family": "neutral",
+      "hex": "#eae7e6",
+      "rgb": [
+        234,
+        231,
+        230
+      ],
+      "sampleCount": 157059
+    },
+    {
+      "id": "dark_1",
+      "family": "dark",
+      "hex": "#27234d",
+      "rgb": [
+        39,
+        35,
+        77
+      ],
+      "sampleCount": 8299
+    },
+    {
+      "id": "dark_2",
+      "family": "dark",
+      "hex": "#1a4e56",
+      "rgb": [
+        26,
+        78,
+        86
+      ],
+      "sampleCount": 5800
+    },
+    {
+      "id": "red_1",
+      "family": "red",
+      "hex": "#f55d59",
+      "rgb": [
+        245,
+        93,
+        89
+      ],
+      "sampleCount": 9203
+    },
+    {
+      "id": "orange_1",
+      "family": "orange",
+      "hex": "#f49058",
+      "rgb": [
+        244,
+        144,
+        88
+      ],
+      "sampleCount": 9383
+    },
+    {
+      "id": "yellow_1",
+      "family": "yellow",
+      "hex": "#facc67",
+      "rgb": [
+        250,
+        204,
+        103
+      ],
+      "sampleCount": 4297
+    },
+    {
+      "id": "yellow_2",
+      "family": "yellow",
+      "hex": "#b0a04d",
+      "rgb": [
+        176,
+        160,
+        77
+      ],
+      "sampleCount": 1743
+    },
+    {
+      "id": "green_1",
+      "family": "green",
+      "hex": "#0c8953",
+      "rgb": [
+        12,
+        137,
+        83
+      ],
+      "sampleCount": 7898
+    },
+    {
+      "id": "green_2",
+      "family": "green",
+      "hex": "#38ae79",
+      "rgb": [
+        56,
+        174,
+        121
+      ],
+      "sampleCount": 3546
+    },
+    {
+      "id": "cyan_1",
+      "family": "cyan",
+      "hex": "#3ba6ac",
+      "rgb": [
+        59,
+        166,
+        172
+      ],
+      "sampleCount": 3990
+    },
+    {
+      "id": "blue_1",
+      "family": "blue",
+      "hex": "#0c52e9",
+      "rgb": [
+        12,
+        82,
+        233
+      ],
+      "sampleCount": 15527
+    },
+    {
+      "id": "blue_2",
+      "family": "blue",
+      "hex": "#1c6cec",
+      "rgb": [
+        28,
+        108,
+        236
+      ],
+      "sampleCount": 9346
+    },
+    {
+      "id": "blue_3",
+      "family": "blue",
+      "hex": "#579ef0",
+      "rgb": [
+        87,
+        158,
+        240
+      ],
+      "sampleCount": 5950
+    },
+    {
+      "id": "violet_1",
+      "family": "violet",
+      "hex": "#7c3eee",
+      "rgb": [
+        124,
+        62,
+        238
+      ],
+      "sampleCount": 3858
+    },
+    {
+      "id": "violet_2",
+      "family": "violet",
+      "hex": "#aa77e7",
+      "rgb": [
+        170,
+        119,
+        231
+      ],
+      "sampleCount": 3475
+    },
+    {
+      "id": "pink_1",
+      "family": "pink",
+      "hex": "#eb4db2",
+      "rgb": [
+        235,
+        77,
+        178
+      ],
+      "sampleCount": 11072
+    },
+    {
+      "id": "pink_2",
+      "family": "pink",
+      "hex": "#fab1dd",
+      "rgb": [
+        250,
+        177,
+        221
+      ],
+      "sampleCount": 6997
+    },
+    {
+      "id": "pink_3",
+      "family": "pink",
+      "hex": "#f594cf",
+      "rgb": [
+        245,
+        148,
+        207
+      ],
+      "sampleCount": 6557
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "armatures": 1,
+  "bones": 22,
+  "meshes": 22,
+  "maxBindError": 5.967038318053535e-07,
+  "maxPivotError": 3.0026905249587276e-07,
+  "handMovementAfterArmRotation": 0.305870436660809,
+  "materials": 22,
+  "embeddedTextures": 16,
+  "result": "PASS",
+  "objMeshes": 22,
+  "objMaterialsAndUVs": "PASS"
+}

@@ -1,0 +1,4 @@
+mediapipe==0.10.14
+opencv-python<4.11
+websockets>=12,<14
+numpy<2
