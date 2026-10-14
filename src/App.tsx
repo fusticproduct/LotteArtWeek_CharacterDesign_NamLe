@@ -4,11 +4,12 @@ import PosePanel from './PosePanel';
 import PartsPanel from './PartsPanel';
 import ProportionsPanel from './ProportionsPanel';
 import ExploreGrid from './ExploreGrid';
-import {defaultLayerOrder,normalizeLayerOrder,type LayerGroup} from './rig';
+import {normalizeLayerOrder,type LayerGroup} from './rig';
 import {createPoseClient} from './pose';
 import {weavePaletteNames,type WeavePaletteName} from './weave';
 import {useCharacterTools} from './webmcp';
 import {useHistory} from './history';
+import {normalizeSettings,studioSettings,sameSettings,type LookSettings} from './settings';
 import {exportCharacter} from './exports';
 import CharacterScene,{type SceneHandle} from './Scene';
 import {bones,theme,variantNames,generate,recolor,encodeSeed,decodeSeed,randomLabel,linkedIds,normalizeProportions,studioProportions,rangeOf,type Pose,type Proportions} from './model';
@@ -20,17 +21,17 @@ export default function App(){
  const [showRig,setShowRig]=useState(false);
  const [exporting,setExporting]=useState(false);
  const [panelTab,setPanelTab]=useState<'parts'|'shape'|'live'>('parts');
- // Layer order is a global look setting, kept per browser.
- const [layerOrder,setLayerOrder]=useState<LayerGroup[]>(()=>{try{return normalizeLayerOrder(JSON.parse(localStorage.getItem('geofolk.layerOrder')??'null'));}catch{return defaultLayerOrder;}});
+ // Look settings (layer order, palette, paper texture, stage) are global and kept per browser; a new browser starts
+ // from the saved defaults (src/settings.json, or a browser-only default saved from a static build).
+ const [savedLook,setSavedLook]=useState<LookSettings>(()=>{try{const local=localStorage.getItem('geofolk.settingsDefault');if(local)return normalizeSettings(JSON.parse(local));}catch{/* storage unavailable */}return studioSettings;});
+ const stored=(key:string)=>{try{return localStorage.getItem(key);}catch{return null;}};
+ const [layerOrder,setLayerOrder]=useState<LayerGroup[]>(()=>{try{const v=stored('geofolk.layerOrder');return v?normalizeLayerOrder(JSON.parse(v)):savedLook.layerOrder;}catch{return savedLook.layerOrder;}});
  useEffect(()=>{try{localStorage.setItem('geofolk.layerOrder',JSON.stringify(layerOrder));}catch{/* storage unavailable */}},[layerOrder]);
- // Weave palette is a global look setting (like the pose server), kept per browser rather than in the seed.
- const [weavePalette,setWeavePalette]=useState<WeavePaletteName>(()=>{try{const saved=localStorage.getItem('geofolk.weavePalette') as WeavePaletteName|null;if(saved&&weavePaletteNames.includes(saved))return saved;}catch{/* storage unavailable */}return 'HFCD';});
+ const [weavePalette,setWeavePalette]=useState<WeavePaletteName>(()=>{const v=stored('geofolk.weavePalette') as WeavePaletteName|null;return v&&weavePaletteNames.includes(v)?v:savedLook.palette;});
  useEffect(()=>{try{localStorage.setItem('geofolk.weavePalette',weavePalette);}catch{/* storage unavailable */}},[weavePalette]);
- // Stage background (black like the reference video, or paper), kept per browser.
- const [darkStage,setDarkStage]=useState(()=>{try{return localStorage.getItem('geofolk.stage')!=='light';}catch{return true;}});
+ const [darkStage,setDarkStage]=useState(()=>{const v=stored('geofolk.stage');return v?v!=='light':savedLook.darkStage;});
  useEffect(()=>{try{localStorage.setItem('geofolk.stage',darkStage?'dark':'light');}catch{/* storage unavailable */}},[darkStage]);
- // Paper grain and tone on the parts (A5), kept per browser.
- const [paper,setPaper]=useState(()=>{try{return localStorage.getItem('geofolk.paper')!=='off';}catch{return true;}});
+ const [paper,setPaper]=useState(()=>{const v=stored('geofolk.paper');return v?v!=='off':savedLook.paper;});
  useEffect(()=>{try{localStorage.setItem('geofolk.paper',paper?'on':'off');}catch{/* storage unavailable */}},[paper]);
  // Generate ×6 (B5): candidates shown on the stage until one is picked.
  const [candidates,setCandidates]=useState<ReturnType<typeof generate>[]|null>(null);
@@ -39,10 +40,14 @@ export default function App(){
  const [savedProportions,setSavedProportions]=useState<Proportions>(()=>{try{const local=localStorage.getItem('geofolk.proportionsDefault');if(local)return normalizeProportions(JSON.parse(local));}catch{/* storage unavailable */}return studioProportions;});
  const [proportions,setProportions]=useState<Proportions>(()=>{try{const stored=localStorage.getItem('geofolk.proportions');if(stored)return normalizeProportions(JSON.parse(stored));}catch{/* storage unavailable */}return savedProportions;});
  useEffect(()=>{try{localStorage.setItem('geofolk.proportions',JSON.stringify(proportions));}catch{/* storage unavailable */}},[proportions]);
- async function saveDefaultProportions(){
-  try{const r=await fetch('/__defaults/proportions',{method:'POST',headers:{'Content-Type':'application/json','X-Geofolk':'1'},body:JSON.stringify(proportions)});if(r.ok){try{localStorage.removeItem('geofolk.proportionsDefault');}catch{/* storage unavailable */}setSavedProportions(proportions);return 'Saved as the project default (src/proportions.json).';}}catch{/* static build: no dev server to write the file */}
-  try{localStorage.setItem('geofolk.proportionsDefault',JSON.stringify(proportions));setSavedProportions(proportions);return 'Saved as the default for this browser only.';}catch{return 'Could not save the default.';}
+ const look:LookSettings={palette:weavePalette,layerOrder,paper,darkStage};
+ /** Save all as default: the proportions (with the pattern sliders) and the look settings, for the whole project under `npm run dev`, else for this browser. */
+ async function saveDefaults(){
+  const post=(route:string,body:unknown)=>fetch(`/__defaults/${route}`,{method:'POST',headers:{'Content-Type':'application/json','X-Geofolk':'1'},body:JSON.stringify(body)}).then(r=>r.ok,()=>false);
+  if(await post('proportions',proportions)&&await post('settings',look)){try{localStorage.removeItem('geofolk.proportionsDefault');localStorage.removeItem('geofolk.settingsDefault');}catch{/* storage unavailable */}setSavedProportions(proportions);setSavedLook(look);return 'Saved as the project default (src/proportions.json, src/settings.json).';}
+  try{localStorage.setItem('geofolk.proportionsDefault',JSON.stringify(proportions));localStorage.setItem('geofolk.settingsDefault',JSON.stringify(look));setSavedProportions(proportions);setSavedLook(look);return 'Saved as the default for this browser only.';}catch{return 'Could not save the default.';}
  }
+ const resetAll=()=>{setProportions(savedProportions);setLayerOrder(savedLook.layerOrder);setWeavePalette(savedLook.palette);setPaper(savedLook.paper);setDarkStage(savedLook.darkStage);};
  const poseClient=useMemo(createPoseClient,[]);
  const liveStatus=useSyncExternalStore(poseClient.subscribe,()=>poseClient.snapshot.status);
  useEffect(()=>()=>poseClient.disconnect(),[poseClient]);
@@ -87,7 +92,7 @@ export default function App(){
    <div className="scene-footer"><div className="orbit-hint"><MousePointer2 size={14}/><span>Drag to pan</span><span className="hint-divider">/</span><span>Scroll to zoom</span></div><span className="rig-badge"><span/>{liveStatus==='live'?'LIVE POSE':'RIGGED & READY'}</span></div>
    <div className="pose-bar"><span>STRIKE A POSE</span>{(['idle','reach','stride','dance'] as Pose[]).map((p,i)=><button key={p} onClick={()=>setPose(p)} className={pose===p?'active':''} aria-pressed={pose===p}><span className="pose-symbol">{['♙','↟','⋏','♫'][i]}</span>{p==='idle'?'At ease':p==='reach'?'Hands up':p==='stride'?'Step out':'Dance'}</button>)}</div>
   </section>
-  <aside className="parts-panel"><div className="panel-tabs" role="tablist" aria-label="Editor panels"><button role="tab" aria-selected={panelTab==='parts'} className={panelTab==='parts'?'active':''} onClick={()=>setPanelTab('parts')}>Parts<span>{bones.length}</span></button><button role="tab" aria-selected={panelTab==='shape'} className={panelTab==='shape'?'active':''} onClick={()=>setPanelTab('shape')}>Proportions</button><button role="tab" aria-selected={panelTab==='live'} className={panelTab==='live'?'active':''} onClick={()=>setPanelTab('live')}>Live pose</button></div>{panelTab==='live'?<PosePanel client={poseClient}/>:panelTab==='shape'?<ProportionsPanel value={proportions} saved={savedProportions} onChange={setProportions} onSaveDefault={saveDefaultProportions}/>:<><PartsPanel spec={spec} locked={locked} order={layerOrder} onOrder={setLayerOrder} onReroll={reroll} onToggleLock={toggleLock}/><div className="pattern-control"><label htmlFor="pattern-density">Pattern scale<span>{spec.density*2} cells</span></label><input id="pattern-density" type="range" min={2} max={12} value={spec.density} onChange={e=>{const next={...spec,density:Number(e.target.value)};setSpec(next);setSeed(encodeSeed(next));}}/>{([['checker','Checker scale'],['flowSpeed','Flow speed']] as const).map(([key,label])=><div key={key}><label htmlFor={`pattern-${key}`}>{label}<span>{Math.round(proportions[key]*100)}%</span></label><input id={`pattern-${key}`} type="range" min={rangeOf(key).min} max={rangeOf(key).max} step={.05} value={proportions[key]} onChange={e=>setProportions({...proportions,[key]:Number(e.target.value)})}/></div>)}<div className="look-tone weave-palette"><span>Palette</span>{weavePaletteNames.map(name=><button key={name} className={weavePalette===name?'active':''} aria-pressed={weavePalette===name} onClick={()=>setWeavePalette(name)}>{name}</button>)}</div><div className="look-tone weave-palette"><span>Paper texture</span>{([true,false] as const).map(on=><button key={String(on)} className={paper===on?'active':''} aria-pressed={paper===on} onClick={()=>setPaper(on)}>{on?'On':'Off'}</button>)}</div></div><div className="panel-bottom"><span>{locked.size} of {bones.length} parts locked</span><button onClick={()=>setLocked(new Set())} disabled={!locked.size}>Unlock all <Unlock size={13}/></button></div></>}</aside></main>
+  <aside className="parts-panel"><div className="panel-tabs" role="tablist" aria-label="Editor panels"><button role="tab" aria-selected={panelTab==='parts'} className={panelTab==='parts'?'active':''} onClick={()=>setPanelTab('parts')}>Parts<span>{bones.length}</span></button><button role="tab" aria-selected={panelTab==='shape'} className={panelTab==='shape'?'active':''} onClick={()=>setPanelTab('shape')}>Proportions</button><button role="tab" aria-selected={panelTab==='live'} className={panelTab==='live'?'active':''} onClick={()=>setPanelTab('live')}>Live pose</button></div>{panelTab==='live'?<PosePanel client={poseClient}/>:panelTab==='shape'?<ProportionsPanel value={proportions} saved={savedProportions} lookChanged={!sameSettings(look,savedLook)} onChange={setProportions} onSaveDefault={saveDefaults} onReset={resetAll}/>:<><PartsPanel spec={spec} locked={locked} order={layerOrder} onOrder={setLayerOrder} onReroll={reroll} onToggleLock={toggleLock}/><div className="pattern-control"><label htmlFor="pattern-density">Pattern scale<span>{spec.density*2} cells</span></label><input id="pattern-density" type="range" min={2} max={12} value={spec.density} onChange={e=>{const next={...spec,density:Number(e.target.value)};setSpec(next);setSeed(encodeSeed(next));}}/>{([['checker','Checker scale'],['flowSpeed','Flow speed']] as const).map(([key,label])=><div key={key}><label htmlFor={`pattern-${key}`}>{label}<span>{Math.round(proportions[key]*100)}%</span></label><input id={`pattern-${key}`} type="range" min={rangeOf(key).min} max={rangeOf(key).max} step={.05} value={proportions[key]} onChange={e=>setProportions({...proportions,[key]:Number(e.target.value)})}/></div>)}<div className="look-tone weave-palette"><span>Palette</span>{weavePaletteNames.map(name=><button key={name} className={weavePalette===name?'active':''} aria-pressed={weavePalette===name} onClick={()=>setWeavePalette(name)}>{name}</button>)}</div><div className="look-tone weave-palette"><span>Paper texture</span>{([true,false] as const).map(on=><button key={String(on)} className={paper===on?'active':''} aria-pressed={paper===on} onClick={()=>setPaper(on)}>{on?'On':'Off'}</button>)}</div></div><div className="panel-bottom"><span>{locked.size} of {bones.length} parts locked</span><button onClick={()=>setLocked(new Set())} disabled={!locked.size}>Unlock all <Unlock size={13}/></button></div></>}</aside></main>
   {toast&&<div className="toast" role="status"><Check size={16}/>{toast}</div>}
  </div>;
 }

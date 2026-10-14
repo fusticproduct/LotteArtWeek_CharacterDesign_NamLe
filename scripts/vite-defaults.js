@@ -1,26 +1,40 @@
-// Lets the Proportions tab's "Save as default" write src/proportions.json under `npm run dev`, so the chosen
-// proportions become the project default in every browser (and are committed with the code).
+// Lets "Save all as default" (Proportions tab) write src/proportions.json and src/settings.json under `npm run dev`, so
+// the chosen proportions and look settings become the project default in every browser (and are committed with the code).
 // Plain JS because the project has no Node typings (see vite-defaults.d.ts).
-import {readFileSync,writeFileSync} from 'node:fs';
+import {writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 
-const file=fileURLToPath(new URL('../src/proportions.json',import.meta.url));
+const proportionsFile=fileURLToPath(new URL('../src/proportions.json',import.meta.url));
+const settingsFile=fileURLToPath(new URL('../src/settings.json',import.meta.url));
+/** Every proportion key and its slider range (model.ts proportionKeys / rangeOf). */
+const ranges={head:[.5,1.5],torsoWidth:[.5,1.5],torsoHeight:[.5,1.5],pelvis:[.5,1.5],arms:[.5,1.5],legs:[.5,1.5],hands:[.5,1.5],feet:[.5,1.5],joints:[.5,1.5],fingers:[.5,1.5],fingerStiffness:[.5,1.5],toes:[.5,1.5],hair:[.5,1.5],checker:[.4,2.5],flowSpeed:[-3,3]};
+const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
+
+const proportions=data=>{
+ const out={};
+ for(const [key,[min,max]] of Object.entries(ranges)){if(!(key in data))continue;const v=Number(data[key]);if(!Number.isFinite(v)||v<min||v>max)throw new Error(`Invalid ${key}`);out[key]=Math.round(v*100)/100;}
+ return [proportionsFile,out];
+};
+const settings=data=>{
+ if(!palettes.includes(data.palette))throw new Error('Invalid palette');
+ if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
+ if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,darkStage:data.darkStage}];
+};
 
 export function defaultsWriter(){
- const handle=(req,res)=>{
+ const route=check=>(req,res)=>{
   // A custom header forces a CORS preflight, so other web pages cannot post here.
   if(req.method!=='POST'||req.headers['x-geofolk']!=='1'){res.statusCode=403;res.end();return;}
   let body='';
   req.on('data',chunk=>{body+=chunk;if(body.length>4096)req.destroy();});
   req.on('end',()=>{
    try{
-    // Only the keys already in the file, each 0.5–1.5 like the sliders.
-    const data=JSON.parse(body),out={};
-    for(const key of Object.keys(JSON.parse(readFileSync(file,'utf8')))){const v=Number(data[key]);if(!Number.isFinite(v)||v<.5||v>1.5)throw new Error(`Invalid ${key}`);out[key]=Math.round(v*100)/100;}
+    const [file,out]=check(JSON.parse(body));
     writeFileSync(file,JSON.stringify(out,null,1)+'\n');
     res.setHeader('Content-Type','application/json');res.end(JSON.stringify(out));
    }catch(e){res.statusCode=400;res.end(String(e.message));}
   });
  };
- return {name:'geofolk-defaults',configureServer:server=>{server.middlewares.use('/__defaults/proportions',handle);}};
+ return {name:'geofolk-defaults',configureServer:server=>{server.middlewares.use('/__defaults/proportions',route(proportions));server.middlewares.use('/__defaults/settings',route(settings));}};
 }

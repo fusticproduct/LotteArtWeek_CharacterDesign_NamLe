@@ -1,0 +1,13 @@
+{
+ "palette": "HFCD",
+ "layerOrder": [
+  "arms",
+  "head",
+  "torso",
+  "neck",
+  "pelvis",
+  "legs"
+ ],
+ "paper": true,
+ "darkStage": true
+}

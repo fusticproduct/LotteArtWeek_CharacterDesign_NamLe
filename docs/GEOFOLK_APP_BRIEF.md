@@ -781,3 +781,10 @@ Anh Nam: slider cỡ cho hoa văn ô cờ đặt cạnh Pattern scale; slider ch
 ## 48. Mỗi ngón một hình tròn (14/10/2026)
 
 Anh Nam: 5 hình tròn cho 5 ngón, không hơn. Mỗi ngón giờ là một hình tròn buộc vào mép bàn tay bằng sợi dây ngắn (2,2 bán kính): nếu buộc cứng đúng một bán kính và không cho lọt vào tay thì hình tròn chỉ còn một vị trí, không đung đưa được. Với sợi dây, nó lăn và lắc men theo mép tay, có lực kéo về chỗ nghỉ, không lọt vào tay, không chồng nhau.
+
+## 49. Lưu mọi cài đặt làm mặc định (14/10/2026)
+
+Anh Nam: thêm lưu mặc định cho mọi cài đặt.
+
+- Nút "Save all as default" (tab Proportions) lưu các tỉ lệ cùng Checker scale, Flow speed vào src/proportions.json, và palette, thứ tự lớp, Paper texture, nền đen/giấy vào src/settings.json. Server dev ghi hai file và kiểm tra từng giá trị theo khoảng của nó (trước đây chỉ nhận các khoá đã có trong file, nên Fingers, Toes, Checker scale, Flow speed không lưu được). Bản build tĩnh lưu cho trình duyệt đó.
+- Trình duyệt chưa có giá trị riêng thì bắt đầu từ các mặc định này; Reset đưa mọi cài đặt về mặc định đã lưu.
