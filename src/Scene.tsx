@@ -14,11 +14,12 @@ import type {RisoSettings} from './riso';
 import type {PixelSettings} from './pixelate';
 import type {SpraySettings} from './spray';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
-interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
+interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;rulesKey:string;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
 const viewHeight=restHeight*1.5,centerY=restHeight*.56;
 function World(p:Props){
- const rig=useMemo(()=>createCharacter(p.spec,p.weavePalette,undefined,p.proportions),[p.spec,p.weavePalette,p.proportions]);
+ // rulesKey: the pattern rules (rules.ts) also decide which parts are pixel or spray parts and the checker looks.
+ const rig=useMemo(()=>createCharacter(p.spec,p.weavePalette,undefined,p.proportions),[p.spec,p.weavePalette,p.proportions,p.rulesKey]);
  const {gl,scene,camera,size}=useThree();
  const controls=useRef<OrbitControlsImpl>(null),posed=useRef(false);
  useEffect(()=>{rig.applyPose(p.pose);posed.current=true;p.onReady({rig,renderer:gl,scene,camera});},[rig,p.pose,gl,scene,camera,p.onReady]);

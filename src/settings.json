@@ -29,6 +29,23 @@
   "on": false,
   "amount": 0.05
  },
+ "rules": {
+  "weave": 1,
+  "twoTone": 0.55,
+  "checker": 2,
+  "checkerApart": true,
+  "checkerStyles": [
+   true,
+   true,
+   true,
+   true
+  ],
+  "flow": 4,
+  "flowApart": true,
+  "touching": true,
+  "pixel": 2,
+  "spray": 2
+ },
  "darkStage": true,
  "patternScale": 10
 }

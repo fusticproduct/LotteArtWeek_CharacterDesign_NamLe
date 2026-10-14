@@ -1,6 +1,7 @@
 import paletteData from './palette.json';
 import savedProportions from './proportions.json';
 import {hairStyleNames,hairStyles,liveHair} from './hair';
+import {rules} from './rules';
 export const palette = paletteData.colors;
 export const color = (id: string) => palette.find(c => c.id === id)!.hex;
 export const theme = {paper:color('neutral_1'),ink:color('dark_1'),green:color('green_1'),blue:color('blue_1'),pink:color('pink_2')};
@@ -147,10 +148,10 @@ const touching=(parts:Record<string,PartChoice>,id:string):string[]=>{
 /** Fixed order in which flow parts are kept and filled. */
 const flowOrder=['head','hand_R','forearm_L','shin_R','foot_L','upperarm_R','thigh_L','hand_L','foot_R','forearm_R','shin_L','upperarm_L','thigh_R'];
 /** Whether a part may take the flow next to the parts already chosen. */
-const flowFits=(parts:Record<string,PartChoice>,id:string,chosen:string[])=>!(textured(parts[id])&&parts[id].pattern!==flow)&&!chosen.includes(id)&&!chosen.includes(twinOf(id)!)&&touching(parts,id).every(n=>!chosen.includes(n)&&!(textured(parts[n])&&parts[n].pattern!==flow));
+const flowFits=(parts:Record<string,PartChoice>,id:string,chosen:string[])=>!(textured(parts[id])&&parts[id].pattern!==flow)&&!chosen.includes(id)&&!(rules().flowApart&&chosen.includes(twinOf(id)!))&&(!rules().touching||touching(parts,id).every(n=>!chosen.includes(n)&&!(textured(parts[n])&&parts[n].pattern!==flow)));
 /** Fixed order in which spots are kept and filled, so a seed always settles the same way. */
 const spotOrder=['upperarm_L','shin_R','forearm_R','thigh_L','forearm_L','shin_L','upperarm_R','thigh_R'];
-const patchworkSpots=(parts:Record<string,PartChoice>)=>{const plainBelow=parts.spine_lower.variant!==0&&!parts.root.pattern;return spotOrder.filter(id=>!id.startsWith('thigh')||plainBelow);};
+const patchworkSpots=(parts:Record<string,PartChoice>)=>{const plainBelow=parts.spine_lower.variant!==0&&!parts.root.pattern;return spotOrder.filter(id=>!id.startsWith('thigh')||plainBelow||!rules().touching);};
 export interface PartChoice {variant:number;color:number;accent:number;pattern:number;}
 export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;}
 /** Preset poses; 'dance' plays the recorded motion in src/dance.ts and rests in the idle pose for exports. */
@@ -202,22 +203,24 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  if(build===bigTop&&bottom.variant===donut)bottom.variant=0;
  if(!topShapes(build).includes(top.variant))top.variant=0;
  if(build===pair&&!pairPartners(top.variant).includes(bottom.variant))bottom.variant=pairPartners(top.variant)[0];
- // There is always a woven piece, and two stacked pieces touch, so exactly one of them is woven: a Single body is
- // always woven; of two pieces, the top one stays woven if both are.
- if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;
- if(build!==single&&top.pattern&&bottom.pattern)bottom.pattern=0;
- // Exactly two patchwork spots, never a mirrored pair. Spots that may have it stay; a thigh that may not moves down to
+ // Woven pieces (rules.ts weave): by default there is always one, and two stacked pieces touch, so exactly one of them
+ // is woven: a Single body is always woven; of two pieces, the top one stays woven if both are. 0 = none, 2 = both.
+ const woven=Math.min(rules().weave,build===single?1:2);
+ if(woven===0){top.pattern=0;bottom.pattern=0;}
+ else if(woven===2){if(!top.pattern)top.pattern=1;if(!bottom.pattern)bottom.pattern=1;}
+ else{if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;if(build!==single&&top.pattern&&bottom.pattern)bottom.pattern=0;}
+ // Exactly rules().checker patchwork spots (two by default), never a mirrored pair unless the rule is off. Spots that may have it stay; a thigh that may not moves down to
  // its shin; missing spots are filled in the fixed order.
- const allowed=patchworkSpots(parts),spots:string[]=[],free=(id:string)=>spots.length<2&&!spots.includes(id)&&!spots.includes(twinOf(id)!);
+ const allowed=patchworkSpots(parts),spots:string[]=[],free=(id:string)=>spots.length<rules().checker&&!spots.includes(id)&&!(rules().checkerApart&&spots.includes(twinOf(id)!));
  for(const id of spotOrder)if(parts[id].pattern===patchwork){const spot=allowed.includes(id)?id:id.replace('thigh','shin');if(free(spot))spots.push(spot);}
  for(const id of allowed)if(free(id))spots.push(id);
  for(const id of Object.keys(parts))if(parts[id].pattern===patchwork)parts[id].pattern=0;
  for(const id of spots)parts[id].pattern=patchwork;
  // Four flow parts that fit (fewer only if no more fit): the ones that have it stay while they still fit, the rest fill in the fixed order.
  const flows:string[]=[];
- for(const id of flowOrder)if(parts[id].pattern===flow&&flows.length<flowCount&&flowFits(parts,id,flows))flows.push(id);
+ for(const id of flowOrder)if(parts[id].pattern===flow&&flows.length<rules().flow&&flowFits(parts,id,flows))flows.push(id);
  for(const id of Object.keys(parts))if(parts[id].pattern===flow&&!flows.includes(id))parts[id].pattern=0;
- for(const id of flowOrder)if(flows.length<flowCount&&flowFits(parts,id,flows))flows.push(id);
+ for(const id of flowOrder)if(flows.length<rules().flow&&flowFits(parts,id,flows))flows.push(id);
  for(const id of flows)parts[id].pattern=flow;
  return {...spec,parts};
 }
@@ -323,6 +326,9 @@ function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<s
  else if(free('root'))bottom.pattern=top.pattern?0:woven();
  // A kept plain pair (e.g. after a Single becomes a Pair) gets a weave on a piece the user has not locked.
  if(!top.pattern&&!bottom.pattern){if(!locked.has('spine_upper'))top.pattern=woven();else if(!locked.has('root'))bottom.pattern=woven();}
+ // Other weave rules (rules.ts): no woven piece, or both pieces woven.
+ if(rules().weave===0){top.pattern=0;bottom.pattern=0;}
+ else if(rules().weave===2){if(!top.pattern)top.pattern=woven();if(!bottom.pattern)bottom.pattern=woven();}
 }
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
  const random=rng(label),parts:Record<string,PartChoice>={};
@@ -334,7 +340,7 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   const twin=twinOf(b.id);
   if(b.id.endsWith('_R')&&mirrorsFully(b.id)&&parts[twin!]){parts[b.id]={...parts[twin!]};continue;}
   // Body pieces get their pattern in fitBody, once the build is known.
-  const pattern=(b.kind==='limb'||b.kind==='leg')&&random()<.55?twoTone:0;
+  const pattern=(b.kind==='limb'||b.kind==='leg')&&random()<rules().twoTone?twoTone:0;
   // Never pair two beaded segments on the same limb.
   const pair=pairedSegment(b.id),pairChoice=pair?(parts[pair]??(frozen.has(pair)?previous?.parts[pair]:undefined)):undefined;
   const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant))&&!(b.kind==='hair'&&hairStyles[i].retired));
@@ -350,11 +356,11 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
  // A rerolled segment keeps its patchwork; missing spots are drawn at random from the segments that may take one.
  if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===patchwork)parts[id].pattern=patchwork;
  const allowed=patchworkSpots(parts),spots=allowed.filter(id=>parts[id].pattern===patchwork);
- while(spots.length<2){const options=allowed.filter(id=>!spots.includes(id)&&!spots.includes(twinOf(id)!)&&!frozen.has(id));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=patchwork;spots.push(id);}
+ while(spots.length<rules().checker){const options=allowed.filter(id=>!spots.includes(id)&&!(rules().checkerApart&&spots.includes(twinOf(id)!))&&!frozen.has(id));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=patchwork;spots.push(id);}
  // Flow: a rerolled part keeps it; missing ones are drawn at random from the parts that fit.
  if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===flow)parts[id].pattern=flow;
  const flows=flowOrder.filter(id=>parts[id].pattern===flow);
- while(flows.length<flowCount){const options=flowOrder.filter(id=>!frozen.has(id)&&flowFits(parts,id,flows));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=flow;flows.push(id);}
+ while(flows.length<rules().flow){const options=flowOrder.filter(id=>!frozen.has(id)&&flowFits(parts,id,flows));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=flow;flows.push(id);}
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}

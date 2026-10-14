@@ -906,3 +906,11 @@ Anh Nam: khớp đùi đang nằm trên khối thân dưới; cần nằm sau, n
 - Thứ tự vẽ: khớp hông ngay trên đùi của nó (+0,3), nên với thứ tự lớp thường vẫn nằm sau khối thân.
 - Chiều cao: chân không đổi độ dài, nên nhân vật cao hơn 2,4 m đúng bằng đoạn hông hạ xuống; `group.userData.restHeight` và Rig JSON ghi chiều cao thật.
 
+## 65. Pixel 2 bộ phận; bảng Rules (14/10/2026)
+
+Anh Nam: pixel hóa 2 bộ phận, không bao giờ là khớp; liệt kê toàn bộ luật (gradient, hoa văn…) ở cuối trang, chỉnh được số lượng và luật.
+
+- `src/rules.ts`: luật hiện hành (weave, twoTone, checker + checkerApart + checkerStyles, flow + flowApart, touching, pixel, spray), mặc định đúng như các vòng trước (pixel nay là 2). `generate`/`normalizeSpec` (model.ts) và rig đọc luật hiện hành; seed đầy đủ mở ra theo luật đang dùng.
+- `src/RulesPanel.tsx`: bảng ở cuối trang; đổi luật thì nhân vật được `normalizeSpec` lại ngay; luật chỉ ảnh hưởng hình vẽ (pixel, spray, kiểu checker) thì sân khấu dựng lại rig.
+- `pixelPartsOf`: đoạn trơn, rồi bàn tay/chân trơn, rồi đoạn two-tone, mỗi nhóm xáo theo tên nhân vật, lấy đủ số theo luật.
+

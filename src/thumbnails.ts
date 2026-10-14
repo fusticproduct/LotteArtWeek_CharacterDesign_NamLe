@@ -7,7 +7,7 @@ import {stageColor} from './themes';
 import type {RisoSettings} from './riso';
 import type {PixelSettings} from './pixelate';
 import type {SpraySettings} from './spray';
-export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;pose:Pose;}
+export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;rules?:unknown;pose:Pose;}
 let renderer:THREE.WebGLRenderer|null=null;
 /** Renders one character off screen, in the stage's front view and look, and returns a PNG data URL. `danceTime` picks the Dance frame. */
 export function renderThumbnail(spec:CharacterSpec,look:ThumbnailLook,width:number,height:number,danceTime=0){

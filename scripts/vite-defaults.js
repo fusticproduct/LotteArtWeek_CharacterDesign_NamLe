@@ -27,6 +27,13 @@ const spray=s=>{
  if(!s||typeof s.on!=='boolean'||!Number.isFinite(amount)||amount<.005||amount>.15)throw new Error('Invalid spray');
  return {on:s.on,amount:Math.round(amount*1000)/1000};
 };
+/** Pattern rules (rules.ts normalizeRules). */
+const rules=s=>{
+ const int=(k,min,max)=>{const v=s?.[k];if(!Number.isInteger(v)||v<min||v>max)throw new Error(`Invalid rule ${k}`);return v;};
+ if(!s||typeof s.checkerApart!=='boolean'||typeof s.flowApart!=='boolean'||typeof s.touching!=='boolean'||!Array.isArray(s.checkerStyles)||s.checkerStyles.length!==4||!s.checkerStyles.every(v=>typeof v==='boolean')||!s.checkerStyles.some(Boolean))throw new Error('Invalid rules');
+ const twoTone=Number(s.twoTone);if(!Number.isFinite(twoTone)||twoTone<0||twoTone>1)throw new Error('Invalid rule twoTone');
+ return {weave:int('weave',0,2),twoTone:Math.round(twoTone*100)/100,checker:int('checker',0,6),checkerApart:s.checkerApart,checkerStyles:s.checkerStyles,flow:int('flow',0,8),flowApart:s.flowApart,touching:s.touching,pixel:int('pixel',0,4),spray:int('spray',0,4)};
+};
 const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
 
 const proportions=data=>{
@@ -39,7 +46,7 @@ const settings=data=>{
  if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
  if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
  if(!Number.isInteger(data.patternScale)||data.patternScale<2||data.patternScale>12)throw new Error('Invalid pattern scale');
- return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),spray:spray(data.spray),darkStage:data.darkStage,patternScale:data.patternScale}];
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),spray:spray(data.spray),rules:rules(data.rules),darkStage:data.darkStage,patternScale:data.patternScale}];
 };
 
 export function defaultsWriter(){
@@ -47,7 +54,7 @@ export function defaultsWriter(){
   // A custom header forces a CORS preflight, so other web pages cannot post here.
   if(req.method!=='POST'||req.headers['x-geofolk']!=='1'){res.statusCode=403;res.end();return;}
   let body='';
-  req.on('data',chunk=>{body+=chunk;if(body.length>4096)req.destroy();});
+  req.on('data',chunk=>{body+=chunk;if(body.length>8192)req.destroy();});
   req.on('end',()=>{
    try{
     const [file,out]=check(JSON.parse(body));

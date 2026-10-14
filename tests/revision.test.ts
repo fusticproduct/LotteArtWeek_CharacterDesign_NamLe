@@ -8,12 +8,13 @@ import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
 import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
+import {setRules,defaultRules,normalizeRules} from '../src/rules';
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 const partColorsFor=(spec:ReturnType<typeof generate>)=>partColors(spec,'HFCD');
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,headOutlines,pixelPartOf,sprayPartsOf,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
+import {createCharacter,headOutlines,pixelPartsOf,sprayPartsOf,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -551,25 +552,28 @@ it('gives each checker spot one of four looks on its own, stripes and checks in 
  expect(seen.size).toBe(checkerStyles.length);expect(differ).toBeGreaterThan(50);
 });
 
-it('draws one plain limb segment on the pixel grid, cells square and on the grid, following the pose',()=>{
+it('draws two parts on the pixel grid, never joints, plain segments first, cells square and on the grid, following the pose',()=>{
  for(let i=0;i<40;i++){
-  const spec=generate(`pixel-${i}`),id=pixelPartOf(spec)!;
-  expect(id,`${i}`).toBeTruthy();expect(isJoint(id),id).toBe(false);expect(['limb','leg','hand','foot']).toContain(bones.find(b=>b.id===id)!.kind);
-  const plainSegments=bones.filter(b=>(b.kind==='limb'||b.kind==='leg')&&spec.parts[b.id].pattern===0);
-  if(plainSegments.length)expect(plainSegments.map(b=>b.id),id).toContain(id);else expect([0,twoTone]).toContain(spec.parts[id].pattern);
-  const rig=createCharacter(spec),pixel=rig.pixel!;expect(pixel.part.name).toBe(`${id}_mesh`);expect(pixel.part.visible).toBe(false);
-  const cells=(pixel.mesh.geometry.drawRange.count)/6;expect(cells,id).toBeGreaterThan(3);
-  const p=pixel.mesh.geometry.getAttribute('position');
-  for(let k=0;k<cells*4;k++)for(const v of [p.getX(k),p.getY(k)])expect(Math.abs(v/pixelSize-Math.round(v/pixelSize)),id).toBeLessThan(1e-4);
-  const box=()=>{const b=new Box3().setFromArray((p.array as Float32Array).subarray(0,pixel.mesh.geometry.drawRange.count/6*12));return b.min.toArray().concat(b.max.toArray()).join();};
-  const before=box();rig.applyPose('stride');expect(box(),id).not.toBe(before);
+  const spec=generate(`pixel-${i}`),ids=pixelPartsOf(spec);
+  expect(ids.length,`${i}`).toBe(2);expect(new Set(ids).size).toBe(2);
+  const plainSegments=bones.filter(b=>(b.kind==='limb'||b.kind==='leg')&&spec.parts[b.id].pattern===0).map(b=>b.id);
+  for(const id of ids){expect(isJoint(id),id).toBe(false);expect(['limb','leg','hand','foot']).toContain(bones.find(b=>b.id===id)!.kind);expect([0,twoTone]).toContain(spec.parts[id].pattern);}
+  if(plainSegments.length>=2)for(const id of ids)expect(plainSegments,id).toContain(id);
+  const rig=createCharacter(spec);expect(rig.pixels.map(p=>p.part.name)).toEqual(ids.map(id=>`${id}_mesh`));
+  for(const pixel of rig.pixels){
+   expect(pixel.part.visible).toBe(false);const cells=pixel.mesh.geometry.drawRange.count/6;expect(cells).toBeGreaterThan(3);
+   const p=pixel.mesh.geometry.getAttribute('position');
+   for(let k=0;k<cells*4;k++)for(const v of [p.getX(k),p.getY(k)])expect(Math.abs(v/pixelSize-Math.round(v/pixelSize))).toBeLessThan(1e-4);
+  }
+  const box=()=>rig.pixels.map(px=>{const b=new Box3().setFromArray((px.mesh.geometry.getAttribute('position').array as Float32Array).subarray(0,px.mesh.geometry.drawRange.count/6*12));return b.min.toArray().concat(b.max.toArray()).join();}).join('|');
+  const before=box();rig.applyPose('stride');expect(box()).not.toBe(before);
   rig.dispose();
  }
 });
 
 it('lets the pixel part be turned off, resized and redrawn at a low frame rate',()=>{
  expect(normalizePixel(undefined)).toEqual(defaultPixel);expect(normalizePixel({on:false,size:1,fps:7})).toEqual({on:false,size:.08,fps:0});
- const rig=createCharacter(generate('pixel-controls')),pixel=rig.pixel!,cells=()=>pixel.mesh.geometry.drawRange.count;
+ const rig=createCharacter(generate('pixel-controls')),pixel=rig.pixels[0],cells=()=>pixel.mesh.geometry.drawRange.count;
  const p=pixel.mesh.geometry.getAttribute('position'),snapshot=()=>Array.from((p.array as Float32Array).subarray(0,cells()*2)).join();
  rig.setPixel({on:true,size:.07,fps:0});const big=cells();rig.setPixel({on:true,size:.02,fps:0});expect(cells()).toBeGreaterThan(big);
  rig.setPixel({on:true,size:.035,fps:4});const still=snapshot();rig.applyPose('stride');expect(snapshot()).toBe(still);
@@ -582,7 +586,7 @@ it('spray-blurs two random parts when turned on: grainy copies in the part\'s la
  expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({on:true,amount:.15});
  for(let i=0;i<10;i++){
   const spec=generate(`spray-${i}`),ids=sprayPartsOf(spec);
-  expect(ids.length).toBe(2);expect(new Set(ids).size).toBe(2);expect(ids).not.toContain(pixelPartOf(spec));for(const id of ids)expect(isJoint(id),id).toBe(false);
+  expect(ids.length).toBe(2);expect(new Set(ids).size).toBe(2);for(const id of pixelPartsOf(spec))expect(ids).not.toContain(id);for(const id of ids)expect(isJoint(id),id).toBe(false);
   const rig=createCharacter(spec);
   for(const spray of rig.sprays){expect(spray.meshes.every(m=>!m.visible)).toBe(true);expect(spray.part.visible).toBe(true);}
   rig.setSpray({on:true,amount:.08});
@@ -602,4 +606,23 @@ it('draws the hip joints behind the body piece that carries them but over the th
   expect(partName(spec,bones.find(b=>b.id==='hip_L')!)).toBe(jointShapes[jointShapeOf(spec.parts.shoulder_L.variant)]);
   rig.dispose();
  }
+});
+
+it('follows the pattern rules: counts, mirrored pairs, touching parts, weave, pixel and spray parts, checker looks',()=>{
+ const count=(spec:ReturnType<typeof generate>,pattern:number)=>Object.values(spec.parts).filter(p=>p.pattern===pattern).length;
+ try{
+  expect(normalizeRules({checker:99,flow:-3,twoTone:7,checkerStyles:[false,false,false,false]})).toEqual({...defaultRules,checker:6,flow:0,twoTone:1});
+  setRules({...defaultRules,checker:3,flow:6,pixel:3,spray:1});
+  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork),`${i}`).toBe(3);expect(count(spec,flow)).toBeGreaterThanOrEqual(4);expect(count(spec,flow)).toBeLessThanOrEqual(6);expect(pixelPartsOf(spec).length).toBe(3);expect(sprayPartsOf(spec).length).toBe(1);}
+  setRules({...defaultRules,checker:0,flow:0,weave:0,twoTone:0});
+  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(Object.values(spec.parts).every(p=>p.pattern===0),`${i}`).toBe(true);}
+  setRules({...defaultRules,weave:2});
+  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);if(spec.parts.spine_lower.variant!==0){expect(spec.parts.spine_upper.pattern).toBeGreaterThan(0);expect(spec.parts.root.pattern).toBeGreaterThan(0);}}
+  setRules({...defaultRules,checkerStyles:[false,false,false,true]});
+  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);for(const b of bones)if(spec.parts[b.id].pattern===patchwork)expect(checkerStyleOf(spec,b.id)).toBe(3);}
+  // With the touching and mirror rules off, a thigh may take a checker under a woven piece, and a pair may both take it.
+  setRules({...defaultRules,checker:6,checkerApart:false,touching:false});
+  let mirrored=0;for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork)).toBe(6);if(spec.parts.upperarm_L.pattern===patchwork&&spec.parts.upperarm_R.pattern===patchwork)mirrored++;}
+  expect(mirrored).toBeGreaterThan(0);
+ }finally{setRules(defaultRules);}
 });
