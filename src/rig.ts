@@ -5,6 +5,7 @@ import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDep
 
 import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors,stageColor} from './themes';
+import {defaultRiso,risoBlends,type RisoSettings} from './riso';
 import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
@@ -144,25 +145,27 @@ function paperGrain(){
 /**
  * Paper look on a flat material: grain sampled in the part's own space (so it moves with the part) and a soft
  * light-to-dark shift from the top to the bottom of the part, like ink pooling. `amount` 0 turns it off.
- * Riso (Nam, 2026-10-14): `riso` 1 prints every colour as a very fine halftone, like a risograph: ink dots on a 3 px
- * screen at 45 degrees, fixed to the screen like a printed sheet, denser for darker colours and a little uneven with
- * the paper grain, with the sheet showing between them.
+ * Riso (riso.ts): a fine halftone laid out in the part's own space (so the dots move and turn with it). Dot spacing,
+ * screen angle and coverage are set in the Parts panel; darker colours take a little more ink and the paper grain makes
+ * the dots uneven. The riso colour is blended over the part's colour between the dots (or, inverted, in them).
  */
-const risoCell={value:3*(typeof window==='undefined'?1:window.devicePixelRatio||1)};
-function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry,amount:{value:number},riso:{value:number}){
+export type RisoUniforms=ReturnType<typeof risoUniforms>;
+const risoUniforms=()=>({risoAmount:{value:0},risoCell:{value:defaultRiso.size},risoCover:{value:defaultRiso.coverage},risoAngle:{value:new THREE.Vector2(Math.SQRT1_2,Math.SQRT1_2)},risoGrain:{value:defaultRiso.grain},risoColor:{value:new THREE.Color(defaultRiso.color)},risoBlend:{value:0},risoInvert:{value:0}});
+function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry,amount:{value:number},riso:RisoUniforms){
  if(typeof document==='undefined')return;
  geometry.computeBoundingBox();const span=new THREE.Vector2(geometry.boundingBox!.min.y,geometry.boundingBox!.max.y);
  // Circles redrawn every frame (fingers, ragdoll hair) start empty: give them the neutral middle tone.
  if(span.y-span.x<1e-3)span.set(-1e3,1e3);
  material.customProgramCacheKey=()=>'geofolk-paper';
  material.onBeforeCompile=shader=>{
-  Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span},risoAmount:riso,risoCell});
+  Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span},...riso});
   shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vPaper;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPaper=position;');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount,risoAmount,risoCell;uniform vec2 paperSpan;varying vec3 vPaper;')
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount,risoAmount,risoCell,risoCover,risoGrain,risoInvert;uniform int risoBlend;uniform vec2 paperSpan,risoAngle;uniform vec3 risoColor;varying vec3 vPaper;')
    .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);'+
-    '\nif(risoAmount>0.){vec2 risoQ=fract(mat2(.7071,.7071,-.7071,.7071)*gl_FragCoord.xy/risoCell)-.5;float risoD=length(risoQ),risoL=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));'+
-    'float risoR=sqrt(clamp(.98-.24*sqrt(risoL)+paperNoise*.16,.55,.99)/3.14159),risoW=max(fwidth(risoD)*.75,.02);'+
-    'diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.91,.89,.83),diffuseColor.rgb,1.-smoothstep(risoR-risoW,risoR+risoW,risoD)),risoAmount);}');
+    '\nif(risoAmount>0.){vec2 risoQ=fract(mat2(risoAngle.x,-risoAngle.y,risoAngle.y,risoAngle.x)*vPaper.xy/risoCell)-.5;float risoD=length(risoQ),risoL=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));'+
+    'float risoR=sqrt(clamp(risoCover+(.5-sqrt(risoL))*.24+paperNoise*risoGrain*.6,.04,.995)/3.14159),risoW=max(fwidth(risoD)*.75,.01),risoInk=1.-smoothstep(risoR-risoW,risoR+risoW,risoD);'+
+    'vec3 risoC=diffuseColor.rgb,risoK=risoColor;vec3 risoMix=risoBlend==1?risoC*risoK:risoBlend==2?1.-(1.-risoC)*(1.-risoK):risoBlend==3?mix(2.*risoC*risoK,1.-2.*(1.-risoC)*(1.-risoK),step(.5,risoC)):risoBlend==4?min(risoC,risoK):risoBlend==5?max(risoC,risoK):risoK;'+
+    'diffuseColor.rgb=mix(risoC,risoMix,mix(1.-risoInk,risoInk,risoInvert)*risoAmount);}');
  };
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
@@ -336,7 +339,7 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
 }
 export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>(),paperAmount={value:1},risoAmount={value:0},decorate=(m:THREE.MeshBasicMaterial,g:THREE.BufferGeometry)=>addPaper(m,g,paperAmount,risoAmount),colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1},riso=risoUniforms(),decorate=(m:THREE.MeshBasicMaterial,g:THREE.BufferGeometry)=>addPaper(m,g,paperAmount,riso),colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
  // The waist pivot moves to the seam between the body pieces; neck and shoulders keep their height, shoulders and hips follow the pieces' edges.
  const place=(def:typeof bones[number],bone:THREE.Bone)=>{
   const side=Math.sign(def.headPosition[0]);
@@ -449,8 +452,11 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setLayerOrder=(order:LayerGroup[])=>restack({order});
  /** Paper grain and tone on or off (A5); a shared uniform, so no rebuild. */
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
- /** Riso halftone on or off; a shared uniform too. */
- const setRiso=(on:boolean)=>{risoAmount.value=on?1:0;};
+ /** Riso halftone settings (riso.ts); shared uniforms too, so no rebuild. */
+ const setRiso=(s:RisoSettings)=>{
+  const a=s.angle*Math.PI/180;riso.risoAmount.value=s.on?s.opacity:0;riso.risoCell.value=s.size;riso.risoCover.value=s.coverage;riso.risoAngle.value.set(Math.cos(a),Math.sin(a));
+  riso.risoGrain.value=s.grain;riso.risoColor.value.set(s.color);riso.risoBlend.value=risoBlends.indexOf(s.blend);riso.risoInvert.value=s.invert?1:0;
+ };
  /** The stage colour shown through Donut and Ring holes (stageColor in themes.ts); a shared material, so no rebuild. */
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */

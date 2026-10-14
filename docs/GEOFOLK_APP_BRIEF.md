@@ -854,3 +854,12 @@ Làm:
 - Đầu chuỗi lủng lẳng có thể là hình (ngôi sao 5 cánh, dấu sao 8 cánh), xoay theo hướng chuỗi (Star, Asterisk).
 - Mũ tương lai Visor (vỏ cao + khe kính) và Jet (vòm + hai cánh xếch) lấy số thứ tự của Moto và Hard hat; Saucer, Top hat, Cone lấy số của Segments, Cap, Racer; các kiểu mới khác thêm vào cuối.
 - Sau đó anh Nam chỉ giữ hai kiểu robot: 30 Star và 22 Antenna. Blocks, Knight, Twin antennas, Gear, Siren, Asterisk thành kiểu "nghỉ" (`retired`): giữ số thứ tự để seed cũ vẫn mở được (thành Slab, Visor, Antenna, Crown, Antenna, Star), Generate không bao giờ chọn chúng.
+
+## 58. Riso có thuộc tính, chấm dính theo hình (14/10/2026)
+
+Anh Nam: Riso cần bảng thuộc tính; không phải một lớp texture cố định phía sau mà phải dính theo hình; có chế độ hòa trộn, bảng chọn màu và mọi thuộc tính để chỉnh.
+
+- `src/riso.ts`: cài đặt Riso (on, color, blend, opacity, size, coverage, angle, grain, invert), giới hạn và chuẩn hóa (đọc được cả giá trị bật/tắt cũ).
+- Shader (`addPaper`): lưới chấm tính theo tọa độ của bộ phận (`vPaper`, mét), xoay theo Screen angle, nên chấm đi và xoay cùng bộ phận. Màu riso hòa lên màu bộ phận bằng chế độ đã chọn, ở khe giữa các chấm (Gaps) hoặc trong chấm (Dots), mạnh theo Opacity. Màu đậm vẫn phủ mực dày hơn một chút; Grain làm chấm lệch theo vân giấy.
+- Bảng điều khiển hiện dưới nút Riso khi bật; lưu theo trình duyệt (`geofolk.riso`, JSON) và trong Save all as default (`riso` trong `src/settings.json`, máy chủ dev kiểm tra từng giá trị).
+

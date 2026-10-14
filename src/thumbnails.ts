@@ -4,7 +4,8 @@ import {type CharacterSpec,type Pose,type Proportions} from './model';
 import {danceFrame} from './motion';
 import type {WeavePaletteName} from './weave';
 import {stageColor} from './themes';
-export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:boolean;pose:Pose;}
+import type {RisoSettings} from './riso';
+export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pose:Pose;}
 let renderer:THREE.WebGLRenderer|null=null;
 /** Renders one character off screen, in the stage's front view and look, and returns a PNG data URL. `danceTime` picks the Dance frame. */
 export function renderThumbnail(spec:CharacterSpec,look:ThumbnailLook,width:number,height:number,danceTime=0){

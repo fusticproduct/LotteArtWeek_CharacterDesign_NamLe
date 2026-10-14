@@ -5,6 +5,8 @@ import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
+import {normalizeRiso,defaultRiso} from '../src/riso';
+import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -527,4 +529,11 @@ it('never draws a retired hair style and opens one from an old seed as its stand
  for(let i=0;i<300;i++)expect(hairStyles[generate(`retired-${i}`).parts.hair.variant].retired,`${i}`).toBeUndefined();
  const spec=generate('retired');const gear=hairStyles.findIndex(s=>s.name==='Gear');spec.parts.hair.variant=gear;
  expect(hairStyles[decodeSeed(encodeSeed(spec)).parts.hair.variant].name).toBe(hairStyles[gear].retired);
+});
+
+it('reads riso settings in range, also the older on/off switch, and keeps them with the saved look',()=>{
+ expect(normalizeRiso(undefined)).toEqual(defaultRiso);expect(normalizeRiso(true)).toEqual({...defaultRiso,on:true});
+ expect(normalizeRiso({on:true,size:9,coverage:-1,angle:400,grain:'x',opacity:.5,color:'red',blend:'Glow',invert:true})).toEqual({...defaultRiso,on:true,size:.04,coverage:.3,angle:90,opacity:.5,invert:true});
+ const custom={on:true,color:'#112233',blend:'Multiply' as const,opacity:.7,size:.012,coverage:.6,angle:15,grain:0,invert:false};
+ expect(normalizeSettings({riso:custom}).riso).toEqual(custom);expect(normalizeSettings({riso:false}).riso).toEqual(defaultRiso);
 });

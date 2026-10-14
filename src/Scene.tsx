@@ -10,8 +10,9 @@ import type {PoseClient} from './pose';
 import {breathe,danceFrame} from './motion';
 import type {WeavePaletteName} from './weave';
 import {stageColor} from './themes';
+import type {RisoSettings} from './riso';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
-interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:boolean;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
+interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
 const viewHeight=restHeight*1.5,centerY=restHeight*.56;
 function World(p:Props){
