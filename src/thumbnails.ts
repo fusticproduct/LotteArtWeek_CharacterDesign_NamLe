@@ -6,14 +6,15 @@ import type {WeavePaletteName} from './weave';
 import {stageColor} from './themes';
 import type {RisoSettings} from './riso';
 import type {PixelSettings} from './pixelate';
-export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;pose:Pose;}
+import type {SpraySettings} from './spray';
+export interface ThumbnailLook {weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;pose:Pose;}
 let renderer:THREE.WebGLRenderer|null=null;
 /** Renders one character off screen, in the stage's front view and look, and returns a PNG data URL. `danceTime` picks the Dance frame. */
 export function renderThumbnail(spec:CharacterSpec,look:ThumbnailLook,width:number,height:number,danceTime=0){
  renderer??=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.toneMapping=THREE.NoToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setSize(width,height,false);
  const scene=new THREE.Scene();scene.background=new THREE.Color(stageColor(look.weavePalette,look.dark));
- const rig=createCharacter(spec,look.weavePalette,look.layerOrder,look.proportions);rig.setPaper(look.paper);rig.setRiso(look.riso);rig.setPixel(look.pixel);rig.setStage(stageColor(look.weavePalette,look.dark));
+ const rig=createCharacter(spec,look.weavePalette,look.layerOrder,look.proportions);rig.setPaper(look.paper);rig.setRiso(look.riso);rig.setPixel(look.pixel);rig.setSpray(look.spray);rig.setStage(stageColor(look.weavePalette,look.dark));
  if(look.pose==='dance'){const frame=danceFrame(danceTime);rig.applyAngles(frame.angles);rig.setDepth(frame.depth);}else rig.applyPose(look.pose);
  rig.settleFingers();
  scene.add(rig.group);

@@ -21,6 +21,12 @@ const pixel=s=>{
  if(!s||typeof s.on!=='boolean'||!Number.isFinite(size)||size<.015||size>.08||![0,24,12,8,4].includes(s.fps))throw new Error('Invalid pixel');
  return {on:s.on,size:Math.round(size*1000)/1000,fps:s.fps};
 };
+/** Spray blur settings (spray.ts normalizeSpray). */
+const spray=s=>{
+ const amount=Number(s?.amount);
+ if(!s||typeof s.on!=='boolean'||!Number.isFinite(amount)||amount<.005||amount>.15)throw new Error('Invalid spray');
+ return {on:s.on,amount:Math.round(amount*1000)/1000};
+};
 const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
 
 const proportions=data=>{
@@ -33,7 +39,7 @@ const settings=data=>{
  if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
  if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
  if(!Number.isInteger(data.patternScale)||data.patternScale<2||data.patternScale>12)throw new Error('Invalid pattern scale');
- return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),darkStage:data.darkStage,patternScale:data.patternScale}];
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),spray:spray(data.spray),darkStage:data.darkStage,patternScale:data.patternScale}];
 };
 
 export function defaultsWriter(){

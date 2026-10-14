@@ -883,3 +883,11 @@ Anh Nam: luôn có 1 bộ phận không có hoa văn (màu trơn), không phải
 - Nút **Save all as default** thêm ở cuối tab Parts, làm đúng như nút ở tab Proportions (lưu tất cả).
 - Mặc định mới theo ảnh anh gửi: Pattern scale 20 ô, Checker scale 80%, Flow speed −300%, HFCD, Paper bật, Riso bật (Opacity 75%, chấm 7,5 mm, Ink coverage 30%, Screen angle 90°, Grain 100%, màu #ffffff, Overlay, màu trong chấm). Các tỉ lệ khác, thứ tự lớp và nền giữ như cũ (trình duyệt của anh đang có Fingers 150% và Finger stiffness 50% chưa lưu; bấm Save all as default nếu muốn lưu cả hai).
 
+## 62. Spray blur (14/10/2026)
+
+Anh Nam gửi ảnh tranh phun sơn và muốn một hàm làm mờ có nhiễu cho 2 bộ phận ngẫu nhiên, có nút bật và slider độ mờ.
+
+- `sprayPartsOf(spec)` (rig.ts): hai bộ phận khác nhau theo tên nhân vật, trong đầu, khối thân (trừ khối dưới của Single), đoạn tay/chân, bàn tay, bàn chân; không phải khớp, không phải bộ phận pixel.
+- `src/spray.ts`: 20 bản mờ (16% mỗi bản, ở giữa cộng lại ~97%) và 6 hạt bắn (5%, xa hơn), mỗi bản lệch cố định theo hướng ngẫu nhiên nhân với Blur amount (đẩy trong shader sau khi skin). Độ trong suốt dùng alpha hash (bỏ điểm ảnh theo nhiễu gắn với bộ phận), nên vẫn là vật thể đục: đúng thứ tự lớp, hạt dính theo bộ phận. Mesh gốc ẩn khi bật (vẫn dùng cho xuất file); miếng lấp lỗ donut cũng ẩn theo.
+- Mặc định tắt (`spray` trong `src/settings.json`).
+

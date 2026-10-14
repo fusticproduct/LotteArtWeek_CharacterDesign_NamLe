@@ -25,6 +25,10 @@
   "size": 0.035,
   "fps": 0
  },
+ "spray": {
+  "on": false,
+  "amount": 0.05
+ },
  "darkStage": true,
  "patternScale": 10
 }

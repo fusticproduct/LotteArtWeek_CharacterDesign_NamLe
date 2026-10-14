@@ -10,6 +10,7 @@ import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
+import {createSpray,defaultSpray,type SpraySettings} from './spray';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -71,6 +72,12 @@ export const flowSpan=.6,flowPeriod=14;
 export const pixelPartOf=(spec:CharacterSpec)=>{
  const pick=(list:BoneDefinition[])=>list.length?list[Math.floor(rng(`${spec.label}|pixel`)()*list.length)].id:null,segment=(b:BoneDefinition)=>b.kind==='limb'||b.kind==='leg';
  return pick(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===0))??pick(bones.filter(b=>(b.kind==='hand'||b.kind==='foot')&&spec.parts[b.id].pattern===0))??pick(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===twoTone));
+};
+/** The two parts drawn spray-blurred (spray.ts): any head, body piece, arm or leg segment, hand or foot but the pixel part. */
+export const sprayPartsOf=(spec:CharacterSpec)=>{
+ const pixel=pixelPartOf(spec),r=rng(`${spec.label}|spray`);
+ const options=bones.filter(b=>['head','torso','pelvis','limb','leg','hand','foot'].includes(b.kind)&&b.id!==pixel&&!(b.kind==='pelvis'&&spec.parts.spine_lower.variant===single)).map(b=>b.id);
+ return options.map(id=>({id,k:r()})).sort((a,b)=>a.k-b.k).slice(0,2).map(o=>o.id);
 };
 export const checkerStyles=['Patchwork','Stripes across','Stripes down','Checkerboard'] as const;
 export const checkerStyleOf=(spec:CharacterSpec,id:string)=>Math.floor(rng(`${spec.label}|${id}|checker`)()*checkerStyles.length);
@@ -437,12 +444,15 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   if(pixel)pixel.mesh.renderOrder=pixel.part.renderOrder;
+  for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
   for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
  };
  // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
  let pixelSettings:PixelSettings=defaultPixel,pixelClock=0;
+ // Spray-blurred parts (spray.ts): off until setSpray turns them on.
+ const sprays=sprayPartsOf(spec).map(id=>createSpray(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,`${spec.label}|${id}|spray`));
  const pixelId=pixelPartOf(spec),pixel=pixelId?createPixelPart(group,group.getObjectByName(`${pixelId}_mesh`) as THREE.SkinnedMesh,colorOf(spec.parts[pixelId].color),decorate):null;
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
@@ -499,7 +509,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{fingers.dispose();dangles.dispose();pixel?.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ const dispose=()=>{fingers.dispose();dangles.dispose();pixel?.dispose();for(const spray of sprays)spray.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
  fingers.settle();dangles.settle();
  // Flow parts slide their colours: each starts at its own phase.
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
@@ -513,6 +523,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const settleFingers=()=>{fingers.settle();dangles.settle();pixel?.update();};
  /** Pixel part settings (pixelate.ts): on/off, cell size, and the rate its cells are redrawn at (0 = with every pose). */
  const setPixel=(s:PixelSettings)=>{pixelSettings=s;pixelClock=0;pixel?.configure(s);};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setStage,dispose,fingers,hair:dangles,pixel,tick,updateFingers:fingers.update,settleFingers};
+ /** Spray blur settings (spray.ts) for the two spray parts; a Donut's hole plug hides with its part. */
+ const setSpray=(s:SpraySettings)=>{for(const spray of sprays)spray.configure(s,[group.getObjectByName(spray.part.name.replace(/_mesh$/,'_plug'))].filter(o=>!!o) as THREE.Object3D[]);};
+ setSpray(defaultSpray);
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setStage,dispose,fingers,hair:dangles,pixel,sprays,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

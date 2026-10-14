@@ -6,13 +6,14 @@ import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,p
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
+import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 const partColorsFor=(spec:ReturnType<typeof generate>)=>partColors(spec,'HFCD');
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,headOutlines,pixelPartOf,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
+import {createCharacter,headOutlines,pixelPartOf,sprayPartsOf,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -575,4 +576,21 @@ it('lets the pixel part be turned off, resized and redrawn at a low frame rate',
  rig.tick(.1);expect(snapshot()).toBe(still);rig.tick(.2);expect(snapshot()).not.toBe(still);
  rig.setPixel({on:false,size:.035,fps:0});expect(pixel.mesh.visible).toBe(false);expect(pixel.part.visible).toBe(true);
  rig.dispose();
+});
+
+it('spray-blurs two random parts when turned on: grainy copies in the part\'s layer, the part itself hidden',()=>{
+ expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({on:true,amount:.15});
+ for(let i=0;i<10;i++){
+  const spec=generate(`spray-${i}`),ids=sprayPartsOf(spec);
+  expect(ids.length).toBe(2);expect(new Set(ids).size).toBe(2);expect(ids).not.toContain(pixelPartOf(spec));for(const id of ids)expect(isJoint(id),id).toBe(false);
+  const rig=createCharacter(spec);
+  for(const spray of rig.sprays){expect(spray.meshes.every(m=>!m.visible)).toBe(true);expect(spray.part.visible).toBe(true);}
+  rig.setSpray({on:true,amount:.08});
+  for(const spray of rig.sprays){
+   expect(spray.part.visible).toBe(false);
+   for(const m of spray.meshes){expect(m.visible).toBe(true);expect(m.renderOrder).toBe(spray.part.renderOrder);const mat=m.material as MeshBasicMaterial;expect(mat.alphaHash).toBe(true);expect(mat.transparent).toBe(false);expect(mat.opacity).toBeLessThan(.2);}
+  }
+  rig.setSpray({on:false,amount:.08});for(const spray of rig.sprays)expect(spray.part.visible).toBe(true);
+  rig.dispose();
+ }
 });
