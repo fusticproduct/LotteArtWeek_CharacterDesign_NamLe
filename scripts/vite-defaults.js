@@ -18,9 +18,9 @@ const proportions=data=>{
 const settings=data=>{
  if(!palettes.includes(data.palette))throw new Error('Invalid palette');
  if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
- if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
+ if(typeof data.paper!=='boolean'||typeof data.riso!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
  if(!Number.isInteger(data.patternScale)||data.patternScale<2||data.patternScale>12)throw new Error('Invalid pattern scale');
- return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,darkStage:data.darkStage,patternScale:data.patternScale}];
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:data.riso,darkStage:data.darkStage,patternScale:data.patternScale}];
 };
 
 export function defaultsWriter(){

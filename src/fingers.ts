@@ -24,14 +24,16 @@ export interface FingerHand {side:'L'|'R';bone:THREE.Bone;color:string;}
 interface Ball {angle:number;pin:THREE.Vector3;pos:THREE.Vector3;prev:THREE.Vector3;geometry:THREE.BufferGeometry;mesh:THREE.Mesh;}
 interface Hand {bone:THREE.Bone;sign:number;balls:Ball[];}
 /** `radius` is the circle size shared with the toes (Fingers & toes slider), `stiffness` the Finger stiffness slider. */
-export function createFingers(group:THREE.Group,hands:FingerHand[],radius=.028,stiffness=1){
+/** `decorate` adds the paper and riso look to each circle's material (rig.ts addPaper). */
+export function createFingers(group:THREE.Group,hands:FingerHand[],radius=.028,stiffness=1,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
  const hold=shapeHold(stiffness),groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),target=new THREE.Vector3(),dir=new THREE.Vector3(),velocity=new THREE.Vector3(),centre=new THREE.Vector3(),away=new THREE.Vector3();
  // Neighbours touch: on a circle of radius R + gap + r their centres sit 2·asin(r / (R + gap + r)) apart.
  const reach=handRadius+radius*(1+fingerGap),spacing=2*Math.asin(radius/reach),gap=2*radius;
  const rigs:Hand[]=hands.map(hand=>({bone:hand.bone,sign:hand.side==='L'?1:-1,balls:Array.from({length:5},(_,i)=>{
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array((circleSteps+1)*3),3));
   geometry.setIndex(Array.from({length:circleSteps},(_,k)=>[0,1+k,1+(k+1)%circleSteps]).flat());
-  const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:hand.color,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
+  const material=new THREE.MeshBasicMaterial({color:hand.color,depthTest:false,depthWrite:false,side:THREE.DoubleSide});decorate?.(material,geometry);
+  const mesh=new THREE.Mesh(geometry,material);
   mesh.name=`finger_${hand.side}`;mesh.frustumCulled=false;mesh.userData={side:hand.side};group.add(mesh);
   // Thumb (i = 0) on the inner side, little finger outermost; the arc is centred on the hand's axis.
   return {angle:(i-2)*spacing,pin:new THREE.Vector3(),pos:new THREE.Vector3(),prev:new THREE.Vector3(),geometry,mesh};

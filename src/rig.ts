@@ -144,16 +144,25 @@ function paperGrain(){
 /**
  * Paper look on a flat material: grain sampled in the part's own space (so it moves with the part) and a soft
  * light-to-dark shift from the top to the bottom of the part, like ink pooling. `amount` 0 turns it off.
+ * Riso (Nam, 2026-10-14): `riso` 1 prints every colour as a very fine halftone, like a risograph: ink dots on a 3 px
+ * screen at 45 degrees, fixed to the screen like a printed sheet, denser for darker colours and a little uneven with
+ * the paper grain, with the sheet showing between them.
  */
-function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry,amount:{value:number}){
+const risoCell={value:3*(typeof window==='undefined'?1:window.devicePixelRatio||1)};
+function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry,amount:{value:number},riso:{value:number}){
  if(typeof document==='undefined')return;
  geometry.computeBoundingBox();const span=new THREE.Vector2(geometry.boundingBox!.min.y,geometry.boundingBox!.max.y);
+ // Circles redrawn every frame (fingers, ragdoll hair) start empty: give them the neutral middle tone.
+ if(span.y-span.x<1e-3)span.set(-1e3,1e3);
  material.customProgramCacheKey=()=>'geofolk-paper';
  material.onBeforeCompile=shader=>{
-  Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span}});
+  Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span},risoAmount:riso,risoCell});
   shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vPaper;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPaper=position;');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount;uniform vec2 paperSpan;varying vec3 vPaper;')
-   .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount,risoAmount,risoCell;uniform vec2 paperSpan;varying vec3 vPaper;')
+   .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);'+
+    '\nif(risoAmount>0.){vec2 risoQ=fract(mat2(.7071,.7071,-.7071,.7071)*gl_FragCoord.xy/risoCell)-.5;float risoD=length(risoQ),risoL=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));'+
+    'float risoR=sqrt(clamp(.98-.24*sqrt(risoL)+paperNoise*.16,.55,.99)/3.14159),risoW=max(fwidth(risoD)*.75,.02);'+
+    'diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.91,.89,.83),diffuseColor.rgb,1.-smoothstep(risoR-risoW,risoR+risoW,risoD)),risoAmount);}');
  };
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
@@ -327,7 +336,7 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
 }
 export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>(),paperAmount={value:1},colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1},risoAmount={value:0},decorate=(m:THREE.MeshBasicMaterial,g:THREE.BufferGeometry)=>addPaper(m,g,paperAmount,risoAmount),colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
  // The waist pivot moves to the seam between the body pieces; neck and shoulders keep their height, shoulders and hips follow the pieces' edges.
  const place=(def:typeof bones[number],bone:THREE.Bone)=>{
   const side=Math.sign(def.headPosition[0]);
@@ -346,7 +355,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  const material=materialFor(def,choice,spec,weavePalette,colorOf,proportions);addPaper(material,geometry,paperAmount);
+  const material=materialFor(def,choice,spec,weavePalette,colorOf,proportions);decorate(material,geometry);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   const hole=plugFor(def,choice,spec,proportions,body);
   if(hole){
@@ -356,7 +365,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  });
  // Fingers and toes are circles of one size and one colour (the hands' accent), sized by the Fingers & toes slider.
  const digitRadius=.028*proportions.fingers,digitColor=colorOf(spec.parts.hand_L.accent);
- const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:digitColor})),digitRadius,proportions.fingerStiffness);
+ const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:digitColor})),digitRadius,proportions.fingerStiffness,decorate);
  // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, the same size and colour as the
  // fingers. They always touch without overlapping, one diameter apart and centred on the foot.
  const toes=(['L','R'] as const).map(side=>{
@@ -364,7 +373,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,r=digitRadius;
   const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d((box.min.x+box.max.x)/2+(i-2)*2*r,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:index),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
-  const material=new THREE.MeshBasicMaterial({color:digitColor,depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
+  const material=new THREE.MeshBasicMaterial({color:digitColor,depthTest:false,depthWrite:false});decorate(material,geometry);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return mesh;
  });
@@ -375,12 +384,12 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const pieces=all.filter(p=>p.accent===accent);if(!pieces.length)return [];
   const geometry=paper(pieces.map(p=>({outline:p.points})),paperRound),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:hairIndex),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
-  const material=new THREE.MeshBasicMaterial({color:colorOf(accent?spec.parts.hair.accent:spec.parts.hair.color),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
+  const material=new THREE.MeshBasicMaterial({color:colorOf(accent?spec.parts.hair.accent:spec.parts.hair.color),depthTest:false,depthWrite:false});decorate(material,geometry);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=name;mesh.userData={accent};mesh.position.copy(hairBone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return [mesh];
  });
  // Ragdoll chains (hairPhysics.ts): an antenna, a plume, a pompom.
- const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)});
+ const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)},decorate);
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
@@ -440,6 +449,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setLayerOrder=(order:LayerGroup[])=>restack({order});
  /** Paper grain and tone on or off (A5); a shared uniform, so no rebuild. */
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
+ /** Riso halftone on or off; a shared uniform too. */
+ const setRiso=(on:boolean)=>{risoAmount.value=on?1:0;};
  /** The stage colour shown through Donut and Ring holes (stageColor in themes.ts); a shared material, so no rebuild. */
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
@@ -453,6 +464,6 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);};
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
  const settleFingers=()=>{fingers.settle();dangles.settle();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setStage,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setStage,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

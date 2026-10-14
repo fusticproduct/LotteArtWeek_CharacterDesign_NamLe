@@ -11,12 +11,13 @@ const circleSteps=32,gravity=-9.8,damping=.92,step=1/60,passes=8,hold=.04;
 interface Ball {r:number;rest:THREE.Vector3;pos:THREE.Vector3;prev:THREE.Vector3;geometry:THREE.BufferGeometry;mesh:THREE.Mesh;}
 interface Chain {anchor:THREE.Vector3;rope:number;balls:Ball[];}
 /** `bone` is the hair bone; chains are in its space (placeHair); colours are the hair's main and accent colours. */
-export function createDangles(group:THREE.Group,bone:THREE.Bone,placed:PlacedDangle[],colours:{main:string;accent:string}){
+export function createDangles(group:THREE.Group,bone:THREE.Bone,placed:PlacedDangle[],colours:{main:string;accent:string},decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
  const groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),anchor=new THREE.Vector3(),target=new THREE.Vector3(),velocity=new THREE.Vector3(),dir=new THREE.Vector3();
  const chains:Chain[]=placed.map(d=>({anchor:new THREE.Vector3(d.anchor[0],d.anchor[1],0),rope:d.rope,balls:restCircles(d).map(c=>{
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array((circleSteps+1)*3),3));
   geometry.setIndex(Array.from({length:circleSteps},(_,k)=>[0,1+k,1+(k+1)%circleSteps]).flat());
-  const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:c.accent?colours.accent:colours.main,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
+  const material=new THREE.MeshBasicMaterial({color:c.accent?colours.accent:colours.main,depthTest:false,depthWrite:false,side:THREE.DoubleSide});decorate?.(material,geometry);
+  const mesh=new THREE.Mesh(geometry,material);
   mesh.name='hair_dangle';mesh.frustumCulled=false;group.add(mesh);
   return {r:c.r,rest:new THREE.Vector3(c.x,c.y,0),pos:new THREE.Vector3(),prev:new THREE.Vector3(),geometry,mesh};
  })}));

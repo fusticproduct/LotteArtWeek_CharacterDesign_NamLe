@@ -11,7 +11,7 @@ import {breathe,danceFrame} from './motion';
 import type {WeavePaletteName} from './weave';
 import {stageColor} from './themes';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
-interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
+interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:boolean;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
 const viewHeight=restHeight*1.5,centerY=restHeight*.56;
 function World(p:Props){
@@ -21,6 +21,7 @@ function World(p:Props){
  useEffect(()=>{rig.applyPose(p.pose);posed.current=true;p.onReady({rig,renderer:gl,scene,camera});},[rig,p.pose,gl,scene,camera,p.onReady]);
  useEffect(()=>rig.setLayerOrder(p.layerOrder),[rig,p.layerOrder]);
  useEffect(()=>rig.setPaper(p.paper),[rig,p.paper]);
+ useEffect(()=>rig.setRiso(p.riso),[rig,p.riso]);
  // Donut and Ring holes show the stage colour (rig.ts plugFor).
  useEffect(()=>rig.setStage(stageColor(p.weavePalette,p.dark)),[rig,p.weavePalette,p.dark]);
  useEffect(()=>()=>rig.dispose(),[rig]);

@@ -830,3 +830,10 @@ Anh Nam: lỗ trong hình donut không được nhìn xuyên; tô bằng màu n�
 - Khối thân Donut và khớp Ring có thêm một miếng lấp (`<bone>_plug`) hình lỗ, nở thêm 1,5 mm, màu nền sân khấu, vẽ ngay dưới bộ phận (thứ tự −0,05) để mép bộ phận che đường nối. `rig.setStage(màu)` đổi màu khi đổi palette hoặc nền; ảnh ×6 dùng màu nền của chúng.
 - Bàn tay Ring là vòng 3D, giữ nguyên lỗ thật.
 
+## 56. Riso (14/10/2026)
+
+Anh Nam muốn thêm một texture dưới Paper texture để mọi màu trông như in risograph, chấm rất nhỏ.
+
+- Nút **Riso** On/Off dưới Paper texture. Trong shader giấy (`addPaper`, rig.ts): lưới chấm 3 px (theo pixel màn hình) nghiêng 45°, cố định theo màn hình như tờ in; độ phủ mực 74–98% (màu đậm phủ dày hơn), lệch nhẹ theo vân giấy; giữa các chấm lộ màu giấy. Áp cho mọi bộ phận, cả ngón tay, ngón chân và tóc lủng lẳng (giờ cũng có vân giấy). Miếng lấp lỗ donut không có Riso để vẫn trùng màu nền.
+- Mặc định tắt; lưu theo trình duyệt và trong Save all as default (`riso` trong `src/settings.json`).
+

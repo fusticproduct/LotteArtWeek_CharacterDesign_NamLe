@@ -9,6 +9,7 @@
   "legs"
  ],
  "paper": true,
+ "riso": false,
  "darkStage": true,
  "patternScale": 10
 }
