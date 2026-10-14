@@ -734,3 +734,9 @@ Anh Nam: 5 ngón tay "ragdoll" mỗi bàn tay, làm bằng spline.
 - 5 ngón xòe từ tâm bàn tay (ngón cái ở phía trong, ngắn và dày hơn), dài 7,5–12 cm, dày 2,8–3,6 cm ở gốc, thon về 2,2 cm với đầu tròn; dải spline Catmull-Rom (centripetal), hình đặc, cùng màu bàn tay, vẽ ngay dưới bàn tay.
 - Vật lý: mỗi ngón 5 điểm verlet, bước cố định 1/60 s, trọng lực 9,8, giữ 90% vận tốc mỗi bước, độ dài đoạn giữ cố định, lực giữ dáng 0,05 (yếu dần về đầu ngón). Đo: buông tay thì đầu ngón ở dưới gốc khoảng 12 cm; giơ tay thì ngón rủ khoảng một nửa so với ngón cứng. Mô phỏng trong không gian của nhân vật nên việc đặt nhân vật xuống sàn không làm ngón rung.
 - Chưa xuất vào FBX/OBJ (chỉ có trong app và ảnh).
+
+## 42. Ngón tay cứng hơn, ngón chân, slider mới (14/10/2026)
+
+- Anh Nam: ngón tay cứng hơn nhiều. Lực giữ dáng 0,05 → 0,3: ngón giữ dáng, chỉ lắc nhẹ theo quán tính; giơ tay thì ngón chỉ lên theo tay. Thêm slider Finger stiffness: lực = 0,3 × độ cứng^2,6 (50% ≈ 0,05 mềm như bản đầu, 150% ≈ 0,86 gần như cứng).
+- Ngón chân (theo ảnh anh gửi): 5 hình tròn dọc theo đế mỗi bàn chân, vẽ đè lên bàn chân, màu = màu phụ của bàn chân. Nhân vật đứng trên ngón chân.
+- Tab Proportions thêm Fingers, Finger stiffness, Toes. Slider Hair sẽ thêm cùng tóc.

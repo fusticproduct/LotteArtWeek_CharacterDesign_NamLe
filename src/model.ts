@@ -86,9 +86,9 @@ export const restHeight=2.4;
  * Global look proportions (Proportions tab): 1 = the studio default. Kept per browser like the weave palette,
  * not in the seed. Bone lengths never change; only the parts' size, and the shoulders follow the torso edge.
  */
-export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints'] as const;
+export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','toes'] as const;
 export type Proportions=Record<typeof proportionKeys[number],number>;
-export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1};
+export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,toes:1};
 export const proportionRange={min:.5,max:1.5};
 export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]);return [k,Number.isFinite(v)?Math.min(proportionRange.max,Math.max(proportionRange.min,v)):1];})) as Proportions;
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */

@@ -307,7 +307,18 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
  // Ragdoll fingers in the hands' colour (fingers.ts); drawn just under their hand.
- const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].color)})));
+ const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].color)})),proportions.fingers,proportions.fingerStiffness);
+ // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, in the foot's accent colour, sized
+ // to share the foot's width (Toes slider).
+ const toes=(['L','R'] as const).map(side=>{
+  const foot=group.getObjectByName(`foot_${side}_mesh`) as THREE.SkinnedMesh,bone=map.get(`foot_${side}`)!,index=bones.findIndex(b=>b.id===`foot_${side}`);
+  foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,width=box.max.x-box.min.x,r=width/10*proportions.toes;
+  const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d(box.min.x+width*(i+.5)/5,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
+  geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:index),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
+  const material=new THREE.MeshBasicMaterial({color:colorOf(spec.parts[`foot_${side}`].accent),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
+  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  return mesh;
+ });
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
@@ -315,10 +326,11 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   stacking={...stacking,...next};const key=JSON.stringify(stacking);if(key===stackKey)return;stackKey=key;
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder-.5;
+  for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
  };
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
- const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const def of bones){const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh;const positions=mesh.geometry.getAttribute('position'),matrix=map.get(def.id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
+ const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const [mesh,id] of [...bones.map(def=>[group.getObjectByName(`${def.id}_mesh`),def.id]),...toes.map(t=>[t,`foot_${t.userData.side}`])] as [THREE.SkinnedMesh,string][]){const positions=mesh.geometry.getAttribute('position'),matrix=map.get(id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
  /**
   * A Single body is one piece, so it cannot bend at the waist: the waist turn goes to the whole body instead, and the
   * thighs turn back by the same amount so the legs keep their direction.

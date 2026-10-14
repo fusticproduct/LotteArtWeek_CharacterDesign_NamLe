@@ -373,3 +373,20 @@ it('hangs five stiff ragdoll spline fingers from each hand, drawn under it',()=>
  for(let j=1;j<5;j++)expect(middle[j].distanceTo(middle[j-1])).toBeCloseTo(.03,4);
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
+
+it('puts five toes along each sole over the foot, in the foot accent colour, and sizes fingers and toes from the sliders',()=>{
+ const spec=generate('toes'),rig=createCharacter(spec);
+ for(const side of ['L','R']){
+  const toes=rig.group.getObjectByName(`toes_${side}`) as SkinnedMesh,foot=rig.group.getObjectByName(`foot_${side}_mesh`) as SkinnedMesh;
+  expect(toes.renderOrder).toBeGreaterThan(foot.renderOrder);
+  expect((toes.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:palette[spec.parts[`foot_${side}`].accent].hex}).color.getHexString());
+ }
+ // The figure stands on its toes' lowest point.
+ rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
+ expect(low).toBeCloseTo(0,2);
+ const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5,toes:1.5});
+ expect(big.fingers.chains[2][0].distanceTo(big.fingers.chains[2][4])).toBeGreaterThan(rig.fingers.chains[2][0].distanceTo(rig.fingers.chains[2][4])*1.3);
+ const box=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.y-g.boundingBox!.min.y;};
+ expect(box(big)/box(rig)).toBeCloseTo(1.5,1);
+ rig.dispose();big.dispose();
+});
