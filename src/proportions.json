@@ -8,6 +8,9 @@
  "hands": 1,
  "feet": 1.2,
  "joints": 1,
+ "fingers": 1.5,
+ "fingerStiffness": 0.5,
+ "hair": 1,
  "checker": 0.8,
  "flowSpeed": -3
 }
