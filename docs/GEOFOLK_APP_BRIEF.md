@@ -853,4 +853,4 @@ Làm:
 - Phụ kiện (`cover: false`): phần trước không cần che kín đầu (Shades).
 - Đầu chuỗi lủng lẳng có thể là hình (ngôi sao 5 cánh, dấu sao 8 cánh), xoay theo hướng chuỗi (Star, Asterisk).
 - Mũ tương lai Visor (vỏ cao + khe kính) và Jet (vòm + hai cánh xếch) lấy số thứ tự của Moto và Hard hat; Saucer, Top hat, Cone lấy số của Segments, Cap, Racer; các kiểu mới khác thêm vào cuối.
-
+- Sau đó anh Nam chỉ giữ hai kiểu robot: 30 Star và 22 Antenna. Blocks, Knight, Twin antennas, Gear, Siren, Asterisk thành kiểu "nghỉ" (`retired`): giữ số thứ tự để seed cũ vẫn mở được (thành Slab, Visor, Antenna, Crown, Antenna, Star), Generate không bao giờ chọn chúng.

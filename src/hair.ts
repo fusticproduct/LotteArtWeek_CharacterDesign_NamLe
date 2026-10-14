@@ -30,7 +30,8 @@ export interface HairCap {left:number;right:number;grow:number;}
  */
 export interface HairDangle {anchor:Point2;onHead?:boolean;angle:number;rope:number;radii:number[];accent:boolean[];tip?:Point2[];}
 export type HairGroup='Helmet'|'Hat'|'Totem'|'Robot'|'Hair';
-export interface HairStyle {name:string;group:HairGroup;back:HairPiece[];cap?:HairCap;band?:{top:number;bottom:number;grow:number};front?:HairPiece[];cover?:boolean;sits?:boolean;dangles?:HairDangle[];}
+/** `retired`: Nam turned the style down; it keeps its index so old seeds still open, as the named style instead. */
+export interface HairStyle {name:string;group:HairGroup;back:HairPiece[];cap?:HairCap;band?:{top:number;bottom:number;grow:number};front?:HairPiece[];cover?:boolean;sits?:boolean;dangles?:HairDangle[];retired?:string;}
 const {cx,cy,r}=design;
 const piece=(points:Point2[],accent=false):HairPiece=>({points,accent});
 const circle=(x:number,y:number,radius:number,accent=false)=>piece(ellipse2d(x,y,radius,radius,0,Math.PI*2,48),accent);
@@ -71,7 +72,10 @@ const gear=(x:number,y:number,inner:number,outer:number,teeth:number)=>piece(Arr
  return [at(a-p*.3,inner,x,y),at(a-p*.22,outer,x,y),at(a+p*.22,outer,x,y),at(a+p*.3,inner,x,y),at(a+p*.5,inner,x,y)];
 }).flat());
 const leaf=piece([...curve([96,86],[52,64],[44,14]),...curve([44,14],[96,34],[96,86]).slice(1)]);
-/** The catalogue. Seeds store a style's index, so a retired style hands its index to a new one. */
+/**
+ * The catalogue. Seeds store a style's index: a retired style either hands its index to a new one or stays as a stub
+ * (Nam kept only Star and Antenna of the robot hair) that opens as its stand-in.
+ */
 const cone=piece([[60,92],[140,92],[cx,10]]),wing=piece([[58,98],[24,56],[70,80]],true);
 export const hairStyles:HairStyle[]=[
  {name:'None',group:'Hair',back:[]},
@@ -90,27 +94,26 @@ export const hairStyles:HairStyle[]=[
  {name:'Halo',group:'Hair',back:[piece([...arc(-.15,Math.PI+.15,66,cx,104),...arc(Math.PI+.15,-.15,50,cx,116)])]},
  {name:'Plume',group:'Helmet',back:[],front:[half(cx,100,44)],dangles:[{anchor:[cx,62],angle:0,rope:12,radii:[15,13,11],accent:[true,true,true]}]},
  {name:'Bucket',group:'Hat',back:[],front:[piece([[60,92],[68,52],[132,52],[140,92]]),piece([[60,92],[62.4,80],[137.6,80],[140,92]],true),piece([[44,104],[56,92],[144,92],[156,104]])]},
- {name:'Blocks',group:'Robot',back:[-2,-1,0,1,2].map(k=>box(cx+k*18-8,[36,48,62][Math.abs(k)],16,100-[36,48,62][Math.abs(k)],Math.abs(k)===1))},
+ {name:'Blocks',group:'Robot',back:[],retired:'Slab'},
  // Winter headwear: a top hat resting on the head, a band round its crown.
  {name:'Top hat',group:'Hat',sits:true,back:[box(64,30,72,54),box(64,64,72,12,true),roundBox(44,82,112,10,5)]},
  {name:'Ball top',group:'Hair',back:[],cap:cap(cy-18),dangles:[{anchor:[cx,70],angle:0,rope:20,radii:[32],accent:[false]}]},
- {name:'Knight',group:'Robot',back:[],front:[topRound(54,46,92,56,24),...[72,cx,128].map(x=>circle(x,90,7,true))]},
+ {name:'Knight',group:'Robot',back:[],retired:'Visor'},
  {name:'Leaves',group:'Hair',back:[leaf,mirror(leaf,true)]},
  {name:'Crown',group:'Hat',back:[piece([[56,96],[56,48],[76,72],[88,28],[cx,62],[112,28],[124,72],[144,48],[144,96]])]},
  {name:'Gem',group:'Totem',back:[piece([[cx,10],[138,52],[cx,94],[62,52]])]},
  // A striped cone resting on the head.
  {name:'Cone',group:'Hat',sits:true,back:[cone,piece([[68.8,74],[73.7,64],[126.3,64],[131.2,74]],true),piece([[82.4,46],[86.3,38],[113.7,38],[117.6,46]],true)]},
  {name:'Antenna',group:'Robot',back:[roundBox(88,62,24,20,6)],dangles:[{anchor:[cx,66],angle:0,rope:7,radii:[8,8,15],accent:[false,false,true]}]},
- {name:'Twin antennas',group:'Robot',back:[],dangles:[-1,1].map(s=>({anchor:[cx+s*20,6] as Point2,onHead:true,angle:-s*.4,rope:6,radii:[7,7,13],accent:[false,false,true]}))},
- // Six broad teeth: the twelve small ones looked busy.
- {name:'Gear',group:'Robot',back:[gear(cx,104,46,60,6)]},
- {name:'Siren',group:'Robot',back:[roundBox(82,56,36,26,6),half(cx,57,19,true)]},
+ {name:'Twin antennas',group:'Robot',back:[],retired:'Antenna'},
+ {name:'Gear',group:'Robot',back:[],retired:'Crown'},
+ {name:'Siren',group:'Robot',back:[],retired:'Antenna'},
  // Totems: a slab resting on the head; four balls in a square; a square split into an hourglass of two colours.
  {name:'Slab',group:'Totem',sits:true,back:[roundBox(46,56,108,22,4)]},
  {name:'Quad',group:'Totem',sits:true,back:[[81,60],[119,60],[81,22],[119,22]].map(([x,y])=>circle(x,y,19))},
  {name:'Bowtie',group:'Totem',sits:true,back:[piece([[62,16],[138,16],[cx,54]]),piece([[62,92],[cx,54],[138,92]]),piece([[62,16],[cx,54],[62,92]],true),piece([[138,16],[138,92],[cx,54]],true)]},
- // Ragdoll: an asterisk on a stalk (the totem's asterisk), and a star on an antenna above a cap (the punk heads).
- {name:'Asterisk',group:'Robot',back:[],dangles:[{anchor:[cx,72],angle:0,rope:6,radii:[7,7,22],accent:[false,false,true],tip:asterisk(22,13)}]},
+ // Ragdoll: a star on an antenna above a cap (the punk heads).
+ {name:'Asterisk',group:'Robot',back:[],retired:'Star'},
  {name:'Star',group:'Robot',back:[],cap:cap(cy-14),dangles:[{anchor:[cx,72],angle:0,rope:6,radii:[7,7,23],accent:[false,false,true],tip:star(23)}]},
  // Punk: a block with a zigzag top; big spikes with a headband.
  {name:'Mohawk',group:'Hair',back:[symmetric([[76,100],[72,30],[84,44],[91,12],[cx,32]])]},
@@ -121,6 +124,8 @@ export const hairStyles:HairStyle[]=[
  {name:'Mushroom',group:'Hat',back:[],front:[half(cx,100,58),circle(cx,66,9,true),circle(75,86,8,true),circle(125,86,8,true),circle(82,58,7,true),circle(118,58,7,true)]},
 ];
 export const hairStyleNames=hairStyles.map(s=>s.name);
+/** The style a seed's index stands for today: itself, or a retired style's stand-in. */
+export const liveHair=(index:number)=>{const style=hairStyles[index];return style?.retired?hairStyles.findIndex(s=>s.name===style.retired):index;};
 /** Keeps the part of a convex polygon on the side of the line a→b where `keep` is (Sutherland–Hodgman, one edge). */
 function clip(polygon:Point2[],a:Point2,b:Point2,keep:Point2):Point2[]{
  const side=(p:Point2)=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]),s=Math.sign(side(keep)),out:Point2[]=[];

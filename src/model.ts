@@ -1,6 +1,6 @@
 import paletteData from './palette.json';
 import savedProportions from './proportions.json';
-import {hairStyleNames} from './hair';
+import {hairStyleNames,hairStyles,liveHair} from './hair';
 export const palette = paletteData.colors;
 export const color = (id: string) => palette.find(c => c.id === id)!.hex;
 export const theme = {paper:color('neutral_1'),ink:color('dark_1'),green:color('green_1'),blue:color('blue_1'),pink:color('pink_2')};
@@ -184,6 +184,7 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  for(const b of bones){
   const p={...spec.parts[b.id]};
   p.variant=Math.min(p.variant,variantNames(b).length-1);
+  if(b.kind==='hair')p.variant=liveHair(p.variant);
   // Mirrored parts share shape and colours; a pattern (patchwork, flow) stays on its own side.
   if(b.id.endsWith('_R')&&mirrorsFully(b.id))Object.assign(p,{...parts[twinOf(b.id)!],pattern:p.pattern});
   if(b.id.endsWith('_R')&&mirrorsShape(b.id))p.variant=parts[twinOf(b.id)!].variant;
@@ -335,7 +336,7 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   const pattern=(b.kind==='limb'||b.kind==='leg')&&random()<.55?twoTone:0;
   // Never pair two beaded segments on the same limb.
   const pair=pairedSegment(b.id),pairChoice=pair?(parts[pair]??(frozen.has(pair)?previous?.parts[pair]:undefined)):undefined;
-  const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant)));
+  const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant))&&!(b.kind==='hair'&&hairStyles[i].retired));
   // Ball joints: a sphere 40% of the time (the poster's dots), otherwise one of the flat shapes; any size.
   let variant=isBallJoint(b.id)?(random()<.4?0:1+Math.floor(random()*(jointShapes.length-1)))+jointShapes.length*Math.floor(random()*jointSizes.length):b.id==='spine_lower'?drawBuild(random,frozen.has('root')?previous!.parts.root.variant:undefined,frozen.has('spine_upper')?previous!.parts.spine_upper.variant:undefined):options[Math.floor(random()*options.length)];
   if(b.id.endsWith('_R')&&mirrorsShape(b.id)&&parts[twin!])variant=parts[twin!].variant;

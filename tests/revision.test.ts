@@ -433,6 +433,7 @@ it('scales the patchwork cells with Checker scale and the flow speed with Flow s
 
 it('places every hair style on every head: caps and helmets stay above the face mark, the back sits behind the head, in its own colour',()=>{
  for(let head=0;head<variants.head.length;head++)for(let style=0;style<hairStyles.length;style++){
+  if(hairStyles[style].retired)continue;
   const spec=generate('hair');spec.parts.head.variant=head;spec.parts.hair.variant=style;const rig=createCharacter(spec),label=`head ${head}, ${hairStyles[style].name}`;
   const front=rig.group.getObjectByName('hair_mesh') as SkinnedMesh,mark=rig.group.getObjectByName('face_mark_mesh') as SkinnedMesh,headMesh=rig.group.getObjectByName('head_mesh') as SkinnedMesh;
   expect(front.renderOrder,label).toBeGreaterThan(headMesh.renderOrder);expect(mark.renderOrder,label).toBeGreaterThan(front.renderOrder);
@@ -473,7 +474,7 @@ it('keeps every hair style symmetrical, and every helmet covers the top of every
 
 it('swings ragdoll hair as the head moves, never stretching or overlapping, and brings it back to rest',()=>{
  const named=(name:string)=>hairStyles.findIndex(s=>s.name===name);
- for(const name of ['Antenna','Twin antennas','Plume','Asterisk','Star','Ball top']){
+ for(const name of ['Antenna','Plume','Star','Ball top']){
   const spec=generate('dangles');spec.parts.hair.variant=named(name);const rig=createCharacter(spec);
   const check=(label:string)=>{for(const chain of rig.hair.state()){let from=chain.anchor,reach=chain.rope;chain.balls.forEach((b,i)=>{expect(b.pos.distanceTo(from),`${name} ${label} ${i}`).toBeCloseTo(reach,4);from=b.pos;reach=b.r+(chain.balls[i+1]?.r??0);});}};
   expect(rig.hair.meshes.length,name).toBeGreaterThan(0);check('rest');
@@ -520,4 +521,10 @@ it('rests totem headwear on the head, touching it without overlapping, on every 
   for(const p of hair.back)for(let i=0;i<p.points.length;i++){const a=p.points[i],b=p.points[(i+1)%p.points.length];for(let k=0;k<20;k++){const x=a[0]+(b[0]-a[0])*k/20,y=a[1]+(b[1]-a[1])*k/20,t=top(x);if(Number.isFinite(t))gap=Math.min(gap,y-t);}}
   expect(gap,`${style.name} on head ${head}`).toBeGreaterThan(-.003);expect(gap,`${style.name} on head ${head}`).toBeLessThan(.003);
  }
+});
+
+it('never draws a retired hair style and opens one from an old seed as its stand-in',()=>{
+ for(let i=0;i<300;i++)expect(hairStyles[generate(`retired-${i}`).parts.hair.variant].retired,`${i}`).toBeUndefined();
+ const spec=generate('retired');const gear=hairStyles.findIndex(s=>s.name==='Gear');spec.parts.hair.variant=gear;
+ expect(hairStyles[decodeSeed(encodeSeed(spec)).parts.hair.variant].name).toBe(hairStyles[gear].retired);
 });
