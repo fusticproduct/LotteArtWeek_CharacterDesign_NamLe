@@ -70,7 +70,7 @@ function weaveCanvas(seed:string,palette:WeavePaletteName,draw:(canvas:HTMLCanva
  return canvas;
 }
 /** `colorOf` gives the hex of a palette index in the chosen palette (see themes.ts). */
-function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string) {
+function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string,prop:Proportions) {
  const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
  if(p.pattern===flow&&typeof document!=='undefined'){
   // Flow: a looping colour strip mapped along the part's own flow direction (see flowUV); tick() slides it.
@@ -81,7 +81,7 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
  else if(p.pattern===patchwork&&typeof document!=='undefined'){
   // Patchwork quilt, mapped flat in metres like the weave; each of the two spots has its own quilt.
   const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
-  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/patchworkTile,1/patchworkTile);
+  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/(patchworkTile*prop.checker),1/(patchworkTile*prop.checker));
   material.map=texture;material.color.setRGB(1,1,1);
  }
  else if(p.pattern===twoTone&&!isBeaded(b,p.variant)&&typeof document!=='undefined'){
@@ -318,7 +318,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  const material=materialFor(def,choice,spec,weavePalette,colorOf);addPaper(material,geometry,paperAmount);
+  const material=materialFor(def,choice,spec,weavePalette,colorOf,proportions);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
  // Finger balls in the hand's accent colour, their own (fingers.ts); drawn just under their hand.
@@ -397,7 +397,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
  let clock=0;
  /** Advance the moving parts by dt seconds: the flow gradients and the ragdoll fingers. */
- const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=(f.phase+clock/flowPeriod)%1;fingers.update(dt);};
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=(f.phase+clock*proportions.flowSpeed/flowPeriod)%1;fingers.update(dt);};
  /** Ragdoll fingers: `updateFingers(dt)` every frame; `settleFingers()` before a still picture. */
  return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,tick,updateFingers:fingers.update,settleFingers:fingers.settle};
 }

@@ -770,3 +770,10 @@ Anh Nam thích ngón ragdoll (chuỗi hình tròn) hơn bản 5 quả bóng, nh�
 - Ngón tay lại là chuỗi hình tròn chạm nhau (mục 44), màu riêng (màu phụ của bàn tay).
 - Bàn tay coi như đĩa cứng bán kính 8,5 cm quanh tâm bàn tay: hình tròn đầu tiên của mỗi ngón nằm chạm mép ngoài; hình nào lọt vào thì bị đẩy ra mép (có test khi vung tay nhanh).
 - Bản 5 quả bóng vẫn còn trong lịch sử git (commit "Fingers are five floating balls that follow the hand").
+
+## 47. Slider Checker scale và Flow speed (14/10/2026)
+
+Anh Nam: slider cỡ cho hoa văn ô cờ đặt cạnh Pattern scale; slider cho tốc độ trôi màu của gradient.
+
+- Checker scale 40–250% nhân cỡ ô patchwork (mặc định 3,5 cm). Flow speed 0–300% nhân tốc độ trôi (mặc định một vòng mỗi 14 s; 0 = đứng yên).
+- Lưu cùng các tỉ lệ (theo trình duyệt, có trong undo) nhưng hiện dưới Pattern scale ở bảng Parts, không ở tab Proportions.

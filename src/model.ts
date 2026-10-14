@@ -86,11 +86,18 @@ export const restHeight=2.4;
  * Global look proportions (Proportions tab): 1 = the studio default. Kept per browser like the weave palette,
  * not in the seed. Bone lengths never change; only the parts' size, and the shoulders follow the torso edge.
  */
-export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','toes'] as const;
+export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','toes','checker','flowSpeed'] as const;
 export type Proportions=Record<typeof proportionKeys[number],number>;
-export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,toes:1};
+export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,toes:1,checker:1,flowSpeed:1};
 export const proportionRange={min:.5,max:1.5};
-export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]);return [k,Number.isFinite(v)?Math.min(proportionRange.max,Math.max(proportionRange.min,v)):1];})) as Proportions;
+/**
+ * Pattern look settings kept with the proportions (per browser, in the undo history) but shown under Pattern scale in
+ * the Parts panel: Checker scale (patchwork cell size) and Flow speed (how fast the gradients slide; 0 stops them).
+ */
+export const patternKeys=['checker','flowSpeed'] as const;
+const ranges:Partial<Record<typeof proportionKeys[number],{min:number;max:number}>>={checker:{min:.4,max:2.5},flowSpeed:{min:0,max:3}};
+export const rangeOf=(key:typeof proportionKeys[number])=>ranges[key]??proportionRange;
+export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]),r=rangeOf(k);return [k,Number.isFinite(v)?Math.min(r.max,Math.max(r.min,v)):1];})) as Proportions;
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */
 export const studioProportions=normalizeProportions(savedProportions);
 /** Shapes of the visible ball joints (Nam, 2026-10-14). Flat shapes are as wide inside as the ball, so they still cover the segment ends. */
