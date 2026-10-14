@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geofolk Proportion Plan</title>
+<style>
+:root{--paper:#eae7e6;--ink:#27234d;--green:#0c8953;--pink:#eb4db2;--line:rgba(39,35,77,.14);--muted:rgba(39,35,77,.64);--card:#f3f1f0;--stage:#000}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 140px}
+.eyebrow{font:600 11px 'Courier New',monospace;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:34px;letter-spacing:-1px;margin:6px 0 8px;line-height:1.1}
+h2{font-size:24px;letter-spacing:-.4px;margin:0 0 6px}
+h3{font-size:17px;margin:0 0 6px}
+p{margin:0 0 10px;max-width:800px}
+.lead{color:var(--muted);font-size:16px}
+section{margin-top:44px}
+.part-title{display:flex;align-items:baseline;gap:12px;border-top:2px solid var(--ink);padding-top:14px;margin-top:56px}
+.part-title span{font:600 12px 'Courier New',monospace;letter-spacing:1px;color:var(--muted)}
+a{color:var(--green)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card>b{display:block;font-size:14px;margin-bottom:4px}
+.card p,.card li{font-size:13.5px;color:var(--ink)}
+.card ul{margin:4px 0 0;padding-left:18px}
+.src{font-size:12px;color:var(--muted)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr));gap:8px;background:var(--stage);border-radius:12px;padding:10px;margin-top:12px}
+.gallery figure{margin:0;background:#0b0b0b;border-radius:8px;padding:6px 6px 8px;display:flex;flex-direction:column}
+.gallery svg{width:100%;height:auto;display:block}
+.gallery figcaption{color:#e9e6ee;font-size:12.5px;line-height:1.35;padding:2px 4px}
+.gallery figcaption b{display:block;font-size:13.5px}
+.gallery figcaption span{color:#a9a3b8}
+.gallery figcaption em{font-style:normal;font:600 10px 'Courier New',monospace;letter-spacing:.5px;color:#7ee0a8}
+.gallery figure.neutral{outline:2px dashed #555}
+.play{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;margin-top:12px;align-items:start}
+.play .stage{background:var(--stage);border-radius:12px;padding:10px}
+.play .sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:6px 18px}
+.play label{display:grid;grid-template-columns:1fr auto;font-size:13px;align-items:center;gap:2px 8px}
+.play label input{grid-column:1/3;width:100%}
+.play label em{font-style:normal;font:12px 'Courier New',monospace;color:var(--muted)}
+.play select{font:inherit;font-size:13px;padding:4px;border-radius:6px;border:1px solid var(--line);background:#fff}
+.heads{font:12px 'Courier New',monospace;color:#cfcbd6;padding:4px 2px 0}
+.phases{counter-reset:phase;display:grid;gap:10px;margin-top:12px}
+.phase{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:10px;padding:12px 16px}
+.phase h3:before{counter-increment:phase;content:"Giai đoạn " counter(phase) " · ";color:var(--green)}
+.phase ul{margin:6px 0 0;padding-left:18px;font-size:14px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;font-size:13px}
+.flow div{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:220px}
+.flow i{font-style:normal;color:var(--muted)}
+fieldset{border:1px solid var(--line);border-radius:10px;background:var(--card);margin:10px 0;padding:12px 16px}
+legend{font-weight:700;font-size:15px;padding:0 6px}
+legend small{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+fieldset p.why{font-size:13px;color:var(--muted);margin:2px 0 6px}
+fieldset label{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:4px 2px;cursor:pointer}
+fieldset label input{margin-top:4px}
+.rec{display:inline-block;font:600 10px 'Courier New',monospace;letter-spacing:.5px;padding:1px 6px;border-radius:4px;background:#d6efe2;color:#0b6b41;margin-left:6px;vertical-align:1px}
+fieldset input[type=text]{width:100%;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:4px}
+.dock{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:#fff;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;z-index:5}
+.dock span{font-size:13px;opacity:.85}
+.btn{border:1px solid var(--green);background:var(--green);color:#fff;border-radius:7px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer}
+.btn.ghost{background:none;color:#fff;border-color:rgba(255,255,255,.35)}
+textarea#answers{width:100%;min-height:200px;font:12.5px/1.5 'Courier New',monospace;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px;background:#fff;color:var(--ink)}
+@media (max-width:760px){.play{grid-template-columns:1fr}h1{font-size:27px}.wrap{padding:20px 16px 160px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="eyebrow">Geofolk · Lotte Art Week · 14/10/2026</div>
+ <h1>Tỉ lệ nhân vật: nghiên cứu, kế hoạch và câu hỏi</h1>
+ <p class="lead">Mục tiêu: nhân vật đa dạng tỉ lệ hơn nhiều (thân to chân ngắn, thân tí hon tay dài, đầu to thân nhỏ, thân bè, dáng lê, dáng táo…), và khi bật camera thì tỉ lệ của người dùng hiện lên nhân vật, trộn với một dáng độc đáo. Trang này chưa đổi gì trong app. Đọc phần 1–3, rồi trả lời phần 4 và bấm <b>Copy câu trả lời</b> để dán lại vào chat.</p>
+
+ <!-- 1. Research -->
+ <div class="part-title"><h2>1. Nghiên cứu ngắn gọn</h2><span>DISNEY · PIXAR · BAUHAUS · BIẾM HỌA · CAMERA</span></div>
+ <div class="cards">
+  <div class="card"><b>Pixar chọn "khối chủ đạo" trước</b><p>Carl (Up) là hình vuông vì ông cứng nhắc, khép kín; Russell là hình tròn vì "lăn được, chạy nhanh". Gia đình Incredibles mỗi người một dạng bóng khác hẳn. Họ không lấy một người trung bình rồi chỉnh nhẹ: mỗi nhân vật có <b>một khối lấn át</b>, và khối đó gắn với tính cách.</p><p class="src"><a href="https://www.shmoop.com/study-guides/up/shapes-symbol.html">Up – shapes</a> · <a href="https://www.cgw.com/Publications/CGW/2009/Volume-32-Issue-6-June-2009-/The-Shape-of-Animation.aspx">CGW 2009</a></p></div>
+  <div class="card"><b>Số "đầu" quyết định dễ thương hay người lớn</b><ul><li>Sơ sinh đầu = 1/4 thân; người lớn 1/7–1/8; Tintin 5 đầu, Batman 8, chibi 2–3.</li><li>Mickey qua các năm: đầu từ 42,7% lên 48,1% chiều dài thân (Gould).</li><li>Với nhân vật <b>không có nét mặt</b> như Geofolk, đầu to là núm mạnh nhất cho cảm giác dễ thương (Hwang 2024).</li></ul><p class="src"><a href="https://sydneypadua.com/2dgoggles/a-matter-of-proportion/">Padua</a> · <a href="https://www.cognitionandculture.net/wp-content/uploads/Mickey-mouse-meets-konrad-lorenz.pdf">Gould</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10813407/">Hwang 2024</a></p></div>
+  <div class="card"><b>Phóng đại nhưng giữ cân bằng</b><p>Nguyên tắc <i>Exaggeration</i> và <i>Appeal</i> của Disney: phóng đại nhưng cân đối, dễ đọc. Thêm luật quen thuộc: lớn – vừa – nhỏ (không bao giờ hai khối bằng nhau), thẳng đối với cong, bóng đen phải đọc được ngay.</p><p class="src"><a href="https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation">12 nguyên tắc (Thomas &amp; Johnston)</a></p></div>
+  <div class="card"><b>Bauhaus gần như chính là Geofolk</b><p>Búp bê khớp của Oskar Schlemmer: "đầu hình trứng, thân hình bình, tay chân hình chùy, khớp hình cầu". Trong Triadic Ballet, thân trang phục khổng lồ cứng trên đôi chân người mảnh. Rối gỗ của Sophie Taeuber-Arp thể hiện tỉ lệ bằng <b>số khối xếp chồng</b>, giống số hạt của Chain.</p><p class="src"><a href="https://www.schlemmer.org/triadic-ballet">Schlemmer</a> · <a href="https://www.eguide.ch/en/objekt/koenig-hirsch-wache/?pdf=1941">Taeuber-Arp</a></p></div>
+  <div class="card"><b>Biếm họa = phóng đại điểm khác người trung bình</b><p>Máy vẽ biếm họa của Brennan (1985) lấy khuôn mặt, trừ đi khuôn mặt trung bình, rồi phóng đại phần chênh. Mo (2004): phải chia theo độ lệch thường gặp, vì vai rộng thêm 2 cm thì bình thường, còn mắt to thêm 2 cm thì rất nổi. Người ta nhận ra biếm họa nhanh hơn ảnh vẽ đúng.</p><p class="src"><a href="https://isgwww.cs.uni-magdeburg.de/~stefans/npr/entry-Brennan-1985-CGD.html">Brennan 1985</a> · <a href="https://history.siggraph.org/wp-content/uploads/2022/12/2004-Talks-Mo_Improved-Automatic-Caricature-by-Feature-Normalization-and-Exaggeration.pdf">Mo 2004</a></p></div>
+  <div class="card"><b>Tay chân dài vẫn nhảy theo camera được</b><p>Cách của Meta (Animated Drawings, 2023): chép <b>hướng</b> của từng xương, không chép vị trí, nên độ dài xương của nhân vật không bao giờ bị ép theo người. Geofolk đang làm đúng như vậy, nên tay dài chỉ vung rộng hơn, thân vẫn dính liền.</p><p class="src"><a href="https://arxiv.org/abs/2303.12741">Smith et al. 2023</a> · <a href="https://chrishecker.com/Real-time_Motion_Retargeting_to_Highly_Varied_User-Created_Morphologies">Spore (Hecker 2008)</a></p></div>
+  <div class="card"><b>Đo người qua webcam: đo gì mới tin được</b><ul><li><b>Tốt:</b> vai so với hông; đầu so với vai (phân biệt trẻ em rất rõ).</li><li><b>Tạm:</b> thân dài/ngắn; tay (chỉ khi dang tay, lấy giá trị dài nhất).</li><li><b>Yếu:</b> chân (hay ra ngoài khung); dáng lê/táo (quần áo làm sai).</li><li>Khác biệt thật giữa người với người chỉ vài %, cỡ bằng sai số, nên phải phóng đại và nên so với chính khách trong sự kiện.</li></ul><p class="src"><a href="https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js">MediaPipe Pose</a> · <a href="https://e-space.mmu.ac.uk/627583">FFIT: phân loại dáng sai tới 40%</a></p></div>
+  <div class="card"><b>Một phát hiện về Geofolk hiện tại</b><p>Nhân vật bây giờ cao khoảng <b>7,7 đầu</b>, chân chiếm <b>56%</b> chiều cao: rất dài, kiểu người mẫu. Phần lớn nhân vật trong poster thấp hơn (khoảng 5–6 đầu). Nghĩa là "dáng trung tính" của mình đang lệch về phía chân dài, và nhiều dáng mới sẽ cần chân ngắn lại.</p></div>
+ </div>
+
+ <!-- 2. Archetypes -->
+ <div class="part-title"><h2>2. Mười hai dáng mẫu</h2><span>VẼ PHÁC, CÙNG TỈ LỆ, CÙNG MẶT SÀN</span></div>
+ <p>Mỗi dáng là một bộ giá trị cho các <b>núm tỉ lệ</b> (đầu, chiều cao thân, độ rộng thân, độ loe thân, tay, chân, độ dày tay chân, cỡ bàn tay/chân, cổ), và có một <b>núm "ngôi sao"</b> lệch mạnh nhất. Hình dưới đây là phác thảo nhanh để so sánh, không phải hình dựng bằng bộ xương thật. Ô viền đứt là nhân vật hiện tại.</p>
+ <div class="gallery" id="gallery"></div>
+
+ <h3 style="margin-top:22px">Thử kéo các núm</h3>
+ <p>Kéo để cảm nhận từng núm. Chọn một dáng mẫu để nạp giá trị của nó.</p>
+ <div class="play">
+  <div class="stage"><svg id="play-svg" viewBox="0 0 260 330"></svg><div class="heads" id="play-heads"></div></div>
+  <div>
+   <div style="margin-bottom:8px"><select id="play-preset"></select></div>
+   <div class="sliders" id="play-sliders"></div>
+  </div>
+ </div>
+
+ <!-- 3. Plan -->
+ <div class="part-title"><h2>3. Kế hoạch đề xuất</h2><span>4 GIAI ĐOẠN · MỖI GIAI ĐOẠN MỘT NHÁNH GIT</span></div>
+ <div class="phases">
+  <div class="phase"><h3>Bộ xương co giãn</h3><ul>
+   <li>Mỗi nhân vật có bộ núm tỉ lệ riêng, lưu trong seed (seed phiên bản 4; seed cũ mở ra dáng hiện tại).</li>
+   <li>Xương dài ngắn thật theo núm, không chỉ phóng hình: tay dài thì xương tay dài, thân tí hon thì vai và hông dời vào sát thân. Mọi chỗ nối vẫn dùng luật "đĩa ở chỗ nối" như thân vừa làm, nên không bao giờ hở.</li>
+   <li>Chuỗi hạt tự thêm hạt khi tay chân dài. Bàn chân luôn chạm sàn.</li>
+   <li>Live pose và Dance chạy luôn, vì app chép góc chứ không chép vị trí.</li>
+  </ul></div>
+  <div class="phase"><h3>Dáng mẫu và luật random</h3><ul>
+   <li>Mỗi nhân vật rút một dáng mẫu, rồi lắc nhẹ các núm trong khoảng của dáng đó (lắc theo tỉ lệ, không cộng trừ đều).</li>
+   <li>Luật giữ đẹp:
+    <ul>
+     <li>Chỉ 1 núm "ngôi sao" và tối đa 3 núm lệch xa.</li>
+     <li>Lớn – vừa – nhỏ giữa đầu, thân và chân.</li>
+     <li>Tay chân dài thì mảnh lại.</li>
+     <li>Mỗi đoạn tay chân đủ dài để thấy rõ, tối thiểu khoảng 3 hạt.</li>
+     <li>Dáng nặng phần trên thì bàn chân to và đứng rộng.</li>
+     <li>Bóng nhân vật mới phải khác rõ những nhân vật vừa sinh.</li>
+    </ul>
+   </li>
+   <li>Dòng "Dáng" trong Parts để khóa hoặc random, giống Build.</li>
+  </ul></div>
+  <div class="phase"><h3>Camera phản chiếu tỉ lệ người dùng</h3>
+   <div class="flow"><div>Người dùng dang tay ~3 giây<br><i>đếm ngược, chỉ lấy khung hình đứng thẳng</i></div>→<div>Đo tỉ số: vai/hông, đầu/vai, thân/vai, tay/thân, chân/thân nếu thấy<br><i>lấy trung vị; tay lấy giá trị dài</i></div>→<div>So với người trung bình<br><i>ban đầu dùng số chuẩn, sau học dần từ khách</i></div>→<div>Phóng đại phần lệch kiểu biếm họa<br><i>giới hạn ±x%, không lật núm ngôi sao</i></div>→<div>Trộn với dáng mẫu<br><i>khóa số đo, đo lại khi đổi người</i></div></div>
+   <ul><li>Có thẻ nhỏ cho người dùng thấy, ví dụ "Vai rộng · Tay dài".</li><li>Phần thường bị sai (chân ra ngoài khung, quần áo rộng) sẽ tự giảm ảnh hưởng hoặc bỏ qua.</li></ul></div>
+  <div class="phase"><h3>Hoàn thiện</h3><ul>
+   <li>Trang xem trước dựng bằng bộ xương thật, để anh duyệt dáng.</li>
+   <li>Kiểm tra độ đa dạng của bóng, xuất FBX/OBJ với xương dài ngắn khác nhau, test.</li>
+   <li>Khung hình tự thu lại khi tay dài vung ra ngoài.</li>
+  </ul></div>
+ </div>
+ <p style="margin-top:12px"><b>Rủi ro chính:</b></p>
+ <ul>
+  <li>Đo qua webcam nhiễu. Khác biệt giữa người với người nhỏ, camera đặt thấp làm chân trông dài ra, quần áo rộng làm sai độ bè.</li>
+  <li>Tay rất dài có thể vung ra ngoài khung hình.</li>
+  <li>Đổi chiều cao làm vỡ một số test cũ ("cao đúng 2.4"), phải viết lại theo luật mới.</li>
+ </ul>
+
+ <!-- 4. Questions -->
+ <div class="part-title"><h2>4. Câu hỏi cho anh</h2><span>CHỌN RỒI BẤM "COPY CÂU TRẢ LỜI" Ở THANH DƯỚI</span></div>
+ <p>Nhãn <span class="rec">ĐỀ XUẤT</span> là lựa chọn mình nghiêng về, kèm lý do ngắn. Ô "Ý khác" để ghi thêm nếu không lựa chọn nào đúng ý.</p>
+ <form id="quiz"></form>
+ <textarea id="answers" readonly placeholder="Câu trả lời sẽ hiện ở đây khi bấm Copy."></textarea>
+</div>
+<div class="dock"><span id="progress">0 câu đã trả lời</span><button class="btn" id="copy">Copy câu trả lời</button><button class="btn ghost" id="reset">Xóa hết</button></div>
+<script>
+// ---------- figure sketch ----------
+// Neutral figure = Geofolk today (metres): head 0.31, neck 0.07, body 0.78, legs 0.6 + 0.6 + foot 0.15, arms 0.30 + 0.28.
+const N={head:.31,neck:.07,body:.78,bodyW:.62,thigh:.6,shin:.6,foot:.15,upper:.3,fore:.28,hand:.075,limb:.13,joint:.075};
+const dialInfo=[
+ ['head','Đầu',.4,2.6],['torsoL','Chiều cao thân',.3,1.8],['torsoW','Độ rộng thân',.4,1.8],['taper','Loe (vai : đáy)',.4,2.4],
+ ['arms','Tay dài',.4,2],['legs','Chân dài',.3,1.7],['thick','Độ dày tay chân',.4,1.6],['ends','Bàn tay / chân',.6,1.6],['neck','Cổ',.5,2.5]];
+const shapes={egg:'Trứng',circle:'Tròn',block:'Khối',wedge:'Tam giác ngược',pear:'Lê (tròn nhỏ trên tròn to)',hourglass:'Eo thắt (tam giác ngược trên khối tròn)',pair:'Hai hình tròn',bean:'Hạt đậu'};
+const base={head:1,torsoL:1,torsoW:1,taper:1,arms:1,legs:1,thick:1,ends:1,neck:1,shape:'block',beads:false};
+const archetypes=[
+ {id:'neutral',vi:'Hiện tại',en:'Geofolk today',star:'—',d:{shape:'block'},c:['#7c3eee','#f594cf','#facc67','#0c52e9','#38ae79'],note:'Dáng đang có: chân rất dài.'},
+ {id:'orb',vi:'Hạt nhân & dây',en:'Orb & Strings',star:'Thân tí hon, tay chân dài',d:{head:.8,torsoL:.45,torsoW:.55,arms:1.75,legs:1.05,thick:.65,ends:.8,shape:'circle',beads:true},c:['#eb4db2','#38ae79','#facc67','#f55d59','#579ef0'],note:'Như ảnh 7: thân là một nút nhỏ, tay chân là khối chính.'},
+ {id:'baby',vi:'Em bé đầu to',en:'Bobble Baby',star:'Đầu to, chân ngắn',d:{head:1.9,torsoL:.8,torsoW:.95,arms:.6,legs:.42,thick:1.2,ends:1.1,shape:'egg'},c:['#fab1dd','#579ef0','#facc67','#7c3eee','#f49058'],note:'Kiểu Kindchenschema: đầu to, thân tròn, tay chân ngắn mập.'},
+ {id:'lolly',vi:'Kẹo mút',en:'Lollipop',star:'Đầu rất to, thân que',d:{head:2.3,torsoL:.5,torsoW:.45,arms:.8,legs:.72,thick:.55,ends:.8,shape:'block'},c:['#0c8953','#f55d59','#facc67','#eb4db2','#fab1dd'],note:'Đầu lấn át, thân mảnh như cái que.'},
+ {id:'brick',vi:'Viên gạch',en:'Brick',star:'Thân vuông to, chân ngắn',d:{head:.85,torsoL:1.3,torsoW:1.5,arms:.8,legs:.45,thick:1.4,ends:1.3,shape:'block'},c:['#1c6cec','#f49058','#facc67','#eb4db2','#aa77e7'],note:'Kiểu ông Carl (Up): vuông, chắc, chậm.'},
+ {id:'wedge',vi:'Tam giác ngược',en:'Wedge Hero',star:'Vai rất rộng, eo hẹp',d:{head:.75,torsoL:1.15,torsoW:1.3,taper:2.2,arms:1.05,legs:.85,thick:1,ends:1.2,shape:'wedge'},c:['#f55d59','#0c52e9','#facc67','#38ae79','#f594cf'],note:'Dáng người hùng: ngực to, hông nhỏ.'},
+ {id:'brute',vi:'Đô vật',en:'Brute',star:'Tay dài, chân ngắn',d:{head:.7,torsoL:1.2,torsoW:1.55,taper:1.5,arms:1.45,legs:.5,thick:1.35,ends:1.4,shape:'wedge'},c:['#38ae79','#7c3eee','#f49058','#facc67','#3ba6ac'],note:'Kiểu "pugnacious" của Preston Blair: nặng phía trên.'},
+ {id:'pear',vi:'Quả lê',en:'Pear',star:'Đáy thân to, vai hẹp',d:{head:.9,torsoL:1.1,torsoW:1.25,taper:.5,arms:.75,legs:.6,thick:.9,ends:1.1,shape:'pear'},c:['#f49058','#579ef0','#eb4db2','#facc67','#38ae79'],note:'Hai hình tròn: nhỏ trên, to dưới (Big bottom).'},
+ {id:'apple',vi:'Quả táo / trứng',en:'Apple Egg',star:'Bụng phình giữa',d:{head:.9,torsoL:1.2,torsoW:1.45,arms:.75,legs:.55,thick:.7,ends:1,shape:'egg'},c:['#facc67','#eb4db2','#0c52e9','#38ae79','#f55d59'],note:'Thân trứng to nhất ở giữa, chân mảnh.'},
+ {id:'hour',vi:'Đồng hồ cát',en:'Hourglass',star:'Eo thắt',d:{head:.9,torsoL:1,torsoW:1.1,arms:1,legs:1,thick:.85,ends:.9,shape:'hourglass'},c:['#aa77e7','#f55d59','#38ae79','#facc67','#579ef0'],note:'Tam giác ngược thắt eo trên một khối tròn.'},
+ {id:'pole',vi:'Cây sào',en:'Beanpole',star:'Cao gầy, cổ dài',d:{head:.8,torsoL:1.3,torsoW:.55,arms:1.3,legs:1.12,thick:.6,ends:1.3,neck:2,shape:'block'},c:['#3ba6ac','#facc67','#eb4db2','#7c3eee','#f49058'],note:'Kiểu Goofy: gầy, dài, bàn chân to.'},
+ {id:'bean',vi:'Hạt đậu',en:'Bean',star:'Đầu liền thân, chân cụt',d:{head:.95,torsoL:1.5,torsoW:1.1,arms:.6,legs:.35,thick:1.2,ends:1,neck:.5,shape:'bean'},c:['#f594cf','#0c8953','#facc67','#1c6cec','#f594cf'],note:'Một khối con nhộng, dễ đọc từ xa (kiểu Fall Guys).'},
+ {id:'strider',vi:'Cà kheo',en:'Strider',star:'Chân cực dài',d:{head:.7,torsoL:.75,torsoW:.9,taper:1.4,arms:.85,legs:1.5,thick:.7,ends:.8,shape:'wedge'},c:['#0c52e9','#f55d59','#facc67','#38ae79','#fab1dd'],note:'Kiểu múa Schlemmer / Depero: thân nhỏ trên đôi cà kheo.'},
+];
+const ellipse=(cx,cy,rx,ry,from=0,to=Math.PI*2,n=40)=>Array.from({length:n+1},(_,i)=>{const a=from+(to-from)*i/n;return [cx+rx*Math.cos(a),cy+ry*Math.sin(a)];});
+/** Body pieces as polygons (metres, y up) for a shape filling [y0, y1] with width w and taper (top : bottom). */
+function bodyPieces(shape,y0,y1,w,taper){
+ const h=y1-y0,mid=(y0+y1)/2,top=w*Math.min(1,taper),bot=w*Math.min(1,1/taper);
+ if(shape==='circle'){const r=Math.min(h,w)/2;return [ellipse(0,mid,r,r)];}
+ if(shape==='egg')return [ellipse(0,mid,w/2,h/2)];
+ if(shape==='bean')return [[...ellipse(0,y1-w/2,w/2,w/2,0,Math.PI),...ellipse(0,y0+w/2,w/2,w/2,Math.PI,Math.PI*2)]];
+ if(shape==='wedge')return [[[-bot/2*.7,y0],[bot/2*.7,y0],[top/2,y1],[-top/2,y1]]];
+ if(shape==='pear'){const r=Math.min(w,h*.64)/2,small=(h-2*r)/2+.04;return [ellipse(0,y0+r,r,r),ellipse(0,y1-small,small,small)];}
+ if(shape==='hourglass'){const r=Math.min(w,h)*.27,m=y0+2*r;return [[[-.08,m-.05],[.08,m-.05],[w/2,y1],[-w/2,y1]],ellipse(0,y0+r,r,r)];}
+ if(shape==='pair'){const r=h/4+.02;return [ellipse(0,y1-r,r,r),ellipse(0,y0+r,r,r)];}
+  return [[[-bot/2,y0],[bot/2,y0],[top/2,y1],[-top/2,y1]]];
+}
+const halfWidthAt=(polys,y)=>{let w=0;for(const p of polys)for(let i=0;i<p.length;i++){const [x1,y1]=p[i],[x2,y2]=p[(i+1)%p.length];if(y1!==y2&&(y1-y)*(y2-y)<=0)w=Math.max(w,Math.abs(x1+(x2-x1)*(y-y1)/(y2-y1)));}return w;};
+/** SVG of one figure. Common scale: 1 m = 100 px, floor at y = 322, so heights compare across cards. */
+function figure(dials,colors){
+ const d={...base,...dials},S=100,X=v=>130+v*S,Y=v=>322-v*S,[A,B,C,J,H]=colors;
+ const head=N.head*d.head,neck=N.neck*d.neck,bodyH=N.body*d.torsoL,bodyW=N.bodyW*d.torsoW,thigh=N.thigh*d.legs,shin=N.shin*d.legs,foot=N.foot*d.ends;
+ const upper=N.upper*d.arms,fore=N.fore*d.arms,t=N.limb*d.thick,jr=N.joint*Math.max(.7,Math.min(1.2,d.thick));
+ const hipY=foot+thigh+shin,y0=hipY-.11*d.torsoL,y1=y0+bodyH,neckTop=y1+neck,headTop=neckTop+head;
+ const pieces=bodyPieces(d.shape,y0,y1,bodyW,d.taper),sy=y1-.1*Math.max(.6,d.torsoL),sx=Math.max(.06,halfWidthAt(pieces,sy))+jr*.55,hx=Math.min(.105,Math.max(.05,halfWidthAt(pieces,hipY)-.06));
+ const out=[];const line=(x1,y1_,x2,y2,c,w)=>{if(d.beads){const len=Math.hypot(x2-x1,y2-y1_),r=w/2,n=Math.max(2,Math.round(len/(r*1.35)));for(let i=0;i<n;i++){const f=(i+.5)/n;out.push(`<circle cx="${X(x1+(x2-x1)*f)}" cy="${Y(y1_+(y2-y1_)*f)}" r="${r*S}" fill="${c}"/>`);}}else out.push(`<line x1="${X(x1)}" y1="${Y(y1_)}" x2="${X(x2)}" y2="${Y(y2)}" stroke="${c}" stroke-width="${w*S}" stroke-linecap="round"/>`);};
+ const dot=(x,y,r,c)=>out.push(`<circle cx="${X(x)}" cy="${Y(y)}" r="${r*S}" fill="${c}"/>`);
+ // legs (behind)
+ for(const s of [-1,1]){const kx=s*(hx+thigh*.07),ky=hipY-thigh,fx=s*(hx+thigh*.07+shin*.02);line(s*hx,hipY,kx,ky,B,t*1.05);line(kx,ky,fx,foot,s<0?A:B,t*1.15);out.push(`<rect x="${X(fx-.11*d.ends)}" y="${Y(foot)}" width="${.22*d.ends*S}" height="${foot*S}" rx="${.04*S}" fill="${C}"/>`);dot(kx,ky,jr,J);}
+ // body, neck, head
+ out.push(`<rect x="${X(-.045)}" y="${Y(neckTop+.02)}" width="${.09*S}" height="${(neck+.06)*S}" fill="${B}"/>`);
+ pieces.forEach((p,i)=>out.push(`<path d="M${p.map(([x,y])=>`${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join('L')}Z" fill="${i?B:A}" stroke="${i?B:A}" stroke-width="3" stroke-linejoin="round"/>`));
+ if(d.shape==='bean')out.push(`<circle cx="${X(0)}" cy="${Y(y1-bodyW*.32)}" r="${Math.min(head*.3,bodyW*.18)*S}" fill="${H}"/>`);
+ else out.push(`<circle cx="${X(0)}" cy="${Y(neckTop+head/2)}" r="${head/2*S}" fill="${H}"/>`);
+ // arms, in an A-pose so their length reads
+ for(const s of [-1,1]){const a=.42,ex=s*(sx+Math.sin(a)*upper),ey=sy-Math.cos(a)*upper,b=.3,hxp=ex+s*Math.sin(b)*fore,hyp=ey-Math.cos(b)*fore;line(s*sx,sy,ex,ey,s<0?B:A,t);line(ex,ey,hxp,hyp,s<0?A:B,t);dot(hxp,hyp,N.hand*d.ends,C);dot(ex,ey,jr*.9,J);dot(s*sx,sy,jr,J);}
+ const tall=d.shape==='bean'?y1:headTop;
+ return {svg:out.join(''),heads:tall/head,tall};
+}
+// ---------- gallery ----------
+const gallery=document.getElementById('gallery');
+for(const a of archetypes){const f=figure(a.d,a.c);gallery.insertAdjacentHTML('beforeend',`<figure class="${a.id==='neutral'?'neutral':''}"><svg viewBox="0 0 260 330">${f.svg}</svg><figcaption><b>${a.vi}</b><span>${a.en} · ~${f.heads.toFixed(1)} đầu · cao ${f.tall.toFixed(2)} m</span><br><em>★ ${a.star}</em><br>${a.note}</figcaption></figure>`);}
+// ---------- playground ----------
+const playSvg=document.getElementById('play-svg'),playHeads=document.getElementById('play-heads'),sliders=document.getElementById('play-sliders'),preset=document.getElementById('play-preset');
+let play={...base};
+preset.innerHTML=archetypes.map(a=>`<option value="${a.id}">${a.vi} (${a.en})</option>`).join('')+`<option value="__shape" disabled>──────</option>`+Object.entries(shapes).map(([k,v])=>`<option value="shape:${k}">Hình thân: ${v}</option>`).join('');
+sliders.innerHTML=dialInfo.map(([k,label,min,max])=>`<label>${label}<em id="v-${k}">1.00×</em><input type="range" min="${min}" max="${max}" step=".05" value="1" data-k="${k}"></label>`).join('')+`<label>Tay chân dạng hạt<em></em><input type="checkbox" data-k="beads" style="width:auto"></label>`;
+const drawPlay=()=>{const f=figure(play,['#eb4db2','#38ae79','#facc67','#0c52e9','#579ef0']);playSvg.innerHTML=f.svg;playHeads.textContent=`~${f.heads.toFixed(1)} đầu · cao ${f.tall.toFixed(2)} m (hiện tại 7.7 đầu · 2.40 m)`;for(const [k] of dialInfo){document.getElementById('v-'+k).textContent=(+play[k]).toFixed(2)+'×';sliders.querySelector(`[data-k=${k}]`).value=play[k];}sliders.querySelector('[data-k=beads]').checked=!!play.beads;};
+sliders.addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;play[k]=k==='beads'?e.target.checked:+e.target.value;drawPlay();});
+preset.addEventListener('change',()=>{const v=preset.value;if(v.startsWith('shape:'))play.shape=v.slice(6);else play={...base,...archetypes.find(a=>a.id===v).d};drawPlay();});
+preset.value='orb';play={...base,...archetypes[1].d};drawPlay();
+// ---------- questions ----------
+const R=' (đề xuất)';
+const questions=[
+ {s:'A. Tinh thần chung'},
+ {id:'A1',q:'Mức "lạ" của tỉ lệ anh muốn?',o:['Nhẹ: vẫn giống người, chỉ khác chút ít','Vừa: như poster XMAS/TET, đa số khác rõ nhưng không quá đà','Mạnh: nhiều dáng cực đoan (đầu to gấp đôi, thân tí hon)','Pha trộn: đa số vừa, khoảng 1/5 cực đoan'],rec:3,why:'Pha trộn giữ cả nhịp poster lẫn vài nhân vật "gây chú ý".'},
+ {id:'A2',q:'Chiều cao nhân vật?',o:['Mọi nhân vật cao bằng nhau, chỉ chia lại tỉ lệ bên trong','Cao thấp khác nhau tự nhiên (chân ngắn thì thấp hơn)','Khác nhau nhưng trong khoảng ±20%'],rec:1,why:'Cao thấp khác nhau làm đám đông trên poster sống động; khung hình tự thu cho vừa.'},
+ {id:'A3',q:'Dáng "trung tính" mới (dáng gốc trước khi lệch) nên cao bao nhiêu đầu?',o:['Giữ như hiện tại (~7.7 đầu, chân rất dài)','Khoảng 6 đầu, chân ngắn hơn (giống phần lớn poster)','Khoảng 4.5 đầu, tròn trịa dễ thương'],rec:1,why:'Poster đa số 5–6 đầu; dáng gốc ở giữa thì lệch về hai phía đều đẹp.'},
+ {id:'A4',q:'Khi tay chân dài ra thì độ dày?',o:['Mảnh lại, tổng "khối lượng" gần như cũ','Giữ độ dày như cũ','Random độc lập'],rec:0,why:'Giống ảnh 7: tay chân dài thì thanh, không thành khúc gỗ.'},
+ {id:'A5',q:'Chuỗi hạt (Chain) khi tay chân dài ra?',o:['Thêm hạt, cỡ hạt giữ nguyên','Hạt to ra, số hạt giữ nguyên'],rec:0,why:'Đúng luật hạt tròn đều vừa làm; dài thì nhiều hạt hơn như ảnh 7.'},
+ {id:'A6',q:'Độ dài tay chân trái/phải?',o:['Luôn đối xứng (chuyển động dễ đọc)','Thỉnh thoảng lệch (một tay dài hơn) cho vui'],rec:0,why:'Lệch làm Live pose trông như bị lỗi.'},
+ {s:'B. Dáng mẫu'},
+ {id:'B1',q:'Giữ những dáng nào? (chọn nhiều)',many:true,o:archetypes.slice(1).map(a=>`${a.vi} (${a.en}): ${a.star}`),rec:[0,1,2,3,4,5,6,7,8,9,10,11],why:'Mặc định giữ hết; bỏ dáng nào anh thấy không hợp Lotte Art Week.'},
+ {id:'B2',q:'Dáng mẫu xuất hiện trong app thế nào?',o:['Một dòng "Dáng" trong Parts để khóa/random, như Build','Ẩn, chỉ ảnh hưởng random','Danh sách tên dáng để người chơi tự chọn'],rec:0,why:'Khóa được dáng rồi random màu/hình rất tiện khi làm poster.'},
+ {id:'B3',q:'Tần suất các dáng khi Generate?',o:['Đều nhau','Ưu tiên các dáng giống poster (Hạt nhân & dây, Đồng hồ cát, Viên gạch, Quả lê…)','Dáng trung tính chiếm phần lớn, dáng lạ thỉnh thoảng'],rec:1,why:'Bám nhận diện của poster sự kiện.'},
+ {id:'B4',q:'Dáng thân (lê, táo, đồng hồ cát, tam giác ngược…) lấy từ đâu?',o:['Gắn với Build và hình khối vừa làm (lê = tròn nhỏ trên tròn to, tam giác ngược = Big top + Funnel…)','Một núm riêng (phình trên/giữa/dưới), độc lập với hình khối'],rec:0,why:'Dùng lại hệ khối vừa làm, ít khái niệm mới, seed gọn.'},
+ {id:'B5',q:'Thân rộng tối đa?',o:['Có thể rộng hơn cao (thân bè ngang)','Tối đa bằng chiều cao thân'],rec:0,why:'Viên gạch, Đô vật cần thân bè.'},
+ {id:'B6',q:'Đầu to tối đa?',o:['Gấp 1.5 đầu hiện tại','Gấp 2 (kiểu Kẹo mút)','Gấp 2.5 trở lên (đầu to hơn cả thân)'],rec:1,why:'Gấp 2 đủ "đầu to" rõ rệt mà vẫn đứng vững.'},
+ {id:'B7',q:'Tay dài tối đa (đứng thẳng, tay buông)?',o:['Đầu ngón tay tới gối','Tới mắt cá hoặc chạm sàn (như ảnh 7)','Dài hơn cả chiều cao, lê đất'],rec:1,why:'Đủ cực cho dáng Hạt nhân & dây mà Live pose vẫn đọc được.'},
+ {id:'B8',q:'Nhân vật nặng phần trên (đầu/thân to, chân ngắn)?',o:['Tự cho bàn chân to hơn và đứng rộng hơn để trông vững','Không cần, cứ để lạ'],rec:0,why:'Luật cân bằng của hoạt hình: trọng tâm phải nằm trên bàn chân.'},
+ {s:'C. Camera phản chiếu người dùng'},
+ {id:'C1',q:'Tỉ lệ thật của người dùng hiện lên mạnh cỡ nào?',o:['Gợi ý nhẹ (±10%), người khác khó nhận ra','Rõ (±25%), người dùng thấy "đúng là mình"','Biếm họa mạnh (±40%)','Có slider để người dùng tự chỉnh'],rec:1,why:'Khác biệt thật chỉ vài %, phải phóng đại mới thấy; ±25% vẫn giữ được dáng mẫu.'},
+ {id:'C2',q:'Đo những gì? (chọn nhiều)',many:true,o:['Vai rộng/hẹp so với hông (ổn định nhất)','Đầu to/nhỏ so với vai (phân biệt trẻ em rõ)','Thân dài/ngắn','Tay dài/ngắn (cần dang tay)','Chân dài/ngắn (chỉ khi thấy cả người)','Người bè/gầy từ bóng người (dễ sai vì quần áo)'],rec:[0,1,2,3],why:'Bốn số đầu đo được khá tin cậy từ một webcam.'},
+ {id:'C3',q:'Cách đo?',o:['Màn hình hướng dẫn "dang tay 3 giây", đếm ngược, rồi khóa số đo','Đo ngầm trong lúc người dùng nhảy (không cần đứng yên, kém chính xác hơn)','Cả hai: đo ngầm ngay, chính xác hơn khi người dùng dang tay'],rec:2,why:'Có kết quả ngay, và ai làm theo hướng dẫn thì được đo chuẩn hơn.'},
+ {id:'C4',q:'Trộn số đo với dáng độc đáo thế nào?',o:['Dáng mẫu là chính; số đo đẩy các núm khác, không lật núm "ngôi sao"','Số đo là chính; dáng mẫu chỉ thêm một điểm phóng đại','Chọn dáng mẫu gần người dùng nhất, rồi phóng đại'],rec:0,why:'Nhân vật vẫn độc đáo, người dùng vẫn thấy mình trong đó.'},
+ {id:'C5',q:'"Người trung bình" để so lấy từ đâu?',o:['Số liệu nhân trắc học chuẩn','Học dần từ chính khách đến xem trong sự kiện','Bắt đầu bằng số chuẩn, rồi học dần từ khách'],rec:2,why:'Số MediaPipe không phải số đo cơ thể thật; học từ khách thì người khác biệt nhất được phóng đại nhiều nhất.'},
+ {id:'C6',q:'Khi bật camera, nhân vật?',o:['Giữ nhân vật đang có, chỉ đổi tỉ lệ theo người','Sinh nhân vật mới hợp với người dùng','Hỏi người dùng'],rec:1,why:'Mỗi khách có một nhân vật "của mình".'},
+ {id:'C7',q:'Khi người khác bước vào khung hình?',o:['Tự nhận ra người mới, đo lại, đổi nhân vật/tỉ lệ','Giữ nguyên tới khi bấm nút'],rec:0,why:'Hợp với màn hình sự kiện không có người trông.'},
+ {id:'C8',q:'Trẻ em (đầu to so với thân)?',o:['Tự nghiêng về dáng Em bé đầu to','Không phân biệt'],rec:0,why:'Tín hiệu mạnh nhất và đáng yêu nhất mà camera đo được.'},
+ {id:'C9',q:'Cho người dùng thấy số đo?',o:['Có, một thẻ nhỏ: "Vai rộng · Tay dài · Chân dài"','Không, chỉ đổi nhân vật'],rec:0,why:'Giúp người dùng hiểu vì sao nhân vật trông như vậy.'},
+ {id:'C10',q:'Camera dùng ở đâu chủ yếu?',o:['Màn hình lớn ở sự kiện, khách đứng xa 2–3 m, thấy cả người','Laptop/điện thoại, thường chỉ thấy nửa người','Cả hai'],why:'Quyết định có tin số đo chân hay không.'},
+ {s:'D. Chuyển động'},
+ {id:'D1',q:'Tay dài vung ra ngoài khung hình?',o:['Khung tự thu lại cho vừa','Kệ, có thể ra ngoài khung'],rec:0},
+ {id:'D2',q:'Khi người dùng ngồi xổm hoặc nhảy lên?',o:['Nhân vật luôn đứng chạm sàn (như hiện tại)','Hông lên xuống theo người, chân co theo'],rec:0,why:'Làm sau, khi tỉ lệ đã ổn; chân ngắn/dài khác nhau làm việc này phức tạp.'},
+ {id:'D3',q:'Dáng có ảnh hưởng cách chuyển động không? (dáng nặng nhún chậm, dáng nhẹ nảy nhiều)',o:['Có, thêm "tính cách chuyển động" theo dáng','Không, chép đúng chuyển động người dùng'],rec:1,why:'Cho giai đoạn đầu; có thể thêm sau.'},
+ {s:'E. Cách làm'},
+ {id:'E1',q:'Trước khi đưa vào app?',o:['Làm trang xem trước các dáng dựng bằng bộ xương thật để anh duyệt','Làm thẳng trong app'],rec:0,why:'Duyệt dáng nhanh, không làm rối app.'},
+ {id:'E2',q:'Thứ tự ưu tiên?',o:['Bộ xương co giãn → Dáng mẫu → Camera','Camera trước (cho sự kiện), dáng mẫu sau'],rec:0,why:'Camera cần bộ xương co giãn mới có chỗ để phản chiếu.'},
+ {id:'E3',q:'Tab Proportions hiện tại (slider chung cho mọi nhân vật)?',o:['Giữ, nhân thêm lên trên dáng của từng nhân vật','Bỏ, thay bằng núm riêng của từng nhân vật','Đổi thành bảng chỉnh núm của nhân vật đang xem'],rec:2,why:'Chỉnh trực tiếp nhân vật đang xem là trực quan nhất; giá trị lưu vào seed.'},
+];
+const form=document.getElementById('quiz');
+let html='';
+for(const q of questions){
+ if(q.s){html+=`<h3 style="margin-top:24px">${q.s}</h3>`;continue;}
+ const recs=[].concat(q.rec??[]);
+ html+=`<fieldset data-q="${q.id}"><legend>${q.id}. ${q.q}${q.many?'<small>chọn nhiều</small>':''}</legend>${q.why?`<p class="why">${q.rec!==undefined?'Lý do đề xuất: ':''}${q.why}</p>`:''}`;
+ q.o.forEach((o,i)=>{html+=`<label><input type="${q.many?'checkbox':'radio'}" name="${q.id}" value="${i}"><span>${o}${recs.includes(i)?'<span class="rec">ĐỀ XUẤT</span>':''}</span></label>`;});
+ html+=`<input type="text" name="${q.id}-note" placeholder="Ý khác (không bắt buộc)"></fieldset>`;
+}
+form.innerHTML=html;
+const KEY='geofolk.proportionPlan';
+const save=()=>{const data={};for(const el of form.elements){if(!el.name)continue;if(el.type==='text')data[el.name]=el.value;else if(el.checked)(data[el.name]??=[]).push(el.value);}try{localStorage.setItem(KEY,JSON.stringify(data));}catch{/* storage unavailable */}progress();};
+const load=()=>{let data={};try{data=JSON.parse(localStorage.getItem(KEY)??'{}')??{};}catch{/* storage unavailable */}for(const el of form.elements){if(!el.name||!(el.name in data))continue;if(el.type==='text')el.value=data[el.name];else el.checked=data[el.name].includes(el.value);}progress();};
+const answered=q=>[...form.querySelectorAll(`[name="${q.id}"]`)].some(e=>e.checked)||!!form.querySelector(`[name="${q.id}-note"]`).value.trim();
+const progress=()=>{const qs=questions.filter(q=>q.id);document.getElementById('progress').textContent=`${qs.filter(answered).length} / ${qs.length} câu đã trả lời`;};
+form.addEventListener('input',save);form.addEventListener('change',save);
+document.getElementById('copy').addEventListener('click',async()=>{
+ const lines=['Trả lời kế hoạch tỉ lệ (docs/proportion-plan.html):'];
+ for(const q of questions){
+  if(q.s){lines.push('',q.s);continue;}
+  const picked=[...form.querySelectorAll(`[name="${q.id}"]`)].filter(e=>e.checked).map(e=>q.o[+e.value]),note=form.querySelector(`[name="${q.id}-note"]`).value.trim();
+  lines.push(`${q.id}. ${q.q} → ${picked.length?picked.join(' | '):'(chưa chọn)'}${note?` · Ghi chú: ${note}`:''}`);
+ }
+ const text=lines.join('\n'),box=document.getElementById('answers');box.value=text;
+ try{await navigator.clipboard.writeText(text);document.getElementById('copy').textContent='Đã copy ✓';}catch{box.select();document.getElementById('copy').textContent='Chọn sẵn, bấm Ctrl+C';}
+ setTimeout(()=>{document.getElementById('copy').textContent='Copy câu trả lời';},2500);
+});
+document.getElementById('reset').addEventListener('click',()=>{if(!confirm('Xóa hết câu trả lời?'))return;form.reset();save();});
+load();
+</script>
+</body>
+</html>
