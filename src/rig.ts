@@ -11,7 +11,7 @@ import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {createSpray,defaultSpray,type SpraySettings} from './spray';
-import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
+import {bodyLayout,hipBelow,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -350,8 +350,8 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
  } else if(b.kind==='connector'){
   const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:jointRadius(spec,b.id.startsWith('knee')?'knee':b.id.startsWith('elbow')?'elbow':'shoulder',prop);
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
-  // Hip joints (Nam, 2026-10-14) are drawn over the body piece that carries them and over the thigh, so the body never
-  // hides them. They take the shoulders' shape (and, as joint type 0, their colour) at the knees' size, which fits the thigh.
+  // Hip joints (Nam, 2026-10-14) sit just outside the body piece that carries them, behind it, over the thigh's top end.
+  // They take the shoulders' shape (and, as joint type 0, their colour) at the knees' size, which fits the thigh.
   if(hip){const shape=jointShapeOf(spec.parts[`shoulder_${b.id.slice(-1)}`].variant),k=jointRadius(spec,'knee',prop);g=shape===0?sphere(k):paper([jointPiece(shape,k)],paperRound*.5);}
   else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow')){const shape=jointShapeOf(v);g=shape===0?sphere(r):paper([jointPiece(shape,r)],paperRound*.5);}
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
@@ -390,7 +390,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   else if(def.id==='spine_upper')bone.position.y=0;
   else if(def.id==='neck')bone.position.y=bodyTop-.01-body.pivot;
   else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,jointRadius(spec,'shoulder',proportions)),shoulderY-body.pivot,0);
-  else if(def.id.startsWith('hip_'))bone.position.x=side*body.hipX;
+  // Hips sit just outside the lower edge of the piece that carries them (body.ts hipBelow), touching it.
+  else if(def.id.startsWith('hip_'))bone.position.set(side*body.hipX,hipBelow(body.bottom??body.top,body.hipX,jointRadius(spec,'knee',proportions)),0);
  };
  bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
@@ -436,7 +437,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  });
  // Ragdoll chains (hairPhysics.ts): an antenna, a plume, a pompom.
  const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)},decorate);
- group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
+ // Hips below the body piece lengthen the figure by as much as they drop below the old hip line (-0.03 m).
+ group.userData={seed:spec.label,restHeight:restHeight+(-.03-map.get('hip_L')!.position.y),units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
  const restack=(next:Partial<typeof stacking>)=>{
@@ -444,9 +446,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
-  // Hips over both the piece that carries them and the thigh, whatever the layer order.
-  const carrier=group.getObjectByName(body.bottom?'root_mesh':'spine_upper_mesh')!.renderOrder;
-  for(const side of ['L','R'])group.getObjectByName(`hip_${side}_mesh`)!.renderOrder=Math.max(carrier,group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder)+.3;
+  // Hips just over their thigh: with the usual layers that is still behind the body piece, which they only touch.
+  for(const side of ['L','R'])group.getObjectByName(`hip_${side}_mesh`)!.renderOrder=group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder+.3;
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   if(pixel)pixel.mesh.renderOrder=pixel.part.renderOrder;
   for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;

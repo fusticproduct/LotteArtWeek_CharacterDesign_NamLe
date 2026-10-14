@@ -898,3 +898,11 @@ Anh Nam: khối thân dưới không bao giờ che khớp của đùi.
 - Thứ tự vẽ: mỗi khớp hông nằm trên cả khối thân mang nó (khối dưới, hoặc khối trên của Single) và đùi, với mọi thứ tự lớp (`restack`, rig.ts).
 - Hình: khớp hông lấy hình khớp vai (Sphere, Square, Diamond, Hexagon, Ring; Ring có lỗ lấp màu nền) ở cỡ khớp gối; màu vẫn là màu khớp loại 0 (như vai). Vị trí giữ nguyên trong khối thân (test `holdsDisc` vẫn đúng). Luật hoa văn của đùi giữ như cũ.
 
+## 64. Khớp hông sau khối thân, luôn ở ngoài (14/10/2026)
+
+Anh Nam: khớp đùi đang nằm trên khối thân dưới; cần nằm sau, nhưng khớp và chân luôn tự điều chỉnh để khớp luôn ở ngoài khối thân (đang bị đè).
+
+- `hipBelow(piece, x, r)` (body.ts): từ điểm thấp nhất của hình tại x, hạ xuống một bán kính, rồi tiếp tục hạ từng 0,5 mm tới khi đĩa khớp nằm ngoài hình và cách mọi cạnh ít nhất r. Bone hông đặt ở đó (rig.ts `place`), nên khớp chạm mép dưới trên mọi hình thân, mọi Build và slider.
+- Thứ tự vẽ: khớp hông ngay trên đùi của nó (+0,3), nên với thứ tự lớp thường vẫn nằm sau khối thân.
+- Chiều cao: chân không đổi độ dài, nên nhân vật cao hơn 2,4 m đúng bằng đoạn hông hạ xuống; `group.userData.restHeight` và Rig JSON ghi chiều cao thật.
+

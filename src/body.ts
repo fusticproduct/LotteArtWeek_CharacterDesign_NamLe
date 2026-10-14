@@ -53,6 +53,19 @@ const edgeDistance=(polygon:Point2[],[x,y]:Point2)=>{let d=Infinity;for(let i=0,
 export const holdsDisc=(piece:Piece,point:Point2,r:number)=>inPolygon(piece.outline,point)&&edgeDistance(piece.outline,point)>=r&&(piece.holes??[]).every(h=>!inPolygon(h,point)&&edgeDistance(h,point)>=r);
 /** Widest |x| of a closed outline at height y. */
 export const halfWidthAt=(outline:Point2[],y:number)=>{let w=0;for(let i=0;i<outline.length;i++){const [x1,y1]=outline[i],[x2,y2]=outline[(i+1)%outline.length];if(y1!==y2&&(y1-y)*(y2-y)<=0)w=Math.max(w,Math.abs(x1+(x2-x1)*(y-y1)/(y2-y1)));}return w;};
+/**
+ * Hip joints sit outside the piece that carries them (Nam, 2026-10-14): straight below hipX, as high as they can go
+ * while a disc of radius r stays clear of the outline, so the joint just touches the piece's lower edge on any shape
+ * and at any slider setting. Returns the joint centre's y.
+ */
+export const hipBelow=(piece:Piece,x:number,r:number)=>{
+ let low=Infinity;
+ for(let i=0,j=piece.outline.length-1;i<piece.outline.length;j=i++){const [ax,ay]=piece.outline[j],[bx,by]=piece.outline[i];if(ax!==bx&&(ax-x)*(bx-x)<=0)low=Math.min(low,ay+(by-ay)*(x-ax)/(bx-ax));}
+ if(!Number.isFinite(low))low=Math.min(...piece.outline.map(p=>p[1]));
+ let y=low-r;
+ while(inPolygon(piece.outline,[x,y])||edgeDistance(piece.outline,[x,y])<r-1e-6)y-=.0005;
+ return y;
+};
 export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;}
 /**
  * Pieces of a character's body. The top piece hangs from the neck, the bottom piece stands on the body's bottom line,

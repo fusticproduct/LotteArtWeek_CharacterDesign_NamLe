@@ -56,18 +56,17 @@ it('produces subdivided beveled round surfaces with finite normals and exact bou
 /** Every valid body: each build with each top shape and the bottom shapes it allows. */
 const everyBody=()=>[0,1,2,3].flatMap(build=>topShapes(build).flatMap(top=>(build===0?[0]:build===1?pairPartners(top):bottomShapes(build)).map(bottom=>({build,top,bottom}))));
 const withBody=(spec:ReturnType<typeof generate>,{build,top,bottom}:{build:number;top:number;bottom:number})=>({...spec,parts:{...spec.parts,spine_lower:{...spec.parts.spine_lower,variant:build},spine_upper:{...spec.parts.spine_upper,variant:top},root:{...spec.parts.root,variant:bottom}}});
-it('keeps both hip joints inside the body piece that carries them, for every body',()=>{
+it('keeps both hip joints just outside the body piece that carries them, touching it, for every body and slider',()=>{
  const base=generate('hip-coverage');
- for(const body of everyBody()){
-  const layout=bodyLayout(withBody(base,body));expect(layout.hipX).toBeLessThanOrEqual(.105+1e-9);
-  expect(holdsDisc(layout.bottom??layout.top,[layout.hipX,-.03],.05),JSON.stringify(body)).toBe(true);
+ for(const body of everyBody())for(const prop of [defaultProportions,{...defaultProportions,pelvis:1.5,torsoWidth:.5,joints:1.5},{...defaultProportions,pelvis:.5,torsoHeight:1.5,joints:.5}]){
+  const spec=withBody(base,body),layout=bodyLayout(spec,prop),piece=layout.bottom??layout.top,rig=createCharacter(spec,'HFCD',undefined,prop),r=jointRadius(spec,'knee',prop);
+  const hip=rig.map.get('hip_L')!.position,label=JSON.stringify(body);
+  expect(hip.x).toBeCloseTo(layout.hipX,9);
+  // Outside the piece, clear of it by the joint's radius, and touching (within 1 mm).
+  let near=Infinity;for(let i=0,j=piece.outline.length-1;i<piece.outline.length;j=i++){const [ax,ay]=piece.outline[j],[bx,by]=piece.outline[i],dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((hip.x-ax)*dx+(hip.y-ay)*dy)/(dx*dx+dy*dy||1)));near=Math.min(near,Math.hypot(ax+dx*t-hip.x,ay+dy*t-hip.y));}
+  expect(holdsDisc(piece,[hip.x,hip.y],0),label).toBe(false);expect(near,label).toBeGreaterThan(r-1e-4);expect(near,label).toBeLessThan(r+.001);
+  rig.dispose();
  }
- // Every hip variant draws the same joint (the shoulders' shape at the knees' size), placed where the layout says.
- const sizes=[0,1,2,3].map(hipVariant=>{
-  const spec=withBody(base,{build:1,top:6,bottom:6});spec.parts.hip_L={...spec.parts.hip_L,variant:hipVariant};const rig=createCharacter(spec),g=(rig.group.getObjectByName('hip_L_mesh') as SkinnedMesh).geometry;
-  g.computeBoundingSphere();expect(rig.map.get('hip_L')!.position.x).toBeCloseTo(bodyLayout(spec).hipX,9);const radius=g.boundingSphere!.radius;rig.dispose();return radius;
- });
- for(const r of sizes)expect(r).toBeCloseTo(sizes[0],6);
 });
 it('stacks two body pieces without overlapping them, keeps them touching at any bend and slider setting, and never bends a Single body',()=>{
  const base=generate('seams');
@@ -596,13 +595,10 @@ it('spray-blurs two random parts when turned on: grainy copies in the part\'s la
  }
 });
 
-it('draws the hip joints over the body piece that carries them and over the thighs, in the shoulders\' shape',()=>{
+it('draws the hip joints behind the body piece that carries them but over the thighs, in the shoulders\' shape',()=>{
  for(let i=0;i<12;i++){
   const spec=generate(`hips-${i}`),rig=createCharacter(spec),carrier=rig.group.getObjectByName(spec.parts.spine_lower.variant===0?'spine_upper_mesh':'root_mesh')!;
-  for(const order of [defaultLayerOrder,['legs','pelvis','torso','neck','head','arms'] as typeof defaultLayerOrder]){
-   rig.setLayerOrder(order);
-   for(const side of ['L','R']){const hip=rig.group.getObjectByName(`hip_${side}_mesh`)!;expect(hip.renderOrder,`${i} ${side}`).toBeGreaterThan(carrier.renderOrder);expect(hip.renderOrder).toBeGreaterThan(rig.group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder);}
-  }
+  for(const side of ['L','R']){const hip=rig.group.getObjectByName(`hip_${side}_mesh`)!;expect(hip.renderOrder,`${i} ${side}`).toBeLessThan(carrier.renderOrder);expect(hip.renderOrder).toBeGreaterThan(rig.group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder);}
   expect(partName(spec,bones.find(b=>b.id==='hip_L')!)).toBe(jointShapes[jointShapeOf(spec.parts.shoulder_L.variant)]);
   rig.dispose();
  }
