@@ -9,16 +9,17 @@ export type Vec3 = [number, number, number];
 export type SlotKind = 'pelvis'|'connector'|'torso'|'head'|'face'|'limb'|'leg'|'hand'|'foot';
 export interface BoneDefinition {id:string;parent:string|null;headPosition:Vec3;length:number;kind:SlotKind;label:string;section:string;}
 export const bones: BoneDefinition[] = [
- {id:'root',parent:null,headPosition:[0,1.39,0],length:.07,kind:'pelvis',label:'Pelvis',section:'Body'},
- {id:'spine_lower',parent:'root',headPosition:[0,.07,0],length:.14,kind:'connector',label:'Lower spine',section:'Body'},
- {id:'spine_upper',parent:'spine_lower',headPosition:[0,.14,0],length:.42,kind:'torso',label:'Torso',section:'Body'},
+ {id:'root',parent:null,headPosition:[0,1.39,0],length:.07,kind:'pelvis',label:'Bottom piece',section:'Body'},
+ // The waist pivot; its variant is the body build, and the rig moves it to the seam between the two body pieces (body.ts).
+ {id:'spine_lower',parent:'root',headPosition:[0,.07,0],length:.14,kind:'connector',label:'Build',section:'Body'},
+ {id:'spine_upper',parent:'spine_lower',headPosition:[0,.14,0],length:.42,kind:'torso',label:'Top piece',section:'Body'},
  {id:'neck',parent:'spine_upper',headPosition:[0,.42,0],length:.07,kind:'connector',label:'Neck',section:'Body'},
  {id:'head',parent:'neck',headPosition:[0,.07,0],length:.31,kind:'head',label:'Head',section:'Body'},
  {id:'face_mark',parent:'head',headPosition:[0,.145,.163],length:.07,kind:'face',label:'Face mark',section:'Body'},
  ...(['L','R'] as const).flatMap(side => {
   const x=side==='L'?1:-1, section=side==='L'?'Left arm':'Right arm';
   return [
-   // x is nominal: the rig moves each shoulder to the edge of the chosen torso (rig.ts shoulderX).
+   // x and y are nominal: the rig moves each shoulder to the edge of the top body piece (rig.ts shoulderX, body.ts).
    {id:`shoulder_${side}`,parent:'spine_upper',headPosition:[x*.33,.325,0] as Vec3,length:.055,kind:'connector' as const,label:'Shoulder',section},
    {id:`upperarm_${side}`,parent:`shoulder_${side}`,headPosition:[x*.02,0,0] as Vec3,length:.30,kind:'limb' as const,label:'Upper arm',section},
    // Elbow ball joint sits at the upper-arm end; arm lengths are unchanged.
@@ -39,11 +40,27 @@ export const bones: BoneDefinition[] = [
   ];
  }),
 ];
+/**
+ * Body (Nam, 2026-10-14): no fixed torso + pelvis any more, but one or two flat pieces from one catalogue, in one of
+ * four builds: Single (one big piece), Pair (two equal pieces, same or mirrored shape), Big top (big piece over a small
+ * one) and Big bottom. The top piece is the torso bone, the bottom piece the pelvis bone, the build the waist bone.
+ */
+export const bodyShapes=['Circle','Block','Bowl','Dome','Funnel','A-line','Donut','Diamond'];
+export const bodyBuilds=['Single','Pair','Big top','Big bottom'];
+export const single=0,pair=1,bigTop=2,bigBottom=3,donut=6;
+/** How often each build comes up in Generate. */
+const buildWeights=[.25,.3,.25,.2];
+/** Mirrored partner of a body shape (Bowl <-> Dome, Funnel <-> A-line); the others mirror onto themselves. */
+export const mirrorShape=(v:number)=>v===2?3:v===3?2:v===4?5:v===5?4:v;
+/** Bottom shapes a Pair may use under a top shape: the same shape or its mirror (two funnels, or an hourglass). */
+export const pairPartners=(top:number)=>[...new Set([top,mirrorShape(top)])];
+/** The small piece of Big top / Big bottom is never a Donut (its hole would shrink to a dot). */
+const smallShapes=bodyShapes.map((_,i)=>i).filter(i=>i!==donut);
 export const variants:Record<SlotKind,string[]>={
- // Head, torso and face mark are flat 2D shapes (catalogue 2, seed version 2); the other parts are still turned 3D shapes.
+ // Head, body pieces and face mark are flat 2D shapes (seed version 3); the other parts are still turned 3D shapes.
  head:['Circle','Triangle','Hexagon','Down triangle','Square','Dome'],
- torso:['Column','Funnel','A-line','Bowl','Fan','Orb','Donut'],
- pelvis:['Orb','Tire','Bowl','Dome','Puck','Diamond'],
+ torso:bodyShapes,
+ pelvis:bodyShapes,
  connector:['Sphere','Bead','Cylinder','Capsule'],
  limb:['Cylinder','Cone','Capsule','Box','Chain','Octagon'],
  leg:['Taper','Bell','Stack','Chain','Octagon','Pill'],
@@ -63,7 +80,9 @@ export const proportionRange={min:.5,max:1.5};
 export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]);return [k,Number.isFinite(v)?Math.min(proportionRange.max,Math.max(proportionRange.min,v)):1];})) as Proportions;
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */
 export const studioProportions=normalizeProportions(savedProportions);
-export const variantNames=(bone:BoneDefinition)=>/^(shoulder|elbow|knee)_/.test(bone.id)?['Sphere']:variants[bone.kind];
+export const variantNames=(bone:BoneDefinition)=>/^(shoulder|elbow|knee)_/.test(bone.id)?['Sphere']:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
+/** Name shown for a part; a Single body has no bottom piece. */
+export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone'] as const;
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
@@ -109,6 +128,10 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
   if(patternedKinds.includes(b.kind)&&p.pattern===twoTone)p.pattern=0;
   parts[b.id]=p;
  }
+ const build=parts.spine_lower.variant;
+ if(build===pair&&!pairPartners(parts.spine_upper.variant).includes(parts.root.variant))parts.root.variant=parts.spine_upper.variant;
+ if(build===bigTop&&parts.root.variant===donut)parts.root.variant=0;
+ if(build===bigBottom&&parts.spine_upper.variant===donut)parts.spine_upper.variant=0;
  return {...spec,parts};
 }
 /**
@@ -171,6 +194,33 @@ function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>num
   for(const id of group)parts[id].color=c;
  }
 }
+/** A build that fits the body pieces that cannot change (locked or kept): a Pair needs partner shapes, a small piece is never a Donut. */
+function drawBuild(random:()=>number,bottom?:number,top?:number){
+ const fits=[true,bottom===undefined||top===undefined||pairPartners(top).includes(bottom),bottom!==donut,top!==donut];
+ const total=buildWeights.reduce((sum,w,i)=>sum+(fits[i]?w:0),0);let r=random()*total;
+ for(let i=0;i<4;i++){if(!fits[i])continue;r-=buildWeights[i];if(r<0)return i;}
+ return single;
+}
+/**
+ * Makes the two body pieces suit the build and gives them their patterns. The piece the user locked, or else the
+ * piece being rerolled, leads; the other follows (a Pair's bottom takes the top's shape or its mirror).
+ */
+function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<string>,only:Set<string>|undefined,random:()=>number){
+ const build=parts.spine_lower.variant,top=parts.spine_upper,bottom=parts.root,pick=<T,>(a:T[])=>a[Math.floor(random()*a.length)];
+ if(build===pair&&!pairPartners(top.variant).includes(bottom.variant)){
+  const bottomLeads=locked.has('root')||(!locked.has('spine_upper')&&!!only?.has('root'));
+  if(bottomLeads)top.variant=pick(pairPartners(bottom.variant));else bottom.variant=pick(pairPartners(top.variant));
+ }
+ if(build===bigTop&&bottom.variant===donut&&!locked.has('root'))bottom.variant=pick(smallShapes);
+ if(build===bigBottom&&top.variant===donut&&!locked.has('spine_upper'))top.variant=pick(smallShapes);
+ // Patterns: a Single body is woven 70% of the time; of two pieces, one or both are woven.
+ const woven=()=>1+Math.floor(random()*4),r=random(),free=(id:string)=>!frozen.has(id);
+ if(build===single){if(free('spine_upper'))top.pattern=r<.7?woven():0;if(free('root'))bottom.pattern=0;return;}
+ if(free('spine_upper'))top.pattern=r<.65?woven():0;
+ if(free('root'))bottom.pattern=r>=.3?woven():0;
+ // Two plain pieces (e.g. after a Single becomes a Pair) get a weave on a piece the user has not locked.
+ if(!top.pattern&&!bottom.pattern){if(!locked.has('spine_upper'))top.pattern=woven();else if(!locked.has('root'))bottom.pattern=woven();}
+}
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
  const random=rng(label),parts:Record<string,PartChoice>={};
  const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(linkedIds(only)):undefined;
@@ -180,14 +230,16 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   if(previous&&frozen.has(b.id)){parts[b.id]={...previous.parts[b.id]};continue;}
   const twin=twinOf(b.id);
   if(b.id.endsWith('_R')&&mirrorsFully(b.id)&&parts[twin!]){parts[b.id]={...parts[twin!]};continue;}
-  const pattern=b.kind==='torso'?1+Math.floor(random()*4):b.kind==='pelvis'&&random()>=.35?1+Math.floor(random()*4):(b.kind==='limb'||b.kind==='leg')&&random()<.55?twoTone:0;
+  // Body pieces get their pattern in fitBody, once the build is known.
+  const pattern=(b.kind==='limb'||b.kind==='leg')&&random()<.55?twoTone:0;
   // Never pair two beaded segments on the same limb.
   const pair=pairedSegment(b.id),pairChoice=pair?(parts[pair]??(frozen.has(pair)?previous?.parts[pair]:undefined)):undefined;
   const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant)));
-  let variant=options[Math.floor(random()*options.length)];
+  let variant=b.id==='spine_lower'?drawBuild(random,frozen.has('root')?previous!.parts.root.variant:undefined,frozen.has('spine_upper')?previous!.parts.spine_upper.variant:undefined):options[Math.floor(random()*options.length)];
   if(b.id.endsWith('_R')&&mirrorsShape(b.id)&&parts[twin!])variant=parts[twin!].variant;
   parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
+ fitBody(parts,frozen,lockedLinked,onlyLinked,random);
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
@@ -202,13 +254,15 @@ export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:str
  paint(parts,new Set(bones.filter(b=>lockedLinked.has(b.id)).map(b=>b.id)),rng(`${spec.label}|colours|${salt}`));
  return normalizeSpec({...spec,parts});
 }
-export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~2${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~3${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
 /**
- * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark.
- * A version-1 torso maps to the nearest flat one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
- * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index.
+ * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark, 3 = body pieces and builds.
+ * A version-1 torso maps to the nearest version-2 one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
+ * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index. Older torsos and pelvises
+ * then map onto the body catalogue as a Big top build (big torso over a small pelvis, like before):
+ * Column→Block, Fan→Dome, Orb→Circle; pelvis Orb→Circle, Tire→Donut, Puck→Block; the rest keep their name.
  */
-const legacyTorso=[3,1,4,0,1,1,5,0,5,6,1];
+const legacyTorso=[3,1,4,0,1,1,5,0,5,6,1],torsoV3=[1,4,5,2,3,0,6],pelvisV3=[0,6,2,3,1,7];
 /** Slot orders of older seeds: before elbows (24 slots) and before knees and elbows (22 slots). */
 const legacyOrders=[bones.filter(b=>!b.id.startsWith('elbow_')),bones.filter(b=>!b.id.startsWith('elbow_')&&!b.id.startsWith('knee_'))];
 export function decodeSeed(input:string):CharacterSpec {
@@ -217,11 +271,19 @@ export function decodeSeed(input:string):CharacterSpec {
  const [label,packed,...rest]=seed.split('~');
  const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2);
  const version=packed?.[0];
- if(rest.length||!label||!order||(version!=='1'&&version!=='2')||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ if(rest.length||!label||!order||!['1','2','3'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
  const density=parseInt(packed[1],36);if(density<2||density>12)throw new Error('Invalid pattern scale in seed.');
  // Joints missing from older seeds are derived from the label so they stay deterministic.
  const fallback=generate(label),parts:Record<string,PartChoice>=Object.fromEntries(bones.filter(b=>!order.includes(b)).map(b=>[b.id,fallback.parts[b.id]]));
- order.forEach((b,i)=>{let [variant,c,accent,pattern]=packed.slice(2+i*4,6+i*4).split('').map(x=>parseInt(x,36));const old=version==='1'&&b.kind==='torso';if(variant>=(old?legacyTorso:variants[b.kind]).length||c>=palette.length||accent>=palette.length||pattern>=patterns.length)throw new Error('This seed contains an unknown part.');if(old)variant=legacyTorso[variant];parts[b.id]={variant,color:c,accent,pattern};});
+ order.forEach((b,i)=>{
+  let [variant,c,accent,pattern]=packed.slice(2+i*4,6+i*4).split('').map(x=>parseInt(x,36));
+  const old=version!=='3',count=old&&b.kind==='torso'?(version==='1'?legacyTorso.length:torsoV3.length):old&&b.kind==='pelvis'?pelvisV3.length:variants[b.kind].length;
+  if(variant>=count||c>=palette.length||accent>=palette.length||pattern>=patterns.length)throw new Error('This seed contains an unknown part.');
+  if(old&&b.kind==='torso')variant=torsoV3[version==='1'?legacyTorso[variant]:variant];
+  if(old&&b.kind==='pelvis')variant=pelvisV3[variant];
+  if(old&&b.id==='spine_lower')variant=bigTop;
+  parts[b.id]={variant,color:c,accent,pattern};
+ });
  return normalizeSpec({version:1,label,parts,density});
 }
 export function randomLabel(){const values=new Uint32Array(2);crypto.getRandomValues(values);return `folk-${values[0].toString(36)}${values[1].toString(36).slice(0,3)}`;}

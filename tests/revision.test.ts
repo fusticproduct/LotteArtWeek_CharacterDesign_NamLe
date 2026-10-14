@@ -2,7 +2,8 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners} from '../src/model';
+import {bodyLayout,holdsDisc,seamMargin,shoulderY} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
 import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius} from '../src/rig';
@@ -29,26 +30,56 @@ it('produces subdivided beveled round surfaces with finite normals and exact bou
  for(const top of [0,.1]){const g=beveledCylinder(top,.1,.4);g.computeBoundingBox();expect(g.getAttribute('position').count).toBeGreaterThan(1000);expect(g.boundingBox!.getSize(new Vector3()).y).toBeCloseTo(.4,6);expect(Array.from(g.getAttribute('normal').array).every(Number.isFinite)).toBe(true);const p=g.getAttribute('position');let curvedRim=false;for(let i=0;i<p.count;i++){const r=Math.hypot(p.getX(i),p.getZ(i));if(p.getY(i)>-.2&&p.getY(i)<-.195&&r>.092&&r<.1)curvedRim=true;}expect(curvedRim).toBe(true);g.dispose();}
 });
 
-it('encloses every hip variant inside each pelvis silhouette',()=>{
- const material=new MeshBasicMaterial({side:DoubleSide});
- for(let pelvisVariant=0;pelvisVariant<6;pelvisVariant++)for(let hipVariant=0;hipVariant<4;hipVariant++){
-  const spec=generate('hip-coverage');spec.parts.root.variant=pelvisVariant;spec.parts.hip_L.variant=spec.parts.hip_R.variant=hipVariant;
-  const rig=createCharacter(spec),pelvis=new Mesh((rig.group.getObjectByName('root_mesh') as SkinnedMesh).geometry,material);
-  pelvis.updateMatrixWorld(true);
-  for(const side of ['L','R']){
-   const def=bones.find(b=>b.id===`hip_${side}`)!,offset=new Vector3(...def.headPosition);
-   expect(Math.abs(offset.x)).toBeLessThan(.15);
-   const positions=(rig.group.getObjectByName(`hip_${side}_mesh`) as SkinnedMesh).geometry.getAttribute('position');
-   for(let i=0;i<positions.count;i+=Math.max(1,Math.floor(positions.count/40))){
-    const point=new Vector3().fromBufferAttribute(positions,i).add(offset);
-    const hits=new Raycaster(point,new Vector3(.013,.017,1).normalize()).intersectObject(pelvis);
-    const distances=hits.map(h=>h.distance).filter((d,i,a)=>!i||Math.abs(d-a[i-1])>1e-6);
-    expect(distances.length%2,`pelvis ${pelvisVariant}, hip ${hipVariant}, ${side}, vertex ${i}`).toBe(1);
-   }
-  }
-  rig.dispose();
+/** Every valid body: each build with each top shape and the bottom shapes it allows. */
+const everyBody=()=>[0,1,2,3].flatMap(build=>variants.torso.flatMap((_,top)=>(build===0?[0]:build===1?pairPartners(top):variants.pelvis.map((_,i)=>i)).filter(bottom=>!(build===2&&bottom===6)&&!(build===3&&top===6)).map(bottom=>({build,top,bottom}))));
+const withBody=(spec:ReturnType<typeof generate>,{build,top,bottom}:{build:number;top:number;bottom:number})=>({...spec,parts:{...spec.parts,spine_lower:{...spec.parts.spine_lower,variant:build},spine_upper:{...spec.parts.spine_upper,variant:top},root:{...spec.parts.root,variant:bottom}}});
+it('keeps both hip joints inside the body piece that carries them, for every body',()=>{
+ const base=generate('hip-coverage');
+ for(const body of everyBody()){
+  const layout=bodyLayout(withBody(base,body));expect(layout.hipX).toBeLessThanOrEqual(.105+1e-9);
+  expect(holdsDisc(layout.bottom??layout.top,[layout.hipX,-.03],.05),JSON.stringify(body)).toBe(true);
  }
- material.dispose();
+ // Every hip variant is the same hidden ball of radius 0.045, placed where the layout says.
+ for(let hipVariant=0;hipVariant<4;hipVariant++){
+  const spec=withBody(base,{build:1,top:6,bottom:6});spec.parts.hip_L={...spec.parts.hip_L,variant:hipVariant};const rig=createCharacter(spec),g=(rig.group.getObjectByName('hip_L_mesh') as SkinnedMesh).geometry;
+  g.computeBoundingSphere();expect(g.boundingSphere!.radius).toBeCloseTo(.045,3);expect(rig.map.get('hip_L')!.position.x).toBeCloseTo(bodyLayout(spec).hipX,9);rig.dispose();
+ }
+});
+it('keeps two-piece bodies joined at the waist at any bend and slider setting, and never bends a Single body',()=>{
+ const base=generate('seams');
+ for(const body of everyBody())for(const torsoHeight of [.5,1,1.5])for(const width of [.5,1.5]){
+  const spec=withBody(base,body),prop={...defaultProportions,torsoHeight,torsoWidth:width,pelvis:2-width},layout=bodyLayout(spec,prop),label=`${JSON.stringify(body)} h${torsoHeight} w${width}`;
+  // Both pieces hold a disc around the pivot, and the top piece swings about the pivot, so the overlap never opens.
+  // At extreme slider settings a piece can get thin at the seam, but it still holds a smaller disc.
+  const disc=torsoHeight===1&&width===1.5?seamMargin-.003:.015;
+  if(layout.bottom){expect(holdsDisc(layout.top,[0,layout.pivot],disc),label).toBe(true);expect(holdsDisc(layout.bottom,[0,layout.pivot],disc),label).toBe(true);}
+  // The neck ball (bottom at about 0.60) and the shoulder height both land on the top piece.
+  expect(holdsDisc(layout.top,[0,.615],.01),label).toBe(true);expect(holdsDisc(layout.top,[0,shoulderY],.01)||layout.top.holes!==undefined,label).toBe(true);
+ }
+ // The rig turns the top piece about that same pivot.
+ const two=createCharacter(withBody(base,{build:1,top:0,bottom:0})),layout=bodyLayout(withBody(base,{build:1,top:0,bottom:0}));
+ expect(two.map.get('spine_lower')!.position.y).toBeCloseTo(layout.pivot,9);expect(two.map.get('spine_upper')!.position.y).toBe(0);
+ // Neck and shoulders keep their height above the pelvis whatever the build.
+ const neckY=(rig:ReturnType<typeof createCharacter>)=>rig.map.get('neck')!.getWorldPosition(new Vector3()).y-rig.map.get('root')!.getWorldPosition(new Vector3()).y;
+ const one=createCharacter(withBody(base,{build:0,top:5,bottom:0}));expect(neckY(one)).toBeCloseTo(neckY(two),9);expect(neckY(two)).toBeCloseTo(.63,9);
+ // A Single body takes the waist turn as a whole-body turn; the legs keep their direction.
+ one.applyAngles({spine_lower:.4,thigh_L:.1});
+ expect(one.map.get('spine_lower')!.rotation.z).toBe(0);expect(one.map.get('root')!.rotation.z).toBeCloseTo(.4,9);expect(one.map.get('root')!.rotation.z+one.map.get('thigh_L')!.rotation.z).toBeCloseTo(.1,9);
+ two.applyAngles({spine_lower:.4});expect(two.map.get('spine_lower')!.rotation.z).toBeCloseTo(.4,9);
+ one.dispose();two.dispose();
+});
+it('generates every build, pairs equal or mirrored shapes, and keeps the pair through rerolls and locks',()=>{
+ const seen=new Set<number>();let s=generate('builds-0');
+ for(let i=0;i<300;i++){
+  s=i%4===0?generate(`b-${i}`,s,new Set(['root'])):i%4===1?generate(`b-${i}`,s,new Set(),['spine_upper','root','spine_lower'][i%3]):generate(`b-${i}`);
+  const build=s.parts.spine_lower.variant;seen.add(build);
+  if(build===1)expect(pairPartners(s.parts.spine_upper.variant),`${i}`).toContain(s.parts.root.variant);
+  if(build===2)expect(s.parts.root.variant).not.toBe(6);if(build===3)expect(s.parts.spine_upper.variant).not.toBe(6);
+  if(build>0)expect(s.parts.spine_upper.pattern+s.parts.root.pattern,`${i}: one piece is woven`).toBeGreaterThan(0);
+ }
+ expect([...seen].sort()).toEqual([0,1,2,3]);
+ // A locked bottom piece stays put; the top piece follows it into a pair.
+ const locked=generate('lock-pair');for(let i=0;i<40;i++){const next=generate(`lp-${i}`,locked,new Set(['root']));expect(next.parts.root).toEqual(locked.parts.root);}
 });
 
 it('mirrors hands, feet and joints (shape + colour) and leg shapes across left/right, including rerolls and locks',()=>{
@@ -60,8 +91,8 @@ it('mirrors hands, feet and joints (shape + colour) and leg shapes across left/r
   for(const b of bones){if(b.parent)expect(s.parts[b.id].color,`${i}: ${b.id}`).not.toBe(s.parts[b.parent].color);}
  }
 });
-it('keeps texture patterns on the torso and pelvis only, also for older seeds',()=>{
- for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);expect(s.parts.spine_upper.pattern).toBeGreaterThan(0);for(const b of bones)if(!['torso','pelvis'].includes(b.kind))expect([0,twoTone].includes(s.parts[b.id].pattern)&&(s.parts[b.id].pattern===0||['limb','leg'].includes(b.kind)),b.id).toBe(true);}
+it('keeps texture patterns on the body pieces only, also for older seeds',()=>{
+ for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind))expect([0,twoTone].includes(s.parts[b.id].pattern)&&(s.parts[b.id].pattern===0||['limb','leg'].includes(b.kind)),b.id).toBe(true);}
  const legacy=generate('legacy');legacy.parts.thigh_L.pattern=2;legacy.parts.hand_R.variant=3;
  const restored=decodeSeed(encodeSeed(legacy));expect(restored.parts.thigh_L.pattern).toBe(0);expect(restored.parts.hand_R).toEqual(restored.parts.hand_L);
 });
@@ -149,14 +180,19 @@ it('restacks limbs from camera depth only after the cue holds for a few frames',
  // A one-frame blip the other way does not flip it back.
  state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
 });
-it('reads version-1 seeds onto the flat torso catalogue and writes version 2',()=>{
- const spec=generate('legacy-torso'),packed=encodeSeed(spec).split('~')[1],i=bones.findIndex(b=>b.id==='spine_upper');
- expect(packed[0]).toBe('2');
- // Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; an index past the old 11 torsos is still rejected.
- for(const [old,now] of [[0,3],[7,0],[9,6],[10,1]]){const v1='1'+packed.slice(1,2+i*4)+old.toString(36)+packed.slice(3+i*4);expect(decodeSeed(`legacy-torso~${v1}`).parts.spine_upper.variant).toBe(now);}
- expect(()=>decodeSeed(`legacy-torso~1${packed.slice(1,2+i*4)}b${packed.slice(3+i*4)}`)).toThrow();
+it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 3',()=>{
+ const spec=generate('legacy-torso');spec.parts.root.variant=5;spec.parts.spine_lower.variant=0;
+ const packed=encodeSeed(spec).split('~')[1],at=(id:string)=>bones.findIndex(b=>b.id===id),swap=(p:string,id:string,v:number)=>p.slice(0,2+at(id)*4)+v.toString(36)+p.slice(3+at(id)*4);
+ expect(packed[0]).toBe('3');
+ // Version 1 → 2: Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; then onto the body shapes: Bowl, Block, Donut, Funnel.
+ for(const [old,now] of [[0,2],[7,1],[9,6],[10,4]]){const v1='1'+swap(packed,'spine_upper',old).slice(1);const s=decodeSeed(`legacy-torso~${v1}`);expect(s.parts.spine_upper.variant).toBe(now);expect(s.parts.spine_lower.variant).toBe(2);}
+ // Version 2: Orb torso → Circle; pelvis Diamond → Diamond, Puck → Block, Tire → Donut (a small piece, so it becomes a Circle).
+ for(const [old,now] of [[5,7],[4,1],[1,0]])expect(decodeSeed(`legacy-torso~2${swap(swap(packed,'spine_upper',5),'root',old).slice(1)}`).parts.root.variant).toBe(now);
+ expect(decodeSeed(`legacy-torso~2${swap(packed,'spine_upper',5).slice(1)}`).parts.spine_upper.variant).toBe(0);
+ // An index past the old catalogues is still rejected.
+ expect(()=>decodeSeed(`legacy-torso~1${swap(packed,'spine_upper',11).slice(1)}`)).toThrow();expect(()=>decodeSeed(`legacy-torso~2${swap(packed,'root',6).slice(1)}`)).toThrow();
 });
-it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder on its torso edge',()=>{
+it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder on the top piece edge',()=>{
  const extent=(rig:ReturnType<typeof createCharacter>,id?:string)=>{let lo=Infinity,hi=-Infinity;for(const b of bones){if(id&&b.id!==id)continue;const mesh=rig.group.getObjectByName(`${b.id}_mesh`) as SkinnedMesh,p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const y=new Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).y;lo=Math.min(lo,y);hi=Math.max(hi,y);}}return hi-lo;};
  const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions'),base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
  expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
@@ -164,13 +200,13 @@ it('scales parts from the Proportions tab without changing bone lengths, and kee
  const width=(rig:ReturnType<typeof createCharacter>,id:string)=>{const g=(rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.x-g.boundingBox!.min.x;};
  // A straight (cylinder) forearm, whose width is exactly its thickness.
  const tube={...spec,parts:{...spec.parts,forearm_L:{...spec.parts.forearm_L,variant:0}}},thick=createCharacter(tube,'HFCD',undefined,{...defaultProportions,arms:1.4}),plain=createCharacter(tube);expect(width(thick,'forearm_L')/width(plain,'forearm_L')).toBeCloseTo(1.4,5);plain.dispose();
- for(let v=0;v<variants.torso.length;v++)for(const torsoWidth of [.5,1,1.5]){
-  spec.parts.spine_upper.variant=v;const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,torsoWidth});
-  // Torso edge at shoulder height, found by a ray coming in from the side (torso space = spine_upper space).
+ for(let build=0;build<4;build++)for(let v=0;v<variants.torso.length;v++)for(const torsoWidth of [.5,1,1.5]){
+  spec.parts.spine_lower.variant=build;spec.parts.spine_upper.variant=v;const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,torsoWidth});
+  // Top piece edge at shoulder height, found by a ray coming in from the side (top piece space = spine_upper space).
   const torso=new Mesh((rig.group.getObjectByName('spine_upper_mesh') as SkinnedMesh).geometry,side);torso.updateMatrixWorld(true);
-  const edge=new Raycaster(new Vector3(2,.325,0),new Vector3(-1,0,0)).intersectObject(torso)[0].point.x;
+  const edge=new Raycaster(new Vector3(2,rig.map.get('shoulder_L')!.position.y,0),new Vector3(-1,0,0)).intersectObject(torso)[0].point.x;
   // The shoulder ball is centred just outside the edge, so it always overlaps the torso.
-  const x=rig.map.get('shoulder_L')!.position.x;expect(x-edge,`torso ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`torso ${v} at ${torsoWidth}`).toBeLessThan(shoulderRadius);
+  const x=rig.map.get('shoulder_L')!.position.x;expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeLessThan(shoulderRadius);
   expect(rig.map.get('shoulder_R')!.position.x).toBeCloseTo(-x,9);rig.dispose();
  }
  base.dispose();bigHead.dispose();thick.dispose();side.dispose();

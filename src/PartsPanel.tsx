@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {GripVertical,Lock,Unlock,RotateCcw} from 'lucide-react';
-import {bones,variantNames,mirrorsFully,mirrorsShape,isJoint,type BoneDefinition,type CharacterSpec} from './model';
+import {bones,partName,mirrorsFully,mirrorsShape,isJoint,single,type BoneDefinition,type CharacterSpec} from './model';
 import {layerGroups,defaultLayerOrder,groupOf,limbStack,type LayerGroup} from './rig';
 interface Props {spec:CharacterSpec;locked:Set<string>;order:LayerGroup[];onOrder:(order:LayerGroup[])=>void;onReroll:(id:string)=>void;onToggleLock:(id:string)=>void;}
 /** One editable row: a single bone, or a left/right pair that is rerolled and locked together. */
@@ -23,11 +23,12 @@ export default function PartsPanel({spec,locked,order,onOrder,onReroll,onToggleL
  const [dragging,setDragging]=useState<LayerGroup|null>(null),[over,setOver]=useState<LayerGroup|null>(null);
  const place=(group:LayerGroup,to:number)=>{const next=order.filter(g=>g!==group);next.splice(Math.max(0,Math.min(next.length,to)),0,group);onOrder(next);};
  const row=(unit:Unit,nested:boolean,handle?:React.ReactNode)=>{
-  const b=unit.bone,isLocked=locked.has(b.id),names=variantNames(b);
+  // A Single body has no bottom piece, so there is nothing to reroll there.
+  const b=unit.bone,isLocked=locked.has(b.id),noPiece=b.id==='root'&&spec.parts.spine_lower.variant===single;
   return <div className={`part-row ${isLocked?'locked':''} ${nested?'nested':''}`} key={b.id}>
    {handle}
-   <div className="part-label"><strong>{unit.label}</strong><span>{names[spec.parts[b.id].variant]??names[0]}</span></div>
-   <button className="part-button reroll" disabled={isLocked} onClick={()=>onReroll(b.id)} title={isJoint(b.id)?'New joint colour':`New shape: ${unit.label}`} aria-label={`Reroll ${b.id}`}><RotateCcw size={15}/></button>
+   <div className="part-label"><strong>{unit.label}</strong><span>{partName(spec,b)}</span></div>
+   <button className="part-button reroll" disabled={isLocked||noPiece} onClick={()=>onReroll(b.id)} title={noPiece?'Single build: no bottom piece':isJoint(b.id)?'New joint colour':`New shape: ${unit.label}`} aria-label={`Reroll ${b.id}`}><RotateCcw size={15}/></button>
    <button className="part-button" onClick={()=>onToggleLock(b.id)} title={`${isLocked?'Unlock':'Lock'} ${unit.label}`} aria-label={`${isLocked?'Unlock':'Lock'} ${b.id}`} aria-pressed={isLocked}>{isLocked?<Lock size={15}/>:<Unlock size={15}/>}</button>
   </div>;
  };

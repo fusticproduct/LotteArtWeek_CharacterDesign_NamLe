@@ -1,19 +1,20 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import {beveledCylinder,bowl,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
+import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
+import {bodyLayout,halfWidthAt,shoulderY,hipY,seamMargin,bodyTop,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
  * like cut paper. The meshes are still the 3D shapes, seen straight on by an orthographic camera.
  */
-export const layerGroups={arms:'Arms',head:'Head',neck:'Neck',torso:'Torso',spine:'Lower spine',pelvis:'Pelvis',legs:'Legs'} as const;
+export const layerGroups={arms:'Arms',head:'Head',neck:'Neck',torso:'Body',pelvis:'Lower body',legs:'Legs'} as const;
 export type LayerGroup = keyof typeof layerGroups;
 /** Default stacking, top first: arms over the body, legs at the back. */
-export const defaultLayerOrder:LayerGroup[]=['arms','head','torso','neck','pelvis','spine','legs'];
+export const defaultLayerOrder:LayerGroup[]=['arms','head','torso','neck','pelvis','legs'];
 /** Groups of the older 14-row layer list, so a stored order keeps its meaning. */
 const legacyGroups:Record<string,LayerGroup>={shoulder:'arms',upperarm:'arms',elbow:'arms',forearm:'arms',hand:'arms',thigh:'legs',knee:'legs',shin:'legs',foot:'legs'};
 /** Keeps a stored order usable after groups are added or renamed. */
@@ -24,8 +25,8 @@ export const normalizeLayerOrder=(order:unknown):LayerGroup[]=>{
 };
 export const groupOf=(id:string):LayerGroup=>{
  if(id==='root'||id.startsWith('hip_'))return 'pelvis';
- if(id==='spine_upper')return 'torso';
- if(id==='spine_lower')return 'spine';
+ // The build row (waist bone) is listed with the top piece; its hidden mesh is drawn with the bottom piece.
+ if(id==='spine_upper'||id==='spine_lower')return 'torso';
  if(id==='head'||id==='face_mark')return 'head';
  if(id==='neck')return 'neck';
  return /^(shoulder|upperarm|elbow|forearm|hand)_/.test(id)?'arms':'legs';
@@ -47,7 +48,7 @@ export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):stri
   arms:pair(limbStack.arm,depth.frontArm,tucked),
   legs:pair(limbStack.leg,depth.frontLeg),
   torso:[...pair(limbStack.arm,depth.frontArm,(['L','R'] as const).filter(s=>!tucked.includes(s))),'spine_upper'],
-  head:['head','face_mark'],neck:['neck'],spine:['spine_lower'],pelvis:['hip_L','hip_R','root'],
+  head:['head','face_mark'],neck:['neck'],pelvis:['spine_lower','hip_L','hip_R','root'],
  };
  return [...order].reverse().flatMap(g=>blocks[g]);
 }
@@ -126,25 +127,8 @@ function planarUV(g:THREE.BufferGeometry){
 const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.map(([g,y])=>{g.translate(0,y,0);return g;}));
 /** Corner rounding of the flat (2D) parts, in metres. */
 const paperRound=.022,markRound=.007;
-/**
- * Flat torso silhouettes in the spine's space: from the waist (y = -0.14) up just past the neck base (0.43).
- * Sized to the visual weight of the Orb (0.62 across), which Nam picked as the right proportion on 2026-10-11.
- */
-const torsoOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
- [{outline:[[-.26,-.14],[.26,-.14],[.26,.43],[-.26,.43]]}],
- [{outline:[[-.11,-.14],[.11,-.14],[.32,.43],[-.32,.43]]}],
- [{outline:[[-.32,-.14],[.32,-.14],[.2,.43],[-.2,.43]]}],
- [{outline:ellipse2d(0,.43,.32,.55,Math.PI,Math.PI*2,48)}],
- [{outline:ellipse2d(0,-.12,.33,.56,0,Math.PI,48)}],
- [{outline:ellipse2d(0,.15,.31,.31)}],
- [{outline:ellipse2d(0,.15,.32,.32),holes:[ellipse2d(0,.15,.12,.12,0,Math.PI*2,40)]}],
-];
-/** Torso scaling (Proportions tab) hangs from the neck, so the head stays attached at any height. */
-const torsoNeck=.43,shoulderY=.325;
-/** Widest |x| of a closed outline at height y. */
-const halfWidthAt=(outline:Point2[],y:number)=>{let w=0;for(let i=0;i<outline.length;i++){const [x1,y1]=outline[i],[x2,y2]=outline[(i+1)%outline.length];if(y1!==y2&&(y1-y)*(y2-y)<=0)w=Math.max(w,Math.abs(x1+(x2-x1)*(y-y1)/(y2-y1)));}return w;};
-/** Shoulder ball centre: three quarters of its radius outside the torso edge at shoulder height, so the arms always hang from the body whatever its shape or size. */
-export const shoulderX=(torsoVariant:number,prop:Proportions=defaultProportions)=>halfWidthAt(torsoOutlines[torsoVariant][0].outline,torsoNeck-(torsoNeck-shoulderY)/prop.torsoHeight)*prop.torsoWidth+shoulderRadius*prop.joints*.75;
+/** Shoulder ball centre: three quarters of its radius outside the top piece's edge at shoulder height, so the arms always hang from the body whatever its shape or size. */
+export const shoulderX=(layout:BodyLayout,prop:Proportions=defaultProportions)=>halfWidthAt(layout.top.outline,shoulderY)+shoulderRadius*prop.joints*.75;
 /** Flat head silhouettes, 0 → 0.31 above the neck; `markY` is where the face mark sits on each. */
 const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:ellipse2d(0,.155,.155,.155),markY:.16},
@@ -164,17 +148,6 @@ const markOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
  [{outline:ellipse2d(0,0,.035,.035,0,Math.PI*2,32),holes:[ellipse2d(0,0,.017,.017,0,Math.PI*2,24)]}],
  [{outline:box2d(.09,.024)}],
 ];
-/** Hip-area silhouettes centred on the pelvis bone; every one encloses both hip joints (no boxes). */
-function pelvisGeometry(v:number){
- const g=v===0?sphere(1).scale(.2,.14,.16)
-  :v===1?new THREE.TorusGeometry(.11,.085,32,72).rotateX(Math.PI/2)
-  :v===2?bowl(.22,.22,.03).translate(0,-.13,0)
-  :v===3?dome(.21,.2,.03).translate(0,-.1,0)
-  :v===4?puck(.2,.2,.07).translate(0,-.1,0)
-  :bicone(.13,.21,.11,.11,.21,.03).translate(0,-.11,0);
- if(v>1)g.scale(1,1,.85);
- return g;
-}
 /** Ball joint radii, 85% of the first 2D build so the joints read as dots rather than balls (Nam, 2026-10-11). */
 export const kneeRadius=.105*.85,elbowRadius=.088*.85,shoulderRadius=.09*.85;
 /** Distance from a ball joint's centre at which a segment end of radius `end` sits flush on the ball. */
@@ -218,7 +191,7 @@ function footGeometry(v:number){
  g.scale(1,1,1.12);g.translate(0,0,.02);
  return g;
 }
-function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions):THREE.BufferGeometry {
+function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry {
  const v=p.variant,L=b.length;
  const box=(x:number,y:number,z:number,r=.03)=>new RoundedBoxGeometry(x,y,z,4,r);
  const cylinder=(top:number,bottom:number,h:number,n=64)=>{const c=beveledCylinder(top,bottom,h,n,Math.min(.012,h*.08));return n<16?faceted(c):c;};
@@ -227,17 +200,22 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   // Rounding pulls a pointed top down a little; lift every head so its top sits exactly at the rest height.
   g=paper([{outline:headOutlines[v].outline}],paperRound);g.computeBoundingBox();g.translate(0,L-g.boundingBox!.max.y,0);g.scale(prop.head,prop.head,prop.head);
  } else if(b.kind==='torso'){
-  // Scaled from the neck down, so the neck stays attached whatever the height; patterns are mapped after scaling to keep their cell size.
-  g=paper(torsoOutlines[v],paperRound);g.translate(0,-torsoNeck,0);g.scale(prop.torsoWidth,prop.torsoHeight,1);g.translate(0,torsoNeck,0);g=planarUV(g);
+  // Body pieces are laid out in the pelvis bone's space; the torso bone sits on the waist pivot. Patterns are mapped in metres.
+  g=paper([body.top],paperRound);g.translate(0,-body.pivot,0);g=planarUV(g);
  } else if(b.kind==='pelvis'){
-  g=pelvisGeometry(v);g.scale(prop.pelvis,prop.pelvis,prop.pelvis);g=planarUV(g);
+  // A Single body has no bottom piece: the pelvis bone keeps a small hidden disc between the hips.
+  g=body.bottom?planarUV(paper([body.bottom],paperRound)):sphere(.03).translate(0,hipY,0);
+ } else if(b.id==='spine_lower'){
+  // Hidden inside both pieces, around the waist pivot.
+  g=sphere(seamMargin*.7);
  } else if(b.kind==='connector'){
-  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='spine_lower'?.082:b.id==='neck'?.055:(b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:shoulderRadius)*prop.joints;
+  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:(b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:shoulderRadius)*prop.joints;
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
-  if(b.id.startsWith('shoulder'))g=sphere(r);
+  // Hip joints are hidden inside the body, so every hip variant is a plain ball that fits there.
+  if(b.id.startsWith('shoulder')||hip)g=sphere(r);
   else if(b.id.startsWith('knee')||b.id.startsWith('elbow'))g=sphere(r);
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
-  if(b.id==='spine_lower'||b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
+  if(b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
  } else if(b.kind==='leg'){
   // Both segments stop where they sit flush on the knee ball, so the knee reads as its own part.
   const knee=seat(kneeRadius*prop.joints,.08*prop.legs);
@@ -258,19 +236,28 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
 }
 export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>(),paperAmount={value:1},colorOf=partColors(spec,weavePalette);
- bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);if(def.id.startsWith('shoulder_'))bone.position.x=Math.sign(def.headPosition[0])*shoulderX(spec.parts.spine_upper.variant,proportions);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1},colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
+ // The waist pivot moves to the seam between the body pieces; neck and shoulders keep their height, shoulders and hips follow the pieces' edges.
+ const place=(def:typeof bones[number],bone:THREE.Bone)=>{
+  const side=Math.sign(def.headPosition[0]);
+  if(def.id==='spine_lower')bone.position.y=body.pivot;
+  else if(def.id==='spine_upper')bone.position.y=0;
+  else if(def.id==='neck')bone.position.y=bodyTop-.01-body.pivot;
+  else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,proportions),shoulderY-body.pivot,0);
+  else if(def.id.startsWith('hip_'))bone.position.x=side*body.hipX;
+ };
+ bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  bones.forEach((def,index)=>{
-  const choice=spec.parts[def.id],geometry=geometryFor(def,choice,spec,proportions),count=geometry.getAttribute('position').count;
+  const choice=spec.parts[def.id],geometry=geometryFor(def,choice,spec,proportions,body),count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
   const material=materialFor(def,choice,spec,weavePalette,colorOf);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
- group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:2,proportions};
+ group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
  const restack=(next:Partial<typeof stacking>)=>{
@@ -280,9 +267,18 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
  const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const def of bones){const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh;const positions=mesh.geometry.getAttribute('position'),matrix=map.get(def.id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
- const applyPose=(pose:Pose)=>{bones.forEach(def=>map.get(def.id)!.rotation.fromArray([...poseRotation(def.id,pose),'XYZ']));ground();};
+ /**
+  * A Single body is one piece, so it cannot bend at the waist: the waist turn goes to the whole body instead, and the
+  * thighs turn back by the same amount so the legs keep their direction.
+  */
+ const unbent=(angles:Record<string,number>)=>{
+  if(body.build!==single||!angles.spine_lower)return angles;
+  const bend=angles.spine_lower;return {...angles,spine_lower:0,root:(angles.root??0)+bend,thigh_L:(angles.thigh_L??0)-bend,thigh_R:(angles.thigh_R??0)-bend};
+ };
  /** Live pose: local in-plane (Z) rotation per bone, in radians; bones left out go straight. */
- const applyAngles=(angles:Record<string,number>)=>{bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,angles[def.id]??0));ground();};
+ const applyAngles=(angles:Record<string,number>)=>{const a=unbent(angles);bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));ground();};
+ // Preset poses only turn in the picture plane (Z), so they go through the same path.
+ const applyPose=(pose:Pose)=>applyAngles(Object.fromEntries(bones.map(def=>[def.id,poseRotation(def.id,pose)[2]])));
  const setLayerOrder=(order:LayerGroup[])=>restack({order});
  /** Paper grain and tone on or off (A5); a shared uniform, so no rebuild. */
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
