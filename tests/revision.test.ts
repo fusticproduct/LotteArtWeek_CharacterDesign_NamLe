@@ -4,11 +4,11 @@ import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
-import {hairStyles} from '../src/hair';
+import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
+import {createCharacter,headOutlines,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -431,19 +431,60 @@ it('scales the patchwork cells with Checker scale and the flow speed with Flow s
  const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,checker:2});expect(rig.group.getObjectByName(`${spot}_mesh`)).toBeDefined();rig.dispose();
 });
 
-it('places every hair style on every head: the cap stays above the face mark, the back sits behind the head, in its own colour',()=>{
+it('places every hair style on every head: caps and helmets stay above the face mark, the back sits behind the head, in its own colour',()=>{
  for(let head=0;head<variants.head.length;head++)for(let style=0;style<hairStyles.length;style++){
   const spec=generate('hair');spec.parts.head.variant=head;spec.parts.hair.variant=style;const rig=createCharacter(spec),label=`head ${head}, ${hairStyles[style].name}`;
   const front=rig.group.getObjectByName('hair_mesh') as SkinnedMesh,mark=rig.group.getObjectByName('face_mark_mesh') as SkinnedMesh,headMesh=rig.group.getObjectByName('head_mesh') as SkinnedMesh;
   expect(front.renderOrder,label).toBeGreaterThan(headMesh.renderOrder);expect(mark.renderOrder,label).toBeGreaterThan(front.renderOrder);
   // The cap's lowest point is above the mark's top (both in world space at rest).
   const extreme=(m:SkinnedMesh,pick:(a:number,b:number)=>number,start:number)=>{const p=m.geometry.getAttribute('position'),v=new Vector3();let y=start;for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);y=pick(y,v.y);}return y;};
-  if(hairStyles[style].cap)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
+  if(hairStyles[style].cap||hairStyles[style].front)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
+  const accent=rig.group.getObjectByName('hair_front_accent') as SkinnedMesh|undefined;
+  if(accent){expect(extreme(accent,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));expect(accent.renderOrder,label).toBeGreaterThan(front.renderOrder);expect(accent.renderOrder,label).toBeLessThan(mark.renderOrder);}
+  for(const dangle of rig.hair.meshes)expect(dangle.renderOrder,label).toBeLessThan(headMesh.renderOrder);
   for(const name of ['hair_back','hair_back_accent']){const back=rig.group.getObjectByName(name) as SkinnedMesh|undefined;if(back)expect(back.renderOrder,label).toBeLessThan(headMesh.renderOrder);}
   rig.dispose();
  }
  for(let i=0;i<60;i++){const s=generate(`hair-${i}`);expect(s.parts.hair.color,`${i}`).not.toBe(s.parts.head.color);}
  // The Hair slider scales the back pieces.
- const spec=generate('hair-size');spec.parts.hair.variant=3;const size=(hair:number)=>{const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,hair}),g=(rig.group.getObjectByName('hair_back') as SkinnedMesh).geometry;g.computeBoundingBox();const w=g.boundingBox!.max.x-g.boundingBox!.min.x;rig.dispose();return w;};
+ const spec=generate('hair-size');spec.parts.hair.variant=hairStyles.findIndex(s=>s.name==='Fin');const size=(hair:number)=>{const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,hair}),g=(rig.group.getObjectByName('hair_back') as SkinnedMesh).geometry;g.computeBoundingBox();const w=g.boundingBox!.max.x-g.boundingBox!.min.x;rig.dispose();return w;};
  expect(size(1.5)/size(1)).toBeCloseTo(1.5,2);
+});
+
+it('keeps every hair style symmetrical, and every helmet covers the top of every head shape',()=>{
+ const inside=([x,y]:[number,number],poly:[number,number][])=>{let hit=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)hit=!hit;}return hit;};
+ const placed=(head:number,style:number,size=1)=>{const h=headOutlines[head],lift=.31-Math.max(...h.outline.map(p=>p[1])),outline=h.outline.map(([x,y])=>[x,y+lift] as [number,number]);return {outline,markTop:h.markY+.05,hair:placeHair(hairStyles[style],outline,h.markY+.05,size)};};
+ for(let style=0;style<hairStyles.length;style++){
+  const {hair}=placed(0,style),points=[...hair.back,...hair.front].flatMap(p=>p.points).concat(hair.dangles.flatMap(d=>restCircles(d).map(c=>[c.x,c.y] as [number,number])));
+  for(const [x,y] of points)expect(Math.min(...points.map(([u,v])=>Math.hypot(u+x,v-y))),`${hairStyles[style].name} at ${x.toFixed(3)},${y.toFixed(3)}`).toBeLessThan(2e-4);
+  if(!hairStyles[style].front)continue;
+  for(let head=0;head<headOutlines.length;head++)for(const size of [.5,1,1.5]){
+   const {outline,markTop,hair}=placed(head,style,size),brow=Math.min(...hair.front.flatMap(p=>p.points.map(q=>q[1])));
+   expect(brow,`${hairStyles[style].name} on head ${head}`).toBeGreaterThanOrEqual(markTop+.008-1e-9);
+   for(let i=0;i<outline.length;i++)for(let k=0;k<8;k++){
+    const a=outline[i],b=outline[(i+1)%outline.length],p:[number,number]=[a[0]+(b[0]-a[0])*k/8,a[1]+(b[1]-a[1])*k/8];
+    if(p[1]>brow+.002)expect(hair.front.some(f=>inside(p,f.points)),`${hairStyles[style].name} on head ${head} (${size}) leaves ${p.map(v=>v.toFixed(3))} uncovered`).toBe(true);
+   }
+  }
+ }
+});
+
+it('swings ragdoll hair as the head moves, never stretching or overlapping, and brings it back to rest',()=>{
+ const named=(name:string)=>hairStyles.findIndex(s=>s.name===name);
+ for(const name of ['Antenna','Twin antennas','Plume','Beanie','Ball top']){
+  const spec=generate('dangles');spec.parts.hair.variant=named(name);const rig=createCharacter(spec);
+  const check=(label:string)=>{for(const chain of rig.hair.state()){let from=chain.anchor,reach=chain.rope;chain.balls.forEach((b,i)=>{expect(b.pos.distanceTo(from),`${name} ${label} ${i}`).toBeCloseTo(reach,4);from=b.pos;reach=b.r+(chain.balls[i+1]?.r??0);});}};
+  expect(rig.hair.meshes.length,name).toBeGreaterThan(0);check('rest');
+  const rest=rig.hair.state().map(c=>c.balls.map(b=>b.pos.clone()));
+  rig.applyPose('stride');let moved=0;for(let i=0;i<20;i++){rig.tick(1/60);check(`swing ${i}`);}
+  // Still lagging behind the head a third of a second later: it moves like a ragdoll, not a rigid shape.
+  rig.applyPose('reach');rig.tick(1/60);rig.tick(1/60);
+  const lag=rig.hair.state().map(c=>c.balls.map(b=>b.pos.clone()));rig.settleFingers();
+  const settled=rig.hair.state();settled.forEach((c,i)=>c.balls.forEach((b,j)=>{moved=Math.max(moved,b.pos.distanceTo(lag[i][j]));}));
+  expect(moved,name).toBeGreaterThan(.001);
+  rig.applyPose('reach');rig.settleFingers();for(let i=0;i<120;i++)rig.tick(1/60);
+  const a=rig.hair.state();rig.tick(1/60);const b=rig.hair.state();
+  a.forEach((c,i)=>c.balls.forEach((ball,j)=>expect(ball.pos.distanceTo(b[i].balls[j].pos),`${name} at rest`).toBeLessThan(1e-3)));
+  void rest;rig.dispose();
+ }
 });

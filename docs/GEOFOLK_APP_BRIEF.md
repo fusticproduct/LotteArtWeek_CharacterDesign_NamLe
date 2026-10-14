@@ -812,3 +812,14 @@ Anh Nam yêu cầu bóng đổ giữa các lớp (thử kiểu lệch xuống ph
 - Ngón tay cách mép bàn tay một khoảng bằng bán kính ngón (lúc nghỉ và cả khi đung đưa), dây buộc 3,2 bán kính để có chỗ đung đưa.
 - Mặc định theo ý anh Nam: Pattern scale 20 ô, Checker scale 125%, Flow speed −300%, palette HFCD, Paper texture bật. Pattern scale giờ nằm trong các cài đặt "Save all as default" (`patternScale` trong `src/settings.json`): nhân vật đầu tiên mở với số ô này, Reset trả về nó; seed chỉ có tên dùng số ô đang chọn.
 
+## 54. Tóc vòng 2: đối xứng, mũ, robot, lủng lẳng (14/10/2026)
+
+Góp ý của anh Nam sau vòng 1: kiểu Ears giống chuột Mickey; gai Sunburst quá mảnh trên đầu lục giác; hình trên đầu phải là khối đặc, không cắt theo hình đầu (Cloud trên đầu tam giác); không thích hình bán nguyệt; mọi kiểu phải đối xứng; cần tóc phổ thông, tóc robot, mũ bảo hiểm (trọng tâm), không afro, không kiểu riêng của một nền văn hóa, bỏ quạt (trông nữ tính) nhưng giữ kiểu múi xen màu của nó; vài kiểu có ragdoll. Sau đó anh chọn 11 kiểu vòng 1 muốn giữ: Crown, Gem, Fin, Flame, Ball top, Halo, Bowl, Flat top, Sunburst, Helmet, Leaves.
+
+- Giữ 11 kiểu đó; Flame và Leaves vẽ lại đối xứng (Leaves vẫn hai màu); Sunburst 7 gai to và ngắn hơn.
+- Bỏ: Spikes nghiêng, Afro, Cloud, Fan, Waves, Horns, Sweep, Ears, Ridge, Swoosh. Số thứ tự của chúng chuyển cho kiểu mới (seed không đổi phiên bản; tóc mới có từ hôm nay và chưa đưa lên GitHub).
+- Mới: mũ Moto, Hard hat, Segments, Beanie, Plume, Bucket, Cap, Racer; robot Antenna, Twin antennas, Knight, Gear, Siren; Blocks đối xứng xen màu.
+- Mũ là phần trước (front) bằng khối đặc riêng: đặt mép dưới ngay trên dấu mặt nếu thiết kế thấp hơn, rồi phóng to quanh giữa mép dưới tới khi phần đầu phía trên (cộng 12 mm) nằm trọn trong mũ. Có test cho mọi kiểu × 6 hình đầu × cỡ 50/100/150%.
+- Ragdoll (`src/hairPhysics.ts`): chuỗi hình tròn, hình đầu cách điểm buộc một đoạn dây, các hình sau chạm nhau; verlet với trọng lực, giảm chấn .92, kéo về dáng nghỉ 4%/lượt × 8 lượt (mềm hơn ngón tay), giữ đúng khoảng cách sau mỗi lượt. Ball top, Beanie, Plume, Antenna, Twin antennas.
+- Trong lượt này cũng có: ngón tay vẽ trên bàn tay (mục 52) và cách bàn tay một bán kính (mục 53).
+

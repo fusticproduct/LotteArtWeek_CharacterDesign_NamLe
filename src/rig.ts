@@ -7,6 +7,7 @@ import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeaveP
 import {partColors} from './themes';
 import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
+import {createDangles} from './hairPhysics';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -300,8 +301,8 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
  } else if(b.kind==='foot'){
   g=footGeometry(v);g.computeBoundingBox();const min=g.boundingBox!.min.y,max=g.boundingBox!.max.y;g.translate(0,-max,0);g.scale(1,.16/(max-min),1);g.scale(prop.feet,prop.feet,prop.feet);
  } else if(b.kind==='hair'){
-  // The hair bone's own mesh is the front cap; a style without one keeps a speck hidden in the head's centre.
-  const front=hairOn(spec,prop).front;g=front?paper([{outline:front}],paperRound):sphere(.001).translate(0,.15,0);
+  // The hair bone's own mesh is the front (cap or helmet) in the hair colour; a style without one keeps a speck hidden in the head's centre.
+  const front=hairOn(spec,prop).front.filter(p=>!p.accent);g=front.length?paper(front.map(p=>({outline:p.points})),paperRound):sphere(.001).translate(0,.15,0);
  } else {
   // The face-mark bone sits at a fixed height; move the mark to where it reads best on the chosen head.
   g=paper(markOutlines[v],markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
@@ -345,16 +346,19 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return mesh;
  });
- // Hair behind the head (hair.ts): the hair colour and, for two-colour styles, the accent; both ride on the hair bone.
+ // Hair (hair.ts) besides the front in the hair colour: behind the head in the hair colour and the accent, and the
+ // front's accent pieces (a visor, a stripe, rivets); all ride on the hair bone.
  const hairBone=map.get('hair')!,hairIndex=bones.findIndex(b=>b.id==='hair'),placed=hairOn(spec,proportions);
- const hairBack=[false,true].flatMap(accent=>{
-  const pieces=placed.back.filter(p=>p.accent===accent);if(!pieces.length)return [];
+ const hairExtra=([['hair_back',placed.back,false],['hair_back_accent',placed.back,true],['hair_front_accent',placed.front,true]] as const).flatMap(([name,all,accent])=>{
+  const pieces=all.filter(p=>p.accent===accent);if(!pieces.length)return [];
   const geometry=paper(pieces.map(p=>({outline:p.points})),paperRound),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:hairIndex),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
   const material=new THREE.MeshBasicMaterial({color:colorOf(accent?spec.parts.hair.accent:spec.parts.hair.color),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
-  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=accent?'hair_back_accent':'hair_back';mesh.userData={accent};mesh.position.copy(hairBone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=name;mesh.userData={accent};mesh.position.copy(hairBone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return [mesh];
  });
+ // Ragdoll chains (hairPhysics.ts): an antenna, a plume, a pompom.
+ const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)});
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
@@ -363,7 +367,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
-  for(const back of hairBack)back.renderOrder=group.getObjectByName('head_mesh')!.renderOrder-(back.userData.accent?.4:.5);
+  const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
+  for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
+  for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
  };
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
@@ -413,14 +419,15 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{fingers.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
- fingers.settle();
+ const dispose=()=>{fingers.dispose();dangles.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ fingers.settle();dangles.settle();
  // Flow parts slide their colours: each starts at its own phase.
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
  let clock=0;
- /** Advance the moving parts by dt seconds: the flow gradients and the ragdoll fingers. */
- const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);};
- /** Ragdoll fingers: `updateFingers(dt)` every frame; `settleFingers()` before a still picture. */
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,tick,updateFingers:fingers.update,settleFingers:fingers.settle};
+ /** Advance the moving parts by dt seconds: the flow gradients, the ragdoll fingers and the ragdoll hair. */
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);};
+ /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
+ const settleFingers=()=>{fingers.settle();dangles.settle();};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;
