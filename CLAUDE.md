@@ -25,7 +25,7 @@ basket-weave torso patterns and MediaPipe live pose.
 
 ```sh
 npm run dev -- --port 5178 --strictPort   # app at http://127.0.0.1:5178
-npm test                                  # 28 Vitest tests (Node, no canvas)
+npm test                                  # 30 Vitest tests (Node, no canvas)
 npm run build                             # tsc + vite build
 npm run pose                              # MediaPipe pose server, webcam (ws://localhost:8080)
 npm run pose:video                        # same, looping mediapipe/test_video.mp4
@@ -48,8 +48,11 @@ Start long-running servers in the Terminal panel, not Bash.
 - **Seeds:** append new shapes to the end of a `variants` list; adding a bone changes the seed
   length, so add the old order to `legacyOrders` in `src/model.ts`. Replacing a whole catalogue
   bumps the seed version and needs a mapping table (see `legacyTorso`, seed version 2).
-- **Head, torso and face mark are flat** (`paper()` outlines in `src/rig.ts`); every other part is
-  still a turned 3D shape. Nam approved this mix on 2026-10-11; do not flatten the rest unprompted.
+- **Head, body pieces and face mark are flat** (`paper()` outlines; body pieces in `src/body.ts`); every other
+  part is still a turned 3D shape. Nam approved this mix on 2026-10-11; do not flatten the rest unprompted.
+- **Body pieces must stay joined:** both pieces of a two-piece body hold a disc around the waist pivot
+  (`holdsDisc` test). Keep that invariant when adding shapes or changing `widths` / `seams` in `body.ts`.
+- **Branches:** Nam wants every change on a feature branch so `main` keeps the original (2026-10-14).
 - **Code style is very dense** (many statements per line). Match the file you are editing.
 - **Exports** (FBX/OBJ) were verified in Blender only for the old 22-bone 3D build.
 - **Checking motion:** eyeballing Live pose misses most problems. Run MediaPipe over every frame of

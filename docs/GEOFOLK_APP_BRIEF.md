@@ -626,3 +626,15 @@ Anh Nam yêu cầu undo/redo bằng Ctrl+Z (phần "hoàn tác" của B1; dải 
 - Kéo slider Proportions hoặc Pattern scale liên tục (các lần đổi cách nhau dưới 1 giây) gộp thành 1 bước.
 - Không tính: nền đen/giấy, tư thế, Paper texture, khung nhìn (là cách xem, không phải chỉnh sửa).
 - Phím: Ctrl/Cmd+Z hoàn tác; Ctrl/Cmd+Shift+Z hoặc Ctrl+Y làm lại. Trong ô chữ (Seed), phím giữ chức năng hoàn tác chữ. Hai nút mũi tên ở đầu thanh trên.
+
+## 28. Thân bằng khối ghép thay cho thân + hông (14/10/2026)
+
+Anh Nam: bỏ hông và thân cố định, dễ đoán; thay bằng 3 kiểu (ảnh poster XMAS): hai khối bằng nhau cùng hình (hai bát, hai hình tròn), một khối lớn (donut), một khối lớn trên một khối nhỏ hoặc ngược lại. Mọi khối phải dính nhau, không hở, kể cả khi xoay.
+
+- 8 hình phẳng chung cho khối trên và khối dưới: Circle, Block, Bowl, Dome, Funnel, A-line, Donut, Diamond. 4 Build: Single (25%), Pair (30%), Big top (25%), Big bottom (20%). Pair dùng cùng hình hoặc hình lật (Funnel trên A-line = đồng hồ cát). Khối nhỏ không là Donut.
+- Bộ xương giữ nguyên số bone. Bone eo (`spine_lower`) dời tới chỗ nối hai khối; cổ, vai, hông giữ độ cao nên chiều cao 2.4 không đổi. Dòng "Lower spine" trong bảng Parts thành dòng **Build**.
+- Không hở: hai khối chồng nhau dọc giữa và cả hai chứa một đĩa bán kính 0.045 quanh điểm xoay eo. Thân Single không gập ở eo: góc gập chuyển cho cả thân, đùi xoay bù để chân giữ hướng.
+- Khớp hông luôn nằm trọn trong khối mang nó; khối đáy hẹp tự kéo dài xuống. Mọi kiểu khớp hông vẽ thành quả cầu nhỏ (vốn bị thân che).
+- Pattern: thân 1 khối đan 70% số lần; thân 2 khối luôn có ít nhất một khối đan.
+- Seed phiên bản 3. Seed phiên bản 1–2 mở thành Big top với hình gần nhất.
+- Làm trên nhánh `feature/body-pieces`; `main` giữ bản gốc.
