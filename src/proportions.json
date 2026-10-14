@@ -8,6 +8,6 @@
  "hands": 1,
  "feet": 1.2,
  "joints": 1,
- "checker": 1.25,
+ "checker": 0.8,
  "flowSpeed": -3
 }
