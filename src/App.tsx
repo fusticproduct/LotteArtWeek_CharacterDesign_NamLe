@@ -14,7 +14,6 @@ import {exportCharacter} from './exports';
 import CharacterScene,{type SceneHandle} from './Scene';
 import {bones,theme,variantNames,generate,recolor,encodeSeed,decodeSeed,randomLabel,linkedIds,normalizeProportions,studioProportions,rangeOf,type Pose,type Proportions} from './model';
 export default function App(){
- const [spec,setSpec]=useState(()=>generate('good-company-578'));
  const [seed,setSeed]=useState('good-company-578');
  const [locked,setLocked]=useState<Set<string>>(new Set());
  const [pose,setPose]=useState<Pose>('reach'),[resetView,setResetView]=useState(0);
@@ -25,6 +24,8 @@ export default function App(){
  // from the saved defaults (src/settings.json, or a browser-only default saved from a static build).
  const [savedLook,setSavedLook]=useState<LookSettings>(()=>{try{const local=localStorage.getItem('geofolk.settingsDefault');if(local)return normalizeSettings(JSON.parse(local));}catch{/* storage unavailable */}return studioSettings;});
  const stored=(key:string)=>{try{return localStorage.getItem(key);}catch{return null;}};
+ // The first character opens with the saved pattern scale; Generate keeps whatever scale is current.
+ const [spec,setSpec]=useState(()=>({...generate('good-company-578'),density:savedLook.patternScale}));
  const [layerOrder,setLayerOrder]=useState<LayerGroup[]>(()=>{try{const v=stored('geofolk.layerOrder');return v?normalizeLayerOrder(JSON.parse(v)):savedLook.layerOrder;}catch{return savedLook.layerOrder;}});
  useEffect(()=>{try{localStorage.setItem('geofolk.layerOrder',JSON.stringify(layerOrder));}catch{/* storage unavailable */}},[layerOrder]);
  const [weavePalette,setWeavePalette]=useState<WeavePaletteName>(()=>{const v=stored('geofolk.weavePalette') as WeavePaletteName|null;return v&&weavePaletteNames.includes(v)?v:savedLook.palette;});
@@ -40,14 +41,14 @@ export default function App(){
  const [savedProportions,setSavedProportions]=useState<Proportions>(()=>{try{const local=localStorage.getItem('geofolk.proportionsDefault');if(local)return normalizeProportions(JSON.parse(local));}catch{/* storage unavailable */}return studioProportions;});
  const [proportions,setProportions]=useState<Proportions>(()=>{try{const stored=localStorage.getItem('geofolk.proportions');if(stored)return normalizeProportions(JSON.parse(stored));}catch{/* storage unavailable */}return savedProportions;});
  useEffect(()=>{try{localStorage.setItem('geofolk.proportions',JSON.stringify(proportions));}catch{/* storage unavailable */}},[proportions]);
- const look:LookSettings={palette:weavePalette,layerOrder,paper,darkStage};
+ const look:LookSettings={palette:weavePalette,layerOrder,paper,darkStage,patternScale:spec.density};
  /** Save all as default: the proportions (with the pattern sliders) and the look settings, for the whole project under `npm run dev`, else for this browser. */
  async function saveDefaults(){
   const post=(route:string,body:unknown)=>fetch(`/__defaults/${route}`,{method:'POST',headers:{'Content-Type':'application/json','X-Geofolk':'1'},body:JSON.stringify(body)}).then(r=>r.ok,()=>false);
   if(await post('proportions',proportions)&&await post('settings',look)){try{localStorage.removeItem('geofolk.proportionsDefault');localStorage.removeItem('geofolk.settingsDefault');}catch{/* storage unavailable */}setSavedProportions(proportions);setSavedLook(look);return 'Saved as the project default (src/proportions.json, src/settings.json).';}
   try{localStorage.setItem('geofolk.proportionsDefault',JSON.stringify(proportions));localStorage.setItem('geofolk.settingsDefault',JSON.stringify(look));setSavedProportions(proportions);setSavedLook(look);return 'Saved as the default for this browser only.';}catch{return 'Could not save the default.';}
  }
- const resetAll=()=>{setProportions(savedProportions);setLayerOrder(savedLook.layerOrder);setWeavePalette(savedLook.palette);setPaper(savedLook.paper);setDarkStage(savedLook.darkStage);};
+ const resetAll=()=>{setProportions(savedProportions);setLayerOrder(savedLook.layerOrder);setWeavePalette(savedLook.palette);setPaper(savedLook.paper);setDarkStage(savedLook.darkStage);if(spec.density!==savedLook.patternScale){const next={...spec,density:savedLook.patternScale};setSpec(next);setSeed(encodeSeed(next));}};
  const poseClient=useMemo(createPoseClient,[]);
  const liveStatus=useSyncExternalStore(poseClient.subscribe,()=>poseClient.snapshot.status);
  useEffect(()=>()=>poseClient.disconnect(),[poseClient]);
@@ -60,7 +61,7 @@ export default function App(){
  const exploreLook=useMemo(()=>({weavePalette,layerOrder,proportions,dark:darkStage,paper,pose}),[weavePalette,layerOrder,proportions,darkStage,paper,pose]);
  const explore=()=>setCandidates(Array.from({length:6},()=>generate(randomLabel(),spec,locked)));
  const pick=(next:ReturnType<typeof generate>)=>{setSpec(next);setSeed(encodeSeed(next));setCandidates(null);};
- function applySeed(){try{const next=decodeSeed(seed);setSpec(next);setSeed(encodeSeed(next));setLocked(new Set());notify('Character restored from seed');}catch(e){notify((e as Error).message);}}
+ function applySeed(){try{let next=decodeSeed(seed);if(!seed.includes('~'))next={...next,density:spec.density};setSpec(next);setSeed(encodeSeed(next));setLocked(new Set());notify('Character restored from seed');}catch(e){notify((e as Error).message);}}
  useCharacterTools(spec,locked,(next,restore)=>{setSpec(next);setSeed(encodeSeed(next));if(restore)setLocked(new Set());});
  // Undo / redo (B1): the character, its locks and the look settings. Stage, pose and paper are view settings, not edits.
  const history=useHistory({spec,locked,layerOrder,proportions,weavePalette},s=>{setSpec(s.spec);setSeed(encodeSeed(s.spec));setLocked(s.locked);setLayerOrder(s.layerOrder);setProportions(s.proportions);setWeavePalette(s.weavePalette);},

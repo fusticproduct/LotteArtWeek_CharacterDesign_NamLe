@@ -19,7 +19,8 @@ const settings=data=>{
  if(!palettes.includes(data.palette))throw new Error('Invalid palette');
  if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
  if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
- return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,darkStage:data.darkStage}];
+ if(!Number.isInteger(data.patternScale)||data.patternScale<2||data.patternScale>12)throw new Error('Invalid pattern scale');
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,darkStage:data.darkStage,patternScale:data.patternScale}];
 };
 
 export function defaultsWriter(){

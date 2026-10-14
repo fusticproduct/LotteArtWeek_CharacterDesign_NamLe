@@ -9,5 +9,6 @@
   "legs"
  ],
  "paper": true,
- "darkStage": true
+ "darkStage": true,
+ "patternScale": 10
 }

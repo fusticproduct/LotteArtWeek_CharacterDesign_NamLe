@@ -806,3 +806,9 @@ Anh Nam duyệt bảng 32 kiểu đầu tiên rồi góp ý: tóc không phân b
 ## 52. Không có bóng đổ; ngón tay nằm trên bàn tay (14/10/2026)
 
 Anh Nam yêu cầu bóng đổ giữa các lớp (thử kiểu lệch xuống phải, rồi kiểu nở đều như Expand path trong Illustrator), sau đó bỏ hẳn: app không có bóng đổ. Bản thử được cất ở nhánh `archive/shadows-dropped`, không nằm trong app. Giữ lại một ý trong lượt đó: 5 ngón tay vẽ đè lên bàn tay (như ngón chân đè lên bàn chân); bàn chân vốn đã nằm trên ống chân.
+
+## 53. Ngón tay cách bàn tay; mặc định mới (14/10/2026)
+
+- Ngón tay cách mép bàn tay một khoảng bằng bán kính ngón (lúc nghỉ và cả khi đung đưa), dây buộc 3,2 bán kính để có chỗ đung đưa.
+- Mặc định theo ý anh Nam: Pattern scale 20 ô, Checker scale 125%, Flow speed −300%, palette HFCD, Paper texture bật. Pattern scale giờ nằm trong các cài đặt "Save all as default" (`patternScale` trong `src/settings.json`): nhân vật đầu tiên mở với số ô này, Reset trả về nó; seed chỉ có tên dùng số ô đang chọn.
+

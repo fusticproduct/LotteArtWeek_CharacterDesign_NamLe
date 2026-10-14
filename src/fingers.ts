@@ -1,15 +1,18 @@
 import * as THREE from 'three';
 /**
  * Ragdoll fingers (Nam, 2026-10-14): five circles per hand, one per finger, the same size and colour as the toes, drawn
- * just under the hand. At rest they sit in an arc around the hand's far rim, each touching the next. With verlet physics
- * (gravity, momentum, a pull back to its spot, a short tether to its pin on the rim) they swing and roll along the rim,
- * but neighbours always stay touching, no circle is ever inside the hand, and none overlap. Simulated in the character
+ * over the hand. At rest they float in an arc around the hand's far rim, one circle radius clear of it (Nam asked for
+ * more space), each touching the next. With verlet physics (gravity, momentum, a pull back to its spot, a short tether to
+ * its pin on the rim) they swing and roll around the hand, but neighbours always stay touching, none overlap, and none
+ * ever comes nearer the hand than that gap. Simulated in the character
  * group's space, so standing the figure on the floor does not shake them.
  */
 /** Rim steps per circle; gravity (m/s²); velocity kept per step; fixed step (s). */
 const circleSteps=24,gravity=-9.8,damping=.9,step=1/60;
 /** How far a circle's centre may stray from its pin, in radii (it can roll along the rim, not fly off). */
-export const tether=2.2;
+export const tether=3.2;
+/** Space between the hand's rim and the finger circles, in circle radii. */
+export const fingerGap=1;
 /**
  * Pull towards the rest spot per pass. The Finger stiffness slider sets it: 100% keeps the fingers in their arc and
  * swinging a little (Nam asked for stiff fingers), 50% lets them dangle, 150% nearly rigid.
@@ -23,8 +26,8 @@ interface Hand {bone:THREE.Bone;sign:number;balls:Ball[];}
 /** `radius` is the circle size shared with the toes (Fingers & toes slider), `stiffness` the Finger stiffness slider. */
 export function createFingers(group:THREE.Group,hands:FingerHand[],radius=.028,stiffness=1){
  const hold=shapeHold(stiffness),groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),target=new THREE.Vector3(),dir=new THREE.Vector3(),velocity=new THREE.Vector3(),centre=new THREE.Vector3(),away=new THREE.Vector3();
- // Neighbours touch: around a rim of radius R their centres sit R + r out, 2·asin(r / (R + r)) apart.
- const reach=handRadius+radius,spacing=2*Math.asin(radius/reach),gap=2*radius;
+ // Neighbours touch: on a circle of radius R + gap + r their centres sit 2·asin(r / (R + gap + r)) apart.
+ const reach=handRadius+radius*(1+fingerGap),spacing=2*Math.asin(radius/reach),gap=2*radius;
  const rigs:Hand[]=hands.map(hand=>({bone:hand.bone,sign:hand.side==='L'?1:-1,balls:Array.from({length:5},(_,i)=>{
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array((circleSteps+1)*3),3));
   geometry.setIndex(Array.from({length:circleSteps},(_,k)=>[0,1+k,1+(k+1)%circleSteps]).flat());
@@ -35,7 +38,7 @@ export function createFingers(group:THREE.Group,hands:FingerHand[],radius=.028,s
  })}));
  const balls=rigs.flatMap(h=>h.balls);
  const handFrame=(bone:THREE.Bone)=>{group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();return frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
- /** A ball's rest spot (just outside the rim, in the arc) into `out`, and its pin on the rim. */
+ /** A ball's rest spot (in the arc, clear of the rim) into `out`, and its pin on the rim. */
  const spot=(h:Hand,b:Ball,out:THREE.Vector3)=>{const a=b.angle*h.sign,x=Math.sin(a),y=-Math.cos(a);b.pin.set(x*handRadius,y*handRadius,0).add(handCentre).applyMatrix4(frame);return out.set(x*reach,y*reach,0).add(handCentre).applyMatrix4(frame);};
  const outOfHand=(p:THREE.Vector3)=>{away.subVectors(p,centre).setZ(0);const d=away.length();if(d<reach){if(d<1e-6)away.set(0,-1,0);else away.divideScalar(d);p.copy(centre).addScaledVector(away,reach);}};
  const simulate=(dt:number)=>{
@@ -47,7 +50,7 @@ export function createFingers(group:THREE.Group,hands:FingerHand[],radius=.028,s
      spot(h,b,target);b.pos.lerp(target,hold/2);
      away.subVectors(b.pos,b.pin);const d=away.length(),limit=radius*tether;if(d>limit)b.pos.copy(b.pin).addScaledVector(away,limit/d);
     }
-    // Neighbours stay exactly touching; no two balls overlap; none is inside the hand.
+    // Neighbours stay exactly touching; no two balls overlap; none comes nearer the hand than the gap.
     for(let i=1;i<h.balls.length;i++){const a=h.balls[i-1].pos,c=h.balls[i].pos;dir.subVectors(c,a);const d=dir.length()||1,fix=(d-gap)/2/d;a.addScaledVector(dir,fix);c.addScaledVector(dir,-fix);}
     for(let i=0;i<h.balls.length;i++)for(let j=i+2;j<h.balls.length;j++){const a=h.balls[i].pos,c=h.balls[j].pos;dir.subVectors(c,a);const d=dir.length();if(d<gap&&d>1e-6){dir.multiplyScalar((gap-d)/d/2);a.sub(dir);c.add(dir);}}
     for(const b of h.balls)outOfHand(b.pos);

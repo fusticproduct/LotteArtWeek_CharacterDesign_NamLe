@@ -3,7 +3,7 @@ import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,Sk
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
-import {tether} from '../src/fingers';
+import {tether,fingerGap} from '../src/fingers';
 import {hairStyles} from '../src/hair';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
@@ -372,7 +372,7 @@ it('arcs five touching ragdoll finger circles around each hand, never inside it,
   expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
  }
  const check=(label:string)=>{for(const h of rig.fingers.state())h.pos.forEach((p,i)=>{
-  expect(p.distanceTo(h.centre),`${label}: ${i} inside the hand`).toBeGreaterThan(rig.fingers.handRadius+r-1e-6);
+  expect(p.distanceTo(h.centre),`${label}: ${i} inside the hand`).toBeGreaterThan(rig.fingers.handRadius+r*(1+fingerGap)-1e-6);
   expect(p.distanceTo(h.pin[i]),`${label}: ${i} off its tether`).toBeLessThan(r*tether+.003);
   if(i)expect(p.distanceTo(h.pos[i-1]),`${label}: ${i} touches ${i-1}`).toBeCloseTo(2*r,2);
   for(let j=i+2;j<5;j++)expect(p.distanceTo(h.pos[j]),`${label}: ${i}/${j}`).toBeGreaterThan(2*r-.003);
