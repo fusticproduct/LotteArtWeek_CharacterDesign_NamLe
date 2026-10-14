@@ -696,3 +696,10 @@ Anh Nam gửi ảnh tham chiếu (lưới ô cờ nhiều màu: khối bàn cờ
 - Anh Nam: hai chỗ patchwork phải khác nhau, ở chỗ ngẫu nhiên, không phải hai bên đối xứng. Giờ: một bên bắp tay và một bên đùi (đều cách thân một bộ phận), bên chọn ngẫu nhiên, mỗi chỗ một tấm riêng. Seed cũ có cặp đối xứng giữ bắp tay trái và đùi phải.
 - Dấu mặt luôn là hình đặc, không có dạng viền: Ring đổi thành Diamond.
 - Anh Nam lưu tỉ lệ mặc định mới trong tab Proportions (đầu 55%, thân rộng 65%, chân 130%…), đã commit riêng.
+
+## 37. Hai khối thân xếp chồng, không đè (14/10/2026)
+
+Anh Nam: hai khối (ví dụ hai Bowl, hay hai khối vuông) phải xếp chồng lên nhau, không đè lên nhau, cho gọn.
+
+- Trước: hai khối chồng nhau 9 cm dọc giữa (cả hai chứa một đĩa 4,5 cm quanh điểm xoay). Giờ chỉ chồng 1,4 cm; khối trên ngồi lên khối dưới.
+- Điểm xoay eo đặt ở chỗ chạm. Trong Dance, eo gập trung vị 0,06 rad, 90% dưới 0,19 rad, lớn nhất 0,57 rad; khi gập, khe giữa hai khối lộ ra phía ngoài, nên có thêm quả cầu eo (màu cổ, bán kính 0,055) nằm sau cả hai khối để lấp khe như một khớp bản lề. Lúc đứng yên nó gần như khuất (giữa hai hình tròn thì lộ thành một hạt nhỏ).

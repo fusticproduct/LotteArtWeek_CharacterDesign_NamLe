@@ -5,7 +5,7 @@ import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDep
 
 import {drawWeave,drawPatchwork,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
-import {bodyLayout,halfWidthAt,shoulderY,hipY,seamMargin,bodyTop,type BodyLayout} from './body';
+import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -243,8 +243,8 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   // A Single body has no bottom piece: the pelvis bone keeps a small hidden disc between the hips.
   g=body.bottom?planarUV(paper([body.bottom],paperRound)):sphere(.03).translate(0,hipY,0);
  } else if(b.id==='spine_lower'){
-  // Hidden inside both pieces, around the waist pivot.
-  g=sphere(seamMargin*.7);
+  // The waist ball: behind both pieces at the pivot, it fills the gap a bend opens between stacked pieces.
+  g=sphere(waistRadius);
  } else if(b.kind==='connector'){
   const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:(b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:shoulderRadius)*prop.joints;
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.

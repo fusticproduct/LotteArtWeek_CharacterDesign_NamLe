@@ -3,7 +3,7 @@ import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,Sk
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork} from '../src/model';
-import {bodyLayout,holdsDisc,seamMargin,shoulderY,isRound,isHalf} from '../src/body';
+import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
 import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius} from '../src/rig';
@@ -57,14 +57,17 @@ it('keeps both hip joints inside the body piece that carries them, for every bod
   g.computeBoundingSphere();expect(g.boundingSphere!.radius).toBeCloseTo(.045,3);expect(rig.map.get('hip_L')!.position.x).toBeCloseTo(bodyLayout(spec).hipX,9);rig.dispose();
  }
 });
-it('keeps two-piece bodies joined at the waist at any bend and slider setting, and never bends a Single body',()=>{
+it('stacks two body pieces without overlapping them, keeps them touching at any bend and slider setting, and never bends a Single body',()=>{
  const base=generate('seams');
  for(const body of everyBody())for(const torsoHeight of [.5,1,1.5])for(const width of [.5,1.5]){
   const spec=withBody(base,body),prop={...defaultProportions,torsoHeight,torsoWidth:width,pelvis:2-width},layout=bodyLayout(spec,prop),label=`${JSON.stringify(body)} h${torsoHeight} w${width}`;
-  // Both pieces hold a disc around the pivot, and the top piece swings about the pivot, so the overlap never opens.
-  // At extreme slider settings a piece can get thin at the seam, but it still holds a smaller disc.
-  const disc=torsoHeight===1&&width===1.5?seamMargin-.003:.015;
-  if(layout.bottom){expect(holdsDisc(layout.top,[0,layout.pivot],disc),label).toBe(true);expect(holdsDisc(layout.bottom,[0,layout.pivot],disc),label).toBe(true);}
+  // The pieces are stacked: they meet in a thin overlap on the centre line with the pivot in it, so they touch at
+  // any bend (the top piece turns about that point), and the waist ball behind them fills the gap a bend opens.
+  if(layout.bottom){
+   expect(holdsDisc(layout.top,[0,layout.pivot],seamOverlap*.3),label).toBe(true);expect(holdsDisc(layout.bottom,[0,layout.pivot],seamOverlap*.3),label).toBe(true);
+   const topLow=Math.min(...layout.top.outline.map(p=>p[1])),bottomHigh=Math.max(...layout.bottom.outline.map(p=>p[1]));
+   expect(bottomHigh-topLow,label).toBeLessThan(seamOverlap+1e-9);expect(waistRadius).toBeGreaterThan(.04);
+  }
   // The neck ball (bottom at about 0.60) and the shoulder height both land on the top piece.
   expect(holdsDisc(layout.top,[0,.615],.01),label).toBe(true);expect(holdsDisc(layout.top,[0,shoulderY],.01)||layout.top.holes!==undefined,label).toBe(true);
  }

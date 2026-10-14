@@ -6,8 +6,13 @@ import {defaultProportions,single,donut,type CharacterSpec,type Proportions} fro
  * between them. Two pieces meet at the waist pivot, which the rig moves to the seam, so the top piece swings about it.
  */
 export const bodyTop=.64,bodyBottom=-.14,hipY=-.03,shoulderY=.535;
-/** Both pieces of a two-piece body hold a disc of this radius around the waist pivot, so they stay joined at any bend. */
-export const seamMargin=.045;
+/**
+ * Two body pieces are stacked, not overlapped (Nam, 2026-10-14): they meet with just this much overlap along the centre
+ * line, so no hairline shows, and the waist pivot sits in it. A waist ball behind both pieces fills the gap a bend opens.
+ */
+export const seamOverlap=.014,waistRadius=.055;
+/** Donut holes keep this much ring around them. */
+const ringMargin=.045;
 /** Circles and donuts are as wide as they are tall; half circles (Bowl, Dome) twice as wide. They are never stretched (Nam, 2026-10-14). */
 export const isRound=(v:number)=>v===0||v===donut,isHalf=(v:number)=>v===2||v===3;
 /** Share of the stacked height that goes to the top piece, per build. */
@@ -30,7 +35,7 @@ const roundedBox=(w:number,y0:number,h:number,r:number):Point2[]=>[
  */
 export function shapeOutline(v:number,w:number,y0:number,h:number):Piece{
  const y1=y0+h,narrow=Math.max(.16,w*.34)/2;
- if(isRound(v)){const r=h/2,piece:Piece={outline:ellipse2d(0,y0+r,r,r)};if(v===donut){const hole=Math.min(r*.4,r-2*seamMargin-.03);piece.holes=[ellipse2d(0,y0+r,hole,hole,0,Math.PI*2,40)];}return piece;}
+ if(isRound(v)){const r=h/2,piece:Piece={outline:ellipse2d(0,y0+r,r,r)};if(v===donut){const hole=Math.min(r*.4,r-2*ringMargin-.03);piece.holes=[ellipse2d(0,y0+r,hole,hole,0,Math.PI*2,40)];}return piece;}
  if(v===1)return {outline:roundedBox(w,y0,h,Math.min(.07,w*.18,h*.2))};
  if(v===2)return {outline:ellipse2d(0,y1,h,h,Math.PI,Math.PI*2,48)};
  if(v===3)return {outline:ellipse2d(0,y0,h,h,0,Math.PI,48)};
@@ -51,8 +56,8 @@ export const halfWidthAt=(outline:Point2[],y:number)=>{let w=0;for(let i=0;i<out
 export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;}
 /**
  * Pieces of a character's body. The top piece hangs from the neck, the bottom piece stands on the body's bottom line,
- * and together they are exactly two seam margins taller than that span, so they overlap by that much along the centre
- * line with the pivot in the middle. The build sets how the height is shared; a round piece or half circle takes no
+ * and together they are just the seam overlap taller than that span, so the top piece sits on the bottom one with the
+ * pivot where they meet. The build sets how the height is shared; a round piece or half circle takes no
  * more than its cap (so it never has to stretch) and the other piece grows to meet it. Torso height moves the share.
  * The piece that carries the hips reaches lower when the hip joints would not fit inside it.
  */
@@ -64,14 +69,14 @@ export function bodyLayout(spec:CharacterSpec,prop:Proportions=defaultProportion
   const piece=make(bodyBottom);let x=.105;while(x>.03&&!holdsDisc(piece,[x,hipY],hipClearance))x-=.005;return {piece,hipX:x};
  };
  if(build===single){const {piece,hipX}=fit(lower=>widen(shapeOutline(topShape,topW,lower,bodyTop-lower),topShape,prop.torsoWidth));return {build,pivot:.07,top:piece,bottom:null,hipX};}
- const span=bodyTop-bodyBottom,total=span+2*seamMargin,[topRole,bottomRole]=roles[build];
+ const span=bodyTop-bodyBottom,total=span+seamOverlap,[topRole,bottomRole]=roles[build];
  const cap=(v:number,role:'big'|'small'|'pair')=>isRound(v)?caps[role].round:isHalf(v)?caps[role].half:Infinity;
  let topH=total*Math.min(.78,Math.max(.25,topShare[build]*prop.torsoHeight)),bottomH=total-topH;
  if(topH>cap(topShape,topRole)){topH=cap(topShape,topRole);bottomH=total-topH;}
  if(bottomH>cap(bottomShape,bottomRole as 'big'|'small'|'pair')){bottomH=cap(bottomShape,bottomRole as 'big'|'small'|'pair');topH=Math.min(cap(topShape,topRole),total-bottomH);}
  // Both capped and short of the span: the bottom piece grows past its cap rather than leave a gap.
  if(topH+bottomH<total)bottomH=total-topH;
- const pivot=bodyTop-topH+seamMargin,seamTop=bodyBottom+bottomH;
+ const pivot=bodyTop-topH+seamOverlap/2,seamTop=bodyBottom+bottomH;
  const top=widen(shapeOutline(topShape,topW,bodyTop-topH,topH),topShape,prop.torsoWidth);
  const {piece,hipX}=fit(lower=>widen(shapeOutline(bottomShape,bottomW,lower,seamTop-lower),bottomShape,prop.pelvis));
  return {build,pivot,top,bottom:piece,hipX};
