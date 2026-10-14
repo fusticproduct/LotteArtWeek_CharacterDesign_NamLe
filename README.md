@@ -63,7 +63,7 @@ Trên macOS, lần đầu dùng webcam phải cấp quyền Camera cho ứng d�
 
 | Khu vực | Chức năng |
 |---|---|
-| Thanh trên | Ô **Seed** (gõ rồi Enter để áp dụng, nút copy lấy seed đầy đủ), menu **Export**, nút **Colors** (bộ màu mới, giữ nguyên hình và tên; bộ phận đã khóa giữ màu), nút **×6** (Generate ra 6 nhân vật trên sân khấu để chọn một, vẫn giữ bộ phận đã khóa; Esc để đóng), nút **Generate** |
+| Thanh trên | Nút **Undo / Redo** (Ctrl+Z, Ctrl+Shift+Z hoặc Ctrl+Y; Cmd trên Mac): hoàn tác Generate, random từng bộ phận, Colors, chọn ở lưới ×6, áp seed, khóa/mở khóa, thứ tự lớp, Proportions, Palette, Pattern scale. Kéo slider liên tục tính là 1 bước. Nền, tư thế và Paper texture không tính. Trong ô Seed, Ctrl+Z là hoàn tác chữ. Ô **Seed** (gõ rồi Enter để áp dụng, nút copy lấy seed đầy đủ), menu **Export**, nút **Colors** (bộ màu mới, giữ nguyên hình và tên; bộ phận đã khóa giữ màu), nút **×6** (Generate ra 6 nhân vật trên sân khấu để chọn một, vẫn giữ bộ phận đã khóa; Esc để đóng), nút **Generate** |
 | Khung nhân vật (trái) | Kéo để di chuyển khung nhìn, cuộn để zoom. Bốn nút bên phải khung: fit về giữa, hiện bộ xương, mở tab Live pose, đổi nền đen/nền giấy (mặc định đen, giống video tham chiếu; PNG export lấy đúng nền đang chọn) |
 | Thanh dưới khung | Bốn tư thế: At ease, Hands up, Step out (ba tư thế này "thở" nhẹ: thân, đầu, tay đung đưa chu kỳ 3.6 s; tắt khi hệ điều hành bật giảm chuyển động) và **Dance** (phát lặp 3 phút nhảy đã ghi từ video mẫu, không cần server hay camera) |
 | Tab **Parts** (phải) | Bộ phận và lớp: danh sách 7 khối lớp (Arms, Head, Torso, Neck, Pelvis, Lower spine, Legs); **khối trên cùng được vẽ phía trước**. Kéo tay nắm ở đầu khối để đổi thứ tự (hoặc chọn tay nắm rồi bấm ↑/↓). Trong khối Arms/Legs, các bộ phận xếp theo thứ tự vẽ cố định (xem mục 7). Mỗi dòng có nút random (đổi **hình** của bộ phận, giữ màu; với dòng khớp thì đổi màu khớp) và nút khóa. "Reset order" trả về thứ tự mặc định |
@@ -109,6 +109,7 @@ src/
   pose.ts          client WebSocket + đổi 33 landmark MediaPipe thành góc từng khớp
   motion.ts        thở nhẹ cho tư thế có sẵn, phát tư thế Dance
   dance.ts / dance.json  dữ liệu Dance đã nén (15 khung/giây, góc từng xương + thứ tự lớp)
+  history.ts       undo / redo (lịch sử thay đổi, gộp các bước kéo slider)
   themes.ts        palette HFCD / XMAS / TET: màu bộ phận và màu nền theo palette
   thumbnails.ts    vẽ nhân vật ra ảnh (dùng cho lưới ×6)
   ExploreGrid.tsx  lưới ×6 trên sân khấu

@@ -617,3 +617,12 @@ Anh Nam: ba palette phải đổi màu mọi bộ phận, không chỉ pattern �
 - Màu lấy mẫu từ hai poster. XMAS: nền `#114DDC`; thân `#04D55D`, `#03924F`, `#FD0848`, `#FEFEFE`, `#49E8FE`, `#FDD52A`; dấu mặt `#0D1A4A`. TET: nền `#C01E2E`; thân `#FEC316`, `#EE1566`, `#FD432A`, `#FF8F2F`, `#FEF6D7`, `#21C9BA`, `#1DD478`, `#F95C7B`, `#1C8861`; dấu mặt `#261D33`.
 - Đổi lúc vẽ, không đổi seed (giống pattern đan): mỗi màu nhân vật đang dùng được gán một màu riêng trong bộ, theo vai trò và quy tắc của `drawScheme`, cố định theo tên nhân vật. Bộ phận kề nhau vẫn khác màu, trừ khi nhân vật dùng nhiều màu hơn số màu của bộ (hiếm, chỉ khi khóa nhiều).
 - Nền đen của sân khấu, lưới ×6 và FBX/OBJ đi theo palette. Nền giấy giữ nguyên. Nhãn trong app đổi từ "Weave palette" thành "Palette".
+
+## 27. Undo / redo (14/10/2026)
+
+Anh Nam yêu cầu undo/redo bằng Ctrl+Z (phần "hoàn tác" của B1; dải lịch sử chưa làm).
+
+- Lưu ảnh chụp của nhân vật, các bộ phận khóa, thứ tự lớp, Proportions và Palette (`useHistory` trong `src/history.ts`). Mọi thay đổi đều được ghi, dù đến từ nút, ô seed hay công cụ WebMCP. Tối đa 100 bước.
+- Kéo slider Proportions hoặc Pattern scale liên tục (các lần đổi cách nhau dưới 1 giây) gộp thành 1 bước.
+- Không tính: nền đen/giấy, tư thế, Paper texture, khung nhìn (là cách xem, không phải chỉnh sửa).
+- Phím: Ctrl/Cmd+Z hoàn tác; Ctrl/Cmd+Shift+Z hoặc Ctrl+Y làm lại. Trong ô chữ (Seed), phím giữ chức năng hoàn tác chữ. Hai nút mũi tên ở đầu thanh trên.
