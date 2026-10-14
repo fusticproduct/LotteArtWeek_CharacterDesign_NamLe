@@ -359,19 +359,19 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('hangs five stiff ragdoll spline fingers from each hand, drawn under it',()=>{
+it('hangs five stiff ragdoll fingers of touching circles from each hand, drawn under it',()=>{
  const rig=createCharacter(generate('fingers'));
  expect(rig.fingers.meshes.length).toBe(10);
  for(const finger of rig.fingers.meshes)expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
- const middle=rig.fingers.chains[2],handUp=new Vector3();
+ const middle=rig.fingers.chains[2],tip=middle.length-1,handUp=new Vector3();
  // Hands down: the fingers hang below where they leave the hand.
- rig.applyPose('idle');rig.settleFingers();expect(middle[4].y).toBeLessThan(middle[0].y-.08);
+ rig.applyPose('idle');rig.settleFingers();expect(middle[tip].y).toBeLessThan(middle[0].y-.08);
  // Hands up: the fingers keep their shape and point up with the hand.
  rig.applyPose('reach');rig.settleFingers();
  const hand=rig.map.get('hand_L')!;handUp.setFromMatrixColumn(hand.matrixWorld,1).negate().normalize();
- const stiffTip=middle[0].y+handUp.y*.12;expect(handUp.y).toBeGreaterThan(.5);expect(Math.abs(stiffTip-middle[4].y)).toBeLessThan(.03);
- // The physics keeps every segment its length.
- for(let j=1;j<5;j++)expect(middle[j].distanceTo(middle[j-1])).toBeCloseTo(.03,4);
+ const stiffTip=middle[0].y+handUp.y*tip*2*rig.fingers.radii[2];expect(handUp.y).toBeGreaterThan(.5);expect(Math.abs(stiffTip-middle[tip].y)).toBeLessThan(.03);
+ // The circles always touch without overlapping: one diameter apart.
+ for(let j=1;j<middle.length;j++)expect(middle[j].distanceTo(middle[j-1])).toBeCloseTo(2*rig.fingers.radii[2],5);
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
 
@@ -386,9 +386,10 @@ it('puts five toes along each sole over the foot, in the foot accent colour, and
  rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
  expect(low).toBeCloseTo(0,2);
  const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5,toes:1.5});
- expect(big.fingers.chains[2][0].distanceTo(big.fingers.chains[2][4])).toBeGreaterThan(rig.fingers.chains[2][0].distanceTo(rig.fingers.chains[2][4])*1.3);
- const box=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.y-g.boundingBox!.min.y;};
- expect(box(big)/box(rig)).toBeCloseTo(1.5,1);
+ const reach=(r:ReturnType<typeof createCharacter>)=>{const c=r.fingers.chains[2];return c[0].distanceTo(c[c.length-1]);};expect(reach(big)).toBeGreaterThan(reach(rig)*1.3);
+ // Bigger toes widen the row by the same factor, so the circles still touch without overlapping.
+ const size=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();const b=g.boundingBox!;return [b.max.x-b.min.x,b.max.y-b.min.y];};
+ expect(size(big)[1]/size(rig)[1]).toBeCloseTo(1.5,1);expect(size(rig)[0]/size(rig)[1]).toBeCloseTo(5,1);expect(size(big)[0]/size(big)[1]).toBeCloseTo(5,1);
  rig.dispose();big.dispose();
 });
 

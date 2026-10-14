@@ -748,3 +748,9 @@ Anh Nam: vài bộ phận ngẫu nhiên có gradient tuyến tính (không dạn
 - Pattern 7 = Flow. 4 bộ phận trong đầu, bàn tay, bàn chân, bắp tay, cẳng tay, đùi, ống chân; không bao giờ là cặp đối xứng, không chạm bộ phận có hoa văn (đan, patchwork, Flow khác). Đùi chạm khối thân mang hông.
 - Màu: 2 hoặc 3 màu đậm trong bảng màu đan của palette đang chọn, xếp thành vòng (màu cuối quay về màu đầu) nên trôi không có đường nối. Hướng dải màu riêng theo từng bộ phận. Một vòng màu mỗi 0,6 m; trôi một vòng mỗi 14 giây, mỗi bộ phận lệch pha riêng.
 - Bộ phận đối xứng (bàn tay, bàn chân, khớp) vẫn chung hình và màu; hoa văn thì nằm riêng một bên.
+
+## 44. Ngón tay/chân là hình tròn chạm nhau; gradient dọc theo bộ phận (14/10/2026)
+
+- Ngón chân luôn là các hình tròn chạm nhau, không chồng, kể cả khi tăng cỡ: tâm cách nhau đúng một đường kính, cả hàng xếp giữa bàn chân.
+- Ngón tay đổi từ dải spline sang chuỗi hình tròn chạm nhau, vẫn ragdoll: tâm hình tròn là điểm verlet, cách nhau một đường kính. Ngón cái tròn to hơn (bán kính 1,8 cm), các ngón khác 1,4–1,6 cm, số hình tròn theo độ dài ngón.
+- Gradient Flow chạy dọc trục của bộ phận (dọc chân, dọc tay) và xoay theo bộ phận, không chéo ngẫu nhiên.

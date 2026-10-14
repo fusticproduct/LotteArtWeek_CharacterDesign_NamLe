@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 /**
- * Ragdoll fingers (Nam, 2026-10-14): five fingers per hand, each a filled spline (centripetal Catmull-Rom) ribbon that
- * tapers to a round tip. They hang from the hand with verlet physics: gravity, momentum and a soft pull back to a
- * slightly curled rest shape, so they swing behind the hand when it moves and droop when it is raised. They are
- * simulated in the character group's space, so standing the figure on the floor does not shake them.
+ * Ragdoll fingers (Nam, 2026-10-14): five fingers per hand, each a chain of flat circles that touch without overlapping
+ * (like the toes), in the hand's colour, drawn just under the hand. The circles' centres are verlet points one
+ * diameter apart: gravity, momentum and a pull back to a slightly curled rest shape, so the fingers swing behind the
+ * hand. They are simulated in the character group's space, so standing the figure on the floor does not shake them.
  */
-interface FingerDef {angle:number;length:number;base:number;}
-/** Thumb (inner side) to little finger; `angle` (rad) is measured from the hand's axis, outwards positive. */
+interface FingerDef {angle:number;length:number;radius:number;}
+/** Thumb (inner side, rounder) to little finger; `angle` (rad) is measured from the hand's axis, outwards positive. */
 const fingerDefs:FingerDef[]=[
- {angle:-1.05,length:.075,base:.036},
- {angle:-.34,length:.11,base:.032},
- {angle:0,length:.12,base:.032},
- {angle:.34,length:.11,base:.031},
- {angle:.68,length:.09,base:.028},
+ {angle:-1.05,length:.075,radius:.018},
+ {angle:-.34,length:.11,radius:.016},
+ {angle:0,length:.12,radius:.016},
+ {angle:.34,length:.11,radius:.0155},
+ {angle:.68,length:.09,radius:.014},
 ];
-/** Simulation points per finger, ribbon samples, tip cap steps; tip width; gravity (m/s²); velocity kept per step; inward curl per segment (rad); fixed step (s). */
-const points=5,samples=14,capSteps=7,tipWidth=.022,gravity=-9.8,damping=.9,curl=.05,step=1/60;
+/** Rim steps per circle; gravity (m/s²); velocity kept per step; inward curl per circle (rad); fixed step (s). */
+const circleSteps=20,gravity=-9.8,damping=.9,curl=.05,step=1/60;
 /**
  * Pull towards the rest shape per pass at the finger's root, weaker towards the tip. The Finger stiffness slider sets it:
  * 100% keeps the shape and swings a little (Nam asked for much stiffer, 2026-10-14), 50% is floppy, 150% nearly rigid.
@@ -24,53 +24,42 @@ export const shapeHold=(stiffness:number)=>Math.min(.9,.3*Math.pow(stiffness,2.6
 /** Where the fingers leave the hand, in the hand bone's space: around the centre of the hand shapes. */
 const handCentre=new THREE.Vector3(0,-.045,0),rootReach=.055;
 export interface FingerHand {side:'L'|'R';bone:THREE.Bone;color:string;}
-interface Chain {def:FingerDef;sign:number;hand:THREE.Bone;pos:THREE.Vector3[];prev:THREE.Vector3[];geometry:THREE.BufferGeometry;mesh:THREE.Mesh;}
-/** `scale` is the Fingers slider (length and width), `stiffness` the Finger stiffness slider. */
+interface Chain {def:FingerDef;sign:number;hand:THREE.Bone;radius:number;pos:THREE.Vector3[];prev:THREE.Vector3[];geometry:THREE.BufferGeometry;mesh:THREE.Mesh;}
+/** `scale` is the Fingers slider (circle size, so also length), `stiffness` the Finger stiffness slider. */
 export function createFingers(group:THREE.Group,hands:FingerHand[],scale=1,stiffness=1){
- const hold=shapeHold(stiffness);
- const chains:Chain[]=[],groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),target=new THREE.Vector3(),dir=new THREE.Vector3(),velocity=new THREE.Vector3();
+ const hold=shapeHold(stiffness),chains:Chain[]=[],groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),target=new THREE.Vector3(),dir=new THREE.Vector3(),velocity=new THREE.Vector3();
  for(const hand of hands)for(const def of fingerDefs){
-  const geometry=new THREE.BufferGeometry(),count=2*samples+capSteps+2;
-  geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(count*3),3));
+  // As many touching circles as fit the finger's length.
+  const radius=def.radius*scale,count=Math.max(2,Math.round(def.length/(2*def.radius))),geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(count*(circleSteps+1)*3),3));
   const index:number[]=[];
-  for(let i=0;i<samples-1;i++){const a=2*i,b=a+1,c=a+2,d=a+3;index.push(a,b,c,b,d,c);}
-  const centre=2*samples;for(let k=0;k<=capSteps;k++)if(k<capSteps)index.push(centre,centre+1+k,centre+2+k);
+  for(let k=0;k<count;k++){const centre=k*(circleSteps+1);for(let i=0;i<circleSteps;i++)index.push(centre,centre+1+i,centre+1+(i+1)%circleSteps);}
   geometry.setIndex(index);
   const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:hand.color,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
   mesh.name=`finger_${hand.side}`;mesh.frustumCulled=false;mesh.userData={side:hand.side};group.add(mesh);
-  chains.push({def,sign:hand.side==='L'?1:-1,hand:hand.bone,pos:Array.from({length:points},()=>new THREE.Vector3()),prev:Array.from({length:points},()=>new THREE.Vector3()),geometry,mesh});
+  chains.push({def,sign:hand.side==='L'?1:-1,hand:hand.bone,radius,pos:Array.from({length:count},()=>new THREE.Vector3()),prev:Array.from({length:count},()=>new THREE.Vector3()),geometry,mesh});
  }
- const segment=(c:Chain)=>c.def.length*scale/(points-1);
  /** The hand bone's frame in the group's space. */
  const handFrame=(bone:THREE.Bone)=>{group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();return frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
- /** Rest direction of segment j: along the hand, fanned out, curling inwards a little more at each joint. */
+ /** Rest direction from circle j to the next: along the hand, fanned out, curling inwards a little more at each circle. */
  const restDir=(c:Chain,j:number,out:THREE.Vector3)=>{const a=(c.def.angle+curl*j)*c.sign;return out.set(Math.sin(a),-Math.cos(a),0).transformDirection(frame);};
  const anchor=(c:Chain,out:THREE.Vector3)=>{const a=c.def.angle*(c.def.angle<-.5?1.3:1)*c.sign;return out.set(Math.sin(a)*rootReach,-Math.cos(a)*rootReach,0).add(handCentre).applyMatrix4(frame);};
  const simulate=(dt:number)=>{
   for(const c of chains){
    handFrame(c.hand);anchor(c,c.pos[0]);c.prev[0].copy(c.pos[0]);
-   for(let j=1;j<points;j++){velocity.subVectors(c.pos[j],c.prev[j]).multiplyScalar(damping);c.prev[j].copy(c.pos[j]);c.pos[j].add(velocity);c.pos[j].y+=gravity*dt*dt;}
-   const length=segment(c);
-   for(let pass=0;pass<3;pass++)for(let j=1;j<points;j++){
-    // A soft pull towards the rest shape (weaker towards the tip), then the segment keeps its length.
-    target.copy(c.pos[j-1]).addScaledVector(restDir(c,j-1,dir),length);c.pos[j].lerp(target,hold*(1-.15*j));
-    dir.subVectors(c.pos[j],c.pos[j-1]);const d=dir.length()||1;c.pos[j].copy(c.pos[j-1]).addScaledVector(dir,length/d);
+   const n=c.pos.length,gap=2*c.radius;
+   for(let j=1;j<n;j++){velocity.subVectors(c.pos[j],c.prev[j]).multiplyScalar(damping);c.prev[j].copy(c.pos[j]);c.pos[j].add(velocity);c.pos[j].y+=gravity*dt*dt;}
+   for(let pass=0;pass<3;pass++)for(let j=1;j<n;j++){
+    // A pull towards the rest shape (weaker towards the tip), then the circles touch again: one diameter apart.
+    target.copy(c.pos[j-1]).addScaledVector(restDir(c,j-1,dir),gap);c.pos[j].lerp(target,hold*(1-.12*j));
+    dir.subVectors(c.pos[j],c.pos[j-1]);const d=dir.length()||1;c.pos[j].copy(c.pos[j-1]).addScaledVector(dir,gap/d);
    }
   }
  };
- const tangent=new THREE.Vector3(),normal=new THREE.Vector3(),edge=new THREE.Vector3();
  const draw=()=>{
   for(const c of chains){
-   const pts=new THREE.CatmullRomCurve3(c.pos,false,'centripetal').getPoints(samples-1),position=c.geometry.getAttribute('position') as THREE.BufferAttribute;
-   for(let i=0;i<samples;i++){
-    const p=pts[i];tangent.subVectors(pts[Math.min(i+1,samples-1)],pts[Math.max(i-1,0)]).setZ(0).normalize();normal.set(-tangent.y,tangent.x,0);
-    const half=(c.def.base+(tipWidth-c.def.base)*i/(samples-1))*scale/2;
-    edge.copy(p).addScaledVector(normal,half);position.setXYZ(2*i,edge.x,edge.y,0);
-    edge.copy(p).addScaledVector(normal,-half);position.setXYZ(2*i+1,edge.x,edge.y,0);
-   }
-   // Round tip: a half disc around the last sample, from one side through the tip to the other.
-   const tip=pts[samples-1],centre=2*samples,r=tipWidth*scale/2;position.setXYZ(centre,tip.x,tip.y,0);
-   for(let k=0;k<=capSteps;k++){const a=-Math.PI/2+Math.PI*k/capSteps;edge.copy(tip).addScaledVector(tangent,Math.cos(a)*r).addScaledVector(normal,Math.sin(a)*r);position.setXYZ(centre+1+k,edge.x,edge.y,0);}
+   const position=c.geometry.getAttribute('position') as THREE.BufferAttribute;
+   c.pos.forEach((p,k)=>{const centre=k*(circleSteps+1);position.setXYZ(centre,p.x,p.y,0);for(let i=0;i<circleSteps;i++){const a=i/circleSteps*Math.PI*2;position.setXYZ(centre+1+i,p.x+Math.cos(a)*c.radius,p.y+Math.sin(a)*c.radius,0);}});
    position.needsUpdate=true;
   }
  };
@@ -79,10 +68,10 @@ export function createFingers(group:THREE.Group,hands:FingerHand[],scale=1,stiff
  const update=(dt:number)=>{pending=Math.min(pending+dt,4*step);while(pending>=step){simulate(step);pending-=step;}draw();};
  /** Lay every finger along its rest shape, then let the physics run a second and a half: a still pose for pictures. */
  const settle=()=>{
-  for(const c of chains){handFrame(c.hand);anchor(c,c.pos[0]);for(let j=1;j<points;j++)c.pos[j].copy(c.pos[j-1]).addScaledVector(restDir(c,j-1,dir),segment(c));c.pos.forEach((p,j)=>c.prev[j].copy(p));}
+  for(const c of chains){handFrame(c.hand);anchor(c,c.pos[0]);for(let j=1;j<c.pos.length;j++)c.pos[j].copy(c.pos[j-1]).addScaledVector(restDir(c,j-1,dir),2*c.radius);c.pos.forEach((p,j)=>c.prev[j].copy(p));}
   for(let i=0;i<90;i++)simulate(step);draw();
  };
  const dispose=()=>{for(const c of chains){c.geometry.dispose();(c.mesh.material as THREE.Material).dispose();group.remove(c.mesh);}};
- return {meshes:chains.map(c=>c.mesh),chains:chains.map(c=>c.pos),update,settle,dispose};
+ return {meshes:chains.map(c=>c.mesh),chains:chains.map(c=>c.pos),radii:chains.map(c=>c.radius),update,settle,dispose};
 }
 export type Fingers=ReturnType<typeof createFingers>;

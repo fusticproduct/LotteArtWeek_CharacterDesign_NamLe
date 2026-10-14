@@ -323,12 +323,12 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  });
  // Ragdoll fingers in the hands' colour (fingers.ts); drawn just under their hand.
  const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].color)})),proportions.fingers,proportions.fingerStiffness);
- // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, in the foot's accent colour, sized
- // to share the foot's width (Toes slider).
+ // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, in the foot's accent colour. They
+ // always touch without overlapping, one diameter apart and centred on the foot; the Toes slider widens the row.
  const toes=(['L','R'] as const).map(side=>{
   const foot=group.getObjectByName(`foot_${side}_mesh`) as THREE.SkinnedMesh,bone=map.get(`foot_${side}`)!,index=bones.findIndex(b=>b.id===`foot_${side}`);
   foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,width=box.max.x-box.min.x,r=width/10*proportions.toes;
-  const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d(box.min.x+width*(i+.5)/5,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
+  const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d((box.min.x+box.max.x)/2+(i-2)*2*r,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:index),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
   const material=new THREE.MeshBasicMaterial({color:colorOf(spec.parts[`foot_${side}`].accent),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
