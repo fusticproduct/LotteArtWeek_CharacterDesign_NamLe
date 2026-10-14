@@ -3,6 +3,7 @@ import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,Sk
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
+import {tether} from '../src/fingers';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -359,23 +360,22 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('hangs five stiff ragdoll fingers of touching circles from each hand, in their own colour, never overlapping the hand',()=>{
+it('hangs one ragdoll circle per finger, five per hand, in their own colour, never inside the hand or overlapping each other',()=>{
  const spec=generate('fingers'),rig=createCharacter(spec);
  expect(rig.fingers.meshes.length).toBe(10);
  for(const finger of rig.fingers.meshes){
   expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
   expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
  }
- const check=(label:string)=>{for(const f of rig.fingers.state())f.pos.forEach((p,j)=>{
-  // Never inside the hand disc; each circle touches the next one without overlapping.
-  expect(p.distanceTo(f.centre),`${label}: circle ${j}`).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
-  if(j)expect(p.distanceTo(f.pos[j-1]),`${label}: gap ${j}`).toBeCloseTo(2*f.radius,4);
+ const check=(label:string)=>{const all=rig.fingers.state();all.forEach((f,i)=>{
+  expect(f.pos.distanceTo(f.centre),`${label}: ${i} inside the hand`).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
+  expect(f.pos.distanceTo(f.pin),`${label}: ${i} off its tether`).toBeLessThan(f.radius*tether+1e-6);
+  for(let j=i+1;j<all.length;j++)if(Math.floor(i/5)===Math.floor(j/5))expect(f.pos.distanceTo(all[j].pos),`${label}: ${i}/${j}`).toBeGreaterThan(f.radius+all[j].radius-.003);
  });};
  rig.applyPose('idle');rig.settleFingers();check('idle');
- const middle=rig.fingers.chains[2],tip=middle.length-1;expect(middle[tip].y).toBeLessThan(middle[0].y-.05);
- // Swing the arms up fast: the fingers lag and swing, but never pass into the hand.
+ // At rest a finger sits close to its spot on the rim.
+ for(const f of rig.fingers.state())expect(f.pos.distanceTo(f.pin)).toBeLessThan(f.radius*1.6);
  rig.applyPose('reach');for(let i=0;i<30;i++){rig.tick(1/60);check(`swing ${i}`);}
- rig.settleFingers();check('reach');
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
 

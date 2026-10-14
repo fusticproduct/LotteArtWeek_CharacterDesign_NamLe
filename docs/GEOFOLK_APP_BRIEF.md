@@ -777,3 +777,7 @@ Anh Nam: slider cỡ cho hoa văn ô cờ đặt cạnh Pattern scale; slider ch
 
 - Checker scale 40–250% nhân cỡ ô patchwork (mặc định 3,5 cm). Flow speed 0–300% nhân tốc độ trôi (mặc định một vòng mỗi 14 s; 0 = đứng yên).
 - Lưu cùng các tỉ lệ (theo trình duyệt, có trong undo) nhưng hiện dưới Pattern scale ở bảng Parts, không ở tab Proportions.
+
+## 48. Mỗi ngón một hình tròn (14/10/2026)
+
+Anh Nam: 5 hình tròn cho 5 ngón, không hơn. Mỗi ngón giờ là một hình tròn buộc vào mép bàn tay bằng sợi dây ngắn (2,2 bán kính): nếu buộc cứng đúng một bán kính và không cho lọt vào tay thì hình tròn chỉ còn một vị trí, không đung đưa được. Với sợi dây, nó lăn và lắc men theo mép tay, có lực kéo về chỗ nghỉ, không lọt vào tay, không chồng nhau.
