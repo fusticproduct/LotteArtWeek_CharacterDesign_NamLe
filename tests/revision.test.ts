@@ -1,17 +1,18 @@
 import {it,expect} from 'vitest';
-import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
+import {PerspectiveCamera,Box3,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
+import {pixelSize} from '../src/pixelate';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 const partColorsFor=(spec:ReturnType<typeof generate>)=>partColors(spec,'HFCD');
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,headOutlines,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
+import {createCharacter,headOutlines,pixelPartOf,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -547,4 +548,20 @@ it('gives each checker spot one of four looks on its own, stripes and checks in 
   for(const id of spots){const [a,b]=checkerColours(spec,id,colorOf);expect(a).not.toBe(b);const own=Object.values(spec.parts).flatMap(p=>[colorOf(p.color),colorOf(p.accent)]);expect(own).toContain(a);expect(own).toContain(b);}
  }
  expect(seen.size).toBe(checkerStyles.length);expect(differ).toBeGreaterThan(50);
+});
+
+it('draws one plain limb segment on the pixel grid, cells square and on the grid, following the pose',()=>{
+ for(let i=0;i<40;i++){
+  const spec=generate(`pixel-${i}`),id=pixelPartOf(spec)!;
+  expect(id,`${i}`).toBeTruthy();expect(isJoint(id),id).toBe(false);expect(['limb','leg','hand','foot']).toContain(bones.find(b=>b.id===id)!.kind);
+  const plainSegments=bones.filter(b=>(b.kind==='limb'||b.kind==='leg')&&spec.parts[b.id].pattern===0);
+  if(plainSegments.length)expect(plainSegments.map(b=>b.id),id).toContain(id);else expect([0,twoTone]).toContain(spec.parts[id].pattern);
+  const rig=createCharacter(spec),pixel=rig.pixel!;expect(pixel.part.name).toBe(`${id}_mesh`);expect(pixel.part.visible).toBe(false);
+  const cells=(pixel.mesh.geometry.drawRange.count)/6;expect(cells,id).toBeGreaterThan(3);
+  const p=pixel.mesh.geometry.getAttribute('position');
+  for(let k=0;k<cells*4;k++)for(const v of [p.getX(k),p.getY(k)])expect(Math.abs(v/pixelSize-Math.round(v/pixelSize)),id).toBeLessThan(1e-4);
+  const box=()=>{const b=new Box3().setFromArray((p.array as Float32Array).subarray(0,pixel.mesh.geometry.drawRange.count/6*12));return b.min.toArray().concat(b.max.toArray()).join();};
+  const before=box();rig.applyPose('stride');expect(box(),id).not.toBe(before);
+  rig.dispose();
+ }
 });

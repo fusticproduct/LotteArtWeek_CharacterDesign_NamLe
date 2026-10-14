@@ -9,6 +9,7 @@ import {defaultRiso,risoBlends,type RisoSettings} from './riso';
 import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
+import {createPixelPart} from './pixelate';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -63,6 +64,14 @@ export const flowSpan=.6,flowPeriod=14;
  * quilt, stripes across the part, stripes down it, or a two-colour checkerboard. Stripes and checks use two of the
  * character's own colours, picked to stand apart in lightness.
  */
+/**
+ * The one part drawn on the pixel grid (pixelate.ts): never a joint, never patterned. A plain arm or leg segment, else a
+ * plain hand or foot; if every one of those carries a pattern, a two-tone segment, drawn in its main colour only.
+ */
+export const pixelPartOf=(spec:CharacterSpec)=>{
+ const pick=(list:BoneDefinition[])=>list.length?list[Math.floor(rng(`${spec.label}|pixel`)()*list.length)].id:null,segment=(b:BoneDefinition)=>b.kind==='limb'||b.kind==='leg';
+ return pick(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===0))??pick(bones.filter(b=>(b.kind==='hand'||b.kind==='foot')&&spec.parts[b.id].pattern===0))??pick(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===twoTone));
+};
 export const checkerStyles=['Patchwork','Stripes across','Stripes down','Checkerboard'] as const;
 export const checkerStyleOf=(spec:CharacterSpec,id:string)=>Math.floor(rng(`${spec.label}|${id}|checker`)()*checkerStyles.length);
 const lightnessOf=(hex:string)=>{const c=new THREE.Color(hex);return (Math.max(c.r,c.g,c.b)+Math.min(c.r,c.g,c.b))/2;};
@@ -427,10 +436,13 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
+  if(pixel)pixel.mesh.renderOrder=pixel.part.renderOrder;
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
   for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
  };
+ // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
+ const pixelId=pixelPartOf(spec),pixel=pixelId?createPixelPart(group,group.getObjectByName(`${pixelId}_mesh`) as THREE.SkinnedMesh,colorOf(spec.parts[pixelId].color),decorate):null;
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
  const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const [mesh,id] of [...bones.map(def=>[group.getObjectByName(`${def.id}_mesh`),def.id]),...toes.map(t=>[t,`foot_${t.userData.side}`])] as [THREE.SkinnedMesh,string][]){const positions=mesh.geometry.getAttribute('position'),matrix=map.get(id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
@@ -470,7 +482,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const applyAngles=(angles:Record<string,number>)=>{
   const a=halfway(unbent(angles));bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));
   for(const side of ['L','R'])map.get(`upperarm_${side}`)!.position.copy(rest.get(`upperarm_${side}`)!).applyAxisAngle(zAxis,-(a[`shoulder_${side}`]??0));
-  settleFeet();ground();
+  settleFeet();ground();pixel?.update();
  };
  // Preset poses only turn in the picture plane (Z), so they go through the same path.
  const applyPose=(pose:Pose)=>applyAngles(Object.fromEntries(bones.map(def=>[def.id,poseRotation(def.id,pose)[2]])));
@@ -486,7 +498,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{fingers.dispose();dangles.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ const dispose=()=>{fingers.dispose();dangles.dispose();pixel?.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
  fingers.settle();dangles.settle();
  // Flow parts slide their colours: each starts at its own phase.
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
@@ -495,6 +507,6 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);};
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
  const settleFingers=()=>{fingers.settle();dangles.settle();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setStage,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setStage,dispose,fingers,hair:dangles,pixel,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

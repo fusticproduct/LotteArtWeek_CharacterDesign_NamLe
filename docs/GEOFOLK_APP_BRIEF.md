@@ -870,3 +870,10 @@ Anh Nam gửi ảnh poster sọc/caro và yêu cầu: mẫu checker luân phiên
 - `checkerStyleOf(spec, bộ phận)` (rig.ts): mỗi chỗ chọn ngẫu nhiên theo tên nhân vật và bộ phận một trong Patchwork, Stripes across, Stripes down, Checkerboard (không nằm trong seed; cùng seed luôn ra cùng kiểu).
 - Sọc/bàn cờ: hai màu lấy từ các màu nhân vật đang dùng (`checkerColours`): màu đầu ngẫu nhiên, màu thứ hai là màu khác độ sáng nhất trong vài màu còn lại. Sọc 3 cm, ô cờ 5 cm ở Checker scale 100%, trải phẳng theo mét như patchwork.
 
+## 60. Một bộ phận pixel hóa (14/10/2026)
+
+Anh Nam: luôn có 1 bộ phận không có hoa văn (màu trơn), không phải khớp, bị pixel hóa như hình lượng tử hóa (ảnh tham chiếu: hình người bậc thang).
+
+- `pixelPartOf(spec)` (rig.ts): chọn theo tên nhân vật một đoạn tay/chân màu trơn; dự phòng: bàn tay/bàn chân trơn, rồi đoạn two-tone (vẽ màu chính).
+- `src/pixelate.ts`: mỗi khi tư thế đổi, lấy các tam giác của bộ phận đã tạo dáng (skin cứng một xương), đưa về không gian của nhân vật, tô ô 3,5 cm có tâm nằm trong bộ phận, gộp ô liền nhau theo hàng thành dải. Lưới theo trục màn hình nên phần chéo thành bậc thang. Mesh gốc bị ẩn nhưng vẫn dùng cho xuất file và đặt chân xuống sàn.
+
