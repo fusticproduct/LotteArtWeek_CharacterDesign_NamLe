@@ -711,3 +711,11 @@ Anh Nam: không có hai bộ phận chạm nhau nào cùng có hoa văn; giữa 
 - Patchwork: một bên bắp tay (qua khớp vai) và một bên ống chân (qua khớp gối). Seed cũ có patchwork ở đùi chuyển xuống ống chân cùng bên.
 - Hai khối thân xếp chồng chạm nhau, nên thân 2 khối có đúng một khối đan (khối trên 55%). Seed cũ có cả hai khối đan giữ khối trên.
 - Two-tone trên tay chân là chia màu, không tính là hoa văn.
+
+## 39. Khớp nhiều cỡ, tay chân thon theo khớp (14/10/2026)
+
+Anh Nam: các khớp cỡ khác nhau; cỡ khớp tạo độ thon cho tay chân (đoạn chữ nhật thành hình thon, chuỗi hạt to dần nhỏ dần). Muốn thêm nhiều tỉ lệ hơn.
+
+- Ba cỡ S/M/L = ×0,72 / ×1 / ×1,35 bán kính khớp cũ; vai, khuỷu, gối chọn riêng, không bao giờ cả ba cùng cỡ. Variant khớp = hình + 5 × cỡ (15 kiểu). Seed phiên bản 5; seed cũ mở ra cỡ M.
+- Đầu đoạn = 0,91 × khớp ở đầu đó: bắp tay từ vai tới khuỷu, cẳng tay từ khuỷu tới cổ tay (0,058), đùi từ hông (0,064) tới gối, ống chân từ gối loe ra bàn chân (0,118–0,13). Box giờ là lăng trụ vuông thon thay vì hộp bo góc.
+- Bước tiếp theo cho "nhiều tỉ lệ hơn": hệ núm tỉ lệ trong docs/proportion-plan.html, chờ anh trả lời câu hỏi.

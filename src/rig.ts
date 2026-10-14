@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,drawPatchwork,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
@@ -156,7 +156,11 @@ const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.
 /** Corner rounding of the flat (2D) parts, in metres. */
 const paperRound=.022,markRound=.007;
 /** Shoulder ball centre: three quarters of its radius outside the top piece's edge at shoulder height, so the arms always hang from the body whatever its shape or size. */
-export const shoulderX=(layout:BodyLayout,prop:Proportions=defaultProportions)=>halfWidthAt(layout.top.outline,shoulderY)+shoulderRadius*prop.joints*.75;
+export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>halfWidthAt(layout.top.outline,shoulderY)+shoulderBall*.75;
+/** Radius of a ball joint for a character: the type's base radius, its size and the Joints slider. */
+export const jointRadius=(spec:CharacterSpec,type:'shoulder'|'elbow'|'knee',prop:Proportions=defaultProportions)=>({shoulder:shoulderRadius,elbow:elbowRadius,knee:kneeRadius})[type]*jointSizeOf(spec.parts[`${type}_L`].variant)*prop.joints;
+/** A segment's end is this fraction of the joint it meets, so the joint covers it and the segment tapers from joint to joint. */
+const endRatio=.91;
 /** Flat head silhouettes, 0 → 0.31 above the neck; `markY` is where the face mark sits on each. */
 const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:ellipse2d(0,.155,.155,.155),markY:.16},
@@ -206,13 +210,17 @@ function legGeometry(v:number,from:number,to:number,top:number,bottom:number,hip
  g.translate(0,-to,0);
  return hipCap?mergeGeometries([g,sphere(top*.95*w)]):g;
 }
-/** Arm segment spanning y=-from … y=-to; `upper` picks the taper direction for the cone variant, `w` scales its width. */
-function armGeometry(v:number,from:number,to:number,upper:boolean,w:number){
- const r=.068,h=to-from;let g:THREE.BufferGeometry;
- if(v===4)g=beads(h,r*w,r*w);
+/**
+ * Arm segment spanning y=-from … y=-to, tapering from radius `near` (top) to `far` (bottom), the sizes of the joints at
+ * its ends; `w` scales its width. The Cone narrows to 62% at the far end; the Box is a square prism, so it reads as a
+ * trapezoid; the Chain's beads shrink or grow along it.
+ */
+export const coneTip=.62;
+function armGeometry(v:number,from:number,to:number,w:number,near:number,far:number){
+ const h=to-from;let g:THREE.BufferGeometry;
+ if(v===4)g=beads(h,near*w,far*w);
  else{
-  const cone=upper?[r*.85,r*1.25]:[r*1.35,r*.8];
-  g=v===0?frustum(r,r,h,.012):v===1?frustum(cone[0],cone[1],h,.012):v===2?taperedPill(r,r,h):v===3?new RoundedBoxGeometry(r*1.7,h,r*1.7,4,.022).translate(0,h/2,0):faceted(frustum(r,r,h,.012,8));
+  g=v===0?frustum(far,near,h,.012):v===1?frustum(far*coneTip,near,h,.012):v===2?taperedPill(far,near,h):v===3?faceted(frustum(far*Math.SQRT2,near*Math.SQRT2,h,.01,4)).rotateY(Math.PI/4):faceted(frustum(far,near,h,.012,8));
   g.scale(w,1,w);
  }
  g.translate(0,-to,0);
@@ -246,21 +254,24 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   // The waist ball: behind both pieces at the pivot, it fills the gap a bend opens between stacked pieces.
   g=sphere(waistRadius);
  } else if(b.kind==='connector'){
-  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:(b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:shoulderRadius)*prop.joints;
+  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:jointRadius(spec,b.id.startsWith('knee')?'knee':b.id.startsWith('elbow')?'elbow':'shoulder',prop);
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
   // Hip joints are hidden inside the body, so every hip variant is a plain ball that fits there.
   if(hip)g=sphere(r);
-  else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow'))g=v===0?sphere(r):paper([jointPiece(v,r)],paperRound*.5);
+  else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow')){const shape=jointShapeOf(v);g=shape===0?sphere(r):paper([jointPiece(shape,r)],paperRound*.5);}
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
   if(b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
  } else if(b.kind==='leg'){
-  // Both segments stop where they sit flush on the knee ball, so the knee reads as its own part.
-  const knee=seat(kneeRadius*prop.joints,.08*prop.legs);
-  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,.08,true,prop.legs):legGeometry(v,knee,L,.08,.118,false,prop.legs);
+  // Both segments stop where they sit flush on the knee ball, so the knee reads as its own part. They taper to and from
+  // the knee's size; the shin still widens towards the foot.
+  const kneeEnd=endRatio*kneeRadius*jointSizeOf(spec.parts.knee_L.variant),knee=seat(jointRadius(spec,'knee',prop),kneeEnd*prop.legs);
+  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,kneeEnd,true,prop.legs):legGeometry(v,knee,L,kneeEnd,Math.min(.13,Math.max(.118,kneeEnd*1.2)),false,prop.legs);
  } else if(b.kind==='limb'){
-  // Upper arm plugs into the shoulder ball; both arm segments stop flush on the elbow ball.
-  const upper=b.id.startsWith('upperarm'),endRadius=v===1?.068*(upper?.85:.8):v===3?.058:.068,elbow=seat(elbowRadius*prop.joints,endRadius*prop.arms);
-  g=upper?armGeometry(v,0,L-elbow,true,prop.arms):armGeometry(v,elbow,L,false,prop.arms);
+  // Upper arm plugs into the shoulder ball; both arm segments stop flush on the elbow ball. Each tapers from the size of
+  // the joint at its top to the joint (or the wrist) at its bottom.
+  const upper=b.id.startsWith('upperarm'),shoulderEnd=endRatio*shoulderRadius*jointSizeOf(spec.parts.shoulder_L.variant),elbowEnd=endRatio*elbowRadius*jointSizeOf(spec.parts.elbow_L.variant),wrist=.058;
+  const [near,far]=upper?[shoulderEnd,elbowEnd]:[elbowEnd,wrist],atElbow=upper?far*(v===1?coneTip:1):near,elbow=seat(jointRadius(spec,'elbow',prop),atElbow*prop.arms);
+  g=upper?armGeometry(v,0,L-elbow,prop.arms,near,far):armGeometry(v,elbow,L,prop.arms,near,far);
  } else if(b.kind==='hand'){
   g=v===0?sphere(.09):v===1?box(.145,.15,.14,.035):v===2?new THREE.TorusGeometry(.064,.032,16,48):v===3?cylinder(0,.105,.17):v===4?faceted(bicone(.035,.095,.08,.035,.16,.008,8)).translate(0,-.08,0):new THREE.CapsuleGeometry(.064,.055,8,24);g.translate(0,-.045,0);
  } else if(b.kind==='foot'){
@@ -280,7 +291,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   if(def.id==='spine_lower')bone.position.y=body.pivot;
   else if(def.id==='spine_upper')bone.position.y=0;
   else if(def.id==='neck')bone.position.y=bodyTop-.01-body.pivot;
-  else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,proportions),shoulderY-body.pivot,0);
+  else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,jointRadius(spec,'shoulder',proportions)),shoulderY-body.pivot,0);
   else if(def.id.startsWith('hip_'))bone.position.x=side*body.hipX;
  };
  bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});

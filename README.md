@@ -39,7 +39,7 @@ npm run dev     # chạy app, mở địa chỉ "Local:" mà terminal in ra
 Lệnh khác:
 
 ```sh
-npm test        # 34 test tự động
+npm test        # 35 test tự động
 npm run build   # bản production trong dist/ (phải phục vụ qua HTTP, không mở file trực tiếp)
 npm run preview # xem thử bản build
 ```
@@ -88,6 +88,7 @@ Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn ch�
 - **Không lặp chuỗi hạt:** mỗi tay hoặc chân có tối đa một đoạn dạng hạt (Chain/Stack).
 - **Hạt Chain luôn tròn đều:** mỗi hạt là hình cầu thật, không bị kéo dãn hay ép dẹt theo độ dài đoạn hoặc slider Proportions. Độ dài đoạn quyết định số hạt (các tâm cách nhau ~1.35 bán kính); hạt ở chân vẫn to dần xuống dưới. Code: `beads()` trong `rig.ts`.
 - **Khớp là bộ phận riêng, nhiều hình:** vai, khuỷu, gối mỗi loại một hình trong 5 hình (Sphere 40% số lần; Square, Diamond, Hexagon, Ring), luôn giống nhau hai bên. Không dùng tam giác. Đoạn tay/chân được cắt ngắn đúng chỗ tựa lên mặt quả cầu bán kính r; hình phẳng có bán kính trong đúng bằng r (`jointPiece()` trong `rig.ts`), nên luôn che kín đầu đoạn khi gập; lỗ của Ring (0,38 r) nhỏ hơn khe giữa hai đầu đoạn. Random một dòng khớp đổi hình của cặp đó, giữ màu.
+- **Khớp nhiều cỡ, tay chân thon theo khớp:** vai, khuỷu, gối mỗi loại một cỡ S/M/L (×0,72 / ×1 / ×1,35), ba loại không bao giờ cùng cỡ. Đầu mỗi đoạn tay/chân bằng 0,91 lần khớp ở đầu đó, nên đoạn thon từ khớp này sang khớp kia: Cylinder, Octagon thành hình thon, Box thành lăng trụ vuông thon (nhìn như hình thang), Cone thu còn 62% ở đầu xa, Chain hạt to dần/nhỏ dần. Cẳng tay thon về cổ tay (0,058); ống chân vẫn loe về bàn chân. Code: `jointRadius()`, `armGeometry()` trong `rig.ts`.
 - **Khớp xoay theo góc trung bình:** mỗi khớp (vai, khuỷu, hông, gối) xoay đúng nửa đường giữa đoạn trước và đoạn sau nó (gối vuông nằm giữa góc đùi và ống chân); đoạn sau xoay nốt nửa còn lại nên tay chân vẫn chỉ đúng hướng. Điểm gắn bắp tay (lệch tâm vai 2 cm) được xoay ngược lại nên không bị dời. Code: `halfway()` trong `createCharacter()` (`rig.ts`).
 - **Chân:** đùi mảnh như tay, càng xuống càng to, bàn chân loe.
 - **Bàn chân hút sàn:** bàn chân ở trên hoặc gần sàn (sàn = đế bàn chân thấp hơn) thì nằm phẳng; cách sàn hơn 20 cm thì xoay tự do theo ống chân, nên khi nhảy nhân vật đá chân, nhón chân thoải mái; từ 5 đến 20 cm chuyển mượt. Áp cho mọi tư thế, Dance và Live pose. Code: `settleFeet()` trong `rig.ts`.
@@ -168,7 +169,7 @@ type CharacterSpec = { version: 1; label: string; parts: Record<boneId, PartChoi
 
 ### Seed
 
-Dạng `label~4DPPPP…`: sau dấu `~` là số phiên bản (`4` = hình khớp; `3` = khối thân và Build, khớp tròn; `2` = danh mục có đầu, thân, dấu mặt phẳng; `1` = danh mục 3D cũ), một ký tự `density`, rồi 4 ký tự cho mỗi bone (variant, color, accent, pattern), tất cả ở hệ cơ số 36, theo đúng thứ tự mảng `bones`. Seed cũ 22 hoặc 24 bone vẫn đọc được; khớp còn thiếu được suy ra từ `label`. Gõ một chuỗi không có `~` thì app coi đó là `label` và sinh nhân vật từ nó.
+Dạng `label~5DPPPP…`: sau dấu `~` là số phiên bản (`5` = cỡ khớp; `4` = hình khớp; `3` = khối thân và Build, khớp tròn; `2` = danh mục có đầu, thân, dấu mặt phẳng; `1` = danh mục 3D cũ), một ký tự `density`, rồi 4 ký tự cho mỗi bone (variant, color, accent, pattern), tất cả ở hệ cơ số 36, theo đúng thứ tự mảng `bones`. Seed cũ 22 hoặc 24 bone vẫn đọc được; khớp còn thiếu được suy ra từ `label`. Gõ một chuỗi không có `~` thì app coi đó là `label` và sinh nhân vật từ nó.
 
 Seed phiên bản `1` và `2` vẫn mở được, thành Build **Big top** (thân lớn trên hông nhỏ, giống trước). Thân phiên bản 1 (11 kiểu) đổi sang thân phiên bản 2 theo `legacyTorso`: Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan, Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut. Rồi thân và hông cũ đổi sang khối (`torsoV3`, `pelvisV3`): Column→Block, Fan→Dome, Orb→Circle; hông Orb→Circle, Tire→Donut (là khối nhỏ nên thành Circle), Puck→Block; còn lại giữ tên. Đầu và dấu mặt giữ nguyên số thứ tự (Sphere→Circle, Cone→Triangle, Octagon→Hexagon, Capsule→Down triangle, Cube→Square, Hemisphere→Dome; Cross→Bar).
 
@@ -181,7 +182,7 @@ Seed phiên bản `1` và `2` vẫn mở được, thành Build **Big top** (th�
 | Top piece / Bottom piece (phẳng) | Circle, Block, Bowl, Dome, Funnel, A-line, Donut, Diamond |
 | Neck | Sphere, Bead, Cylinder, Capsule |
 | Hip (ẩn trong thân) | Sphere, Bead, Cylinder, Capsule; mọi kiểu đều vẽ thành quả cầu nhỏ vì luôn bị thân che |
-| Shoulder / Elbow / Knee | Sphere, Square, Diamond, Hexagon, Ring (seed phiên bản 1–3 mở ra Sphere) |
+| Shoulder / Elbow / Knee | Sphere, Square, Diamond, Hexagon, Ring × cỡ S, M, L (variant = hình + 5 × cỡ; seed phiên bản 1–3 mở ra Sphere M, phiên bản 4 mở ra cỡ M) |
 | Upper arm / Forearm | Cylinder, Cone, Capsule, Box, Chain, Octagon |
 | Thigh / Shin | Taper, Bell, Stack, Chain, Octagon, Pill |
 | Hand | Sphere, Cube, Ring, Cone, Octagon, Capsule |
@@ -273,7 +274,7 @@ Lưu ý: FBX và OBJ xuất **khối 3D** của nhân vật ở tư thế đang 
 
 ## 11. Test
 
-`npm test` chạy 34 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, khớp xoay nửa đường giữa hai đoạn, bàn chân hút sàn, patchwork ở một bắp tay và một ống chân, không hai bộ phận chạm nhau cùng có hoa văn, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
+`npm test` chạy 35 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, khớp xoay nửa đường giữa hai đoạn, tay chân thon theo cỡ khớp, bàn chân hút sàn, patchwork ở một bắp tay và một ống chân, không hai bộ phận chạm nhau cùng có hoa văn, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
 
 Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture và giao diện. Sau khi sửa hình hay giao diện, cần mở app xem bằng mắt.
 

@@ -25,7 +25,7 @@ basket-weave torso patterns and MediaPipe live pose.
 
 ```sh
 npm run dev -- --port 5178 --strictPort   # app at http://127.0.0.1:5178
-npm test                                  # 34 Vitest tests (Node, no canvas)
+npm test                                  # 35 Vitest tests (Node, no canvas)
 npm run build                             # tsc + vite build
 npm run pose                              # MediaPipe pose server, webcam (ws://localhost:8080)
 npm run pose:video                        # same, looping mediapipe/test_video.mp4

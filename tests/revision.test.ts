@@ -2,11 +2,11 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,jointShapeOf,jointSizeOf,jointSizes} from '../src/model';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius} from '../src/rig';
+import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -24,18 +24,22 @@ it('middle-button dragging pans without changing distance, while wheel still zoo
 });
 it('gives shoulders, elbows and knees one of five shapes (no triangle), mirrored left/right, that cover the segment ends, and opens older seeds with spheres',()=>{
  const seen=new Set<number>();
- for(let i=0;i<80;i++){const spec=generate(`joint-${i}`);for(const part of ['shoulder','elbow','knee']){expect(spec.parts[`${part}_R`].variant).toBe(spec.parts[`${part}_L`].variant);seen.add(spec.parts[`${part}_L`].variant);}expect(decodeSeed(encodeSeed(spec)).parts.elbow_L.variant).toBe(spec.parts.elbow_L.variant);}
- expect([...seen].sort()).toEqual([0,1,2,3,4]);
+ const sizes=new Set<number>();
+ for(let i=0;i<80;i++){const spec=generate(`joint-${i}`);for(const part of ['shoulder','elbow','knee']){expect(spec.parts[`${part}_R`].variant).toBe(spec.parts[`${part}_L`].variant);seen.add(jointShapeOf(spec.parts[`${part}_L`].variant));sizes.add(jointSizeOf(spec.parts[`${part}_L`].variant));}expect(decodeSeed(encodeSeed(spec)).parts.elbow_L.variant).toBe(spec.parts.elbow_L.variant);
+  // Shoulders, elbows and knees never all share one size.
+  expect(new Set(['shoulder_L','elbow_L','knee_L'].map(id=>jointSizeOf(spec.parts[id].variant))).size,`${i}`).toBeGreaterThan(1);}
+ expect([...seen].sort()).toEqual([0,1,2,3,4]);expect([...sizes].sort()).toEqual([...jointSizes].sort());
  // Every flat shape holds the whole ball, so segment ends seated on the ball stay covered at any bend.
  for(let v=1;v<5;v++)expect(holdsDisc({outline:jointPiece(v,.07).outline},[0,0],.07*.999),`shape ${v}`).toBe(true);
  // The Ring's hole stays inside the gap between the two segment ends (they start where they sit flush on the ball).
  const hole=(r:number)=>Math.max(...jointPiece(4,r).holes![0].map(([x,y])=>Math.hypot(x,y)));
- expect(hole(elbowRadius)).toBeLessThan(Math.sqrt(elbowRadius**2-.068**2));expect(hole(kneeRadius)).toBeLessThan(Math.sqrt(kneeRadius**2-.08**2));
+ for(const r of [elbowRadius,kneeRadius])expect(hole(r)).toBeLessThan(r*Math.sqrt(1-.91**2));
  // Rerolling the elbow row changes the elbows only and keeps their colour.
  const before=generate('joint-reroll');let after=before;for(let i=0;i<12&&after.parts.elbow_L.variant===before.parts.elbow_L.variant;i++)after=generate(`jr-${i}`,before,new Set(),'elbow_L');
  expect(after.parts.elbow_L.variant).not.toBe(before.parts.elbow_L.variant);expect(after.parts.knee_L).toEqual(before.parts.knee_L);expect(after.parts.elbow_L.color).toBe(before.parts.elbow_L.color);
- // A version-3 seed opens with spheres, as it was drawn.
- const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;const v3=encodeSeed(spec).replace('~4','~3');expect(decodeSeed(v3).parts.knee_L.variant).toBe(0);
+ // A version-3 seed opens with spheres and a version-4 seed with its shapes, both at size M, as they were drawn.
+ const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;
+ expect(decodeSeed(encodeSeed(spec).replace('~5','~3')).parts.knee_L.variant).toBe(5);expect(decodeSeed(encodeSeed(spec).replace('~5','~4')).parts.knee_L.variant).toBe(8);
  for(const id of ['thigh_L','thigh_R','shin_L','shin_R'])expect(bones.find(b=>b.id===id)!.length).toBeCloseTo(.4*1.5);
 });
 it('produces subdivided beveled round surfaces with finite normals and exact bounds',()=>{
@@ -214,10 +218,10 @@ it('restacks limbs from camera depth only after the cue holds for a few frames',
  // A one-frame blip the other way does not flip it back.
  state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
 });
-it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 4',()=>{
+it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 5',()=>{
  const spec=generate('legacy-torso');spec.parts.root.variant=5;spec.parts.spine_lower.variant=0;
  const packed=encodeSeed(spec).split('~')[1],at=(id:string)=>bones.findIndex(b=>b.id===id),swap=(p:string,id:string,v:number)=>p.slice(0,2+at(id)*4)+v.toString(36)+p.slice(3+at(id)*4);
- expect(packed[0]).toBe('4');
+ expect(packed[0]).toBe('5');
  // Version 1 → 2: Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; then onto the body shapes: Bowl, Block, Donut, Funnel.
  for(const [old,now] of [[0,2],[7,1],[9,6],[10,4]]){const v1='1'+swap(packed,'spine_upper',old).slice(1);const s=decodeSeed(`legacy-torso~${v1}`);expect(s.parts.spine_upper.variant).toBe(now);expect(s.parts.spine_lower.variant).toBe(2);}
  // Version 2: Orb torso → Circle; pelvis Diamond → Diamond, Puck → Block, Tire → Donut (a small piece, so it becomes a Circle).
@@ -232,15 +236,15 @@ it('scales parts from the Proportions tab without changing bone lengths, and kee
  expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
  expect(bigHead.map.get('elbow_L')!.position.toArray()).toEqual(base.map.get('elbow_L')!.position.toArray());
  const width=(rig:ReturnType<typeof createCharacter>,id:string)=>{const g=(rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.x-g.boundingBox!.min.x;};
- // A straight (cylinder) forearm, whose width is exactly its thickness.
- const tube={...spec,parts:{...spec.parts,forearm_L:{...spec.parts.forearm_L,variant:0}}},thick=createCharacter(tube,'HFCD',undefined,{...defaultProportions,arms:1.4}),plain=createCharacter(tube);expect(width(thick,'forearm_L')/width(plain,'forearm_L')).toBeCloseTo(1.4,5);plain.dispose();
+ // A cylinder forearm (it tapers from the elbow to the wrist): its width follows the thickness slider.
+ const tube={...spec,parts:{...spec.parts,forearm_L:{...spec.parts.forearm_L,variant:0}}},thick=createCharacter(tube,'HFCD',undefined,{...defaultProportions,arms:1.4}),plain=createCharacter(tube);expect(width(thick,'forearm_L')/width(plain,'forearm_L')).toBeCloseTo(1.4,2);plain.dispose();
  for(let build=0;build<4;build++)for(let v=0;v<variants.torso.length;v++)for(const torsoWidth of [.5,1,1.5]){
   spec.parts.spine_lower.variant=build;spec.parts.spine_upper.variant=v;const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,torsoWidth});
   // Top piece edge at shoulder height, found by a ray coming in from the side (top piece space = spine_upper space).
   const torso=new Mesh((rig.group.getObjectByName('spine_upper_mesh') as SkinnedMesh).geometry,side);torso.updateMatrixWorld(true);
   const edge=new Raycaster(new Vector3(2,rig.map.get('shoulder_L')!.position.y,0),new Vector3(-1,0,0)).intersectObject(torso)[0].point.x;
   // The shoulder ball is centred just outside the edge, so it always overlaps the torso.
-  const x=rig.map.get('shoulder_L')!.position.x;expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeLessThan(shoulderRadius);
+  const x=rig.map.get('shoulder_L')!.position.x,ball=jointRadius(spec,'shoulder');expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeLessThan(ball);
   expect(rig.map.get('shoulder_R')!.position.x).toBeCloseTo(-x,9);rig.dispose();
  }
  base.dispose();bigHead.dispose();thick.dispose();side.dispose();
@@ -339,4 +343,18 @@ it('puts the patchwork on two spots, one upper arm and one shin, never a mirrore
  expect([...sides].sort()).toEqual(['LL','LR','RL','RR']);
  const spot=bones.find(b=>b.id.startsWith('upperarm_')&&base.parts[b.id].pattern===patchwork)!.id;
  expect(generate('pw-reroll',base,new Set(),spot).parts[spot].pattern).toBe(patchwork);
+});
+
+it('tapers every arm and leg segment from the size of the joint at one end to the joint at the other',()=>{
+ const spec=generate('taper'),set=(type:string,size:number)=>{for(const side of ['L','R'])spec.parts[`${type}_${side}`].variant=5*size;};
+ set('shoulder',2);set('elbow',0);set('knee',2);
+ const halfWidth=(rig:ReturnType<typeof createCharacter>,id:string,nearTop:boolean)=>{const p=(rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).geometry.getAttribute('position');let lo=Infinity,hi=-Infinity;for(let i=0;i<p.count;i++){lo=Math.min(lo,p.getY(i));hi=Math.max(hi,p.getY(i));}let w=0;for(let i=0;i<p.count;i++){const y=p.getY(i);if(nearTop?y>hi-(hi-lo)*.15:y<lo+(hi-lo)*.15)w=Math.max(w,Math.abs(p.getX(i)));}return w;};
+ for(const v of [0,3,4]){
+  for(const id of ['upperarm_L','thigh_L'])spec.parts[id].variant=v===4&&id==='thigh_L'?3:v;
+  const rig=createCharacter(spec);
+  // Big shoulder, small elbow: the upper arm narrows downwards. Big knee: the thigh widens downwards to meet it.
+  expect(halfWidth(rig,'upperarm_L',true),`arm ${v}`).toBeGreaterThan(halfWidth(rig,'upperarm_L',false)*1.3);
+  expect(halfWidth(rig,'thigh_L',false),`leg ${v}`).toBeGreaterThan(halfWidth(rig,'thigh_L',true)*1.3);
+  rig.dispose();
+ }
 });
