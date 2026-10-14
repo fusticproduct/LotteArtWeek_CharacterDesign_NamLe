@@ -877,3 +877,9 @@ Anh Nam: luôn có 1 bộ phận không có hoa văn (màu trơn), không phải
 - `pixelPartOf(spec)` (rig.ts): chọn theo tên nhân vật một đoạn tay/chân màu trơn; dự phòng: bàn tay/bàn chân trơn, rồi đoạn two-tone (vẽ màu chính).
 - `src/pixelate.ts`: mỗi khi tư thế đổi, lấy các tam giác của bộ phận đã tạo dáng (skin cứng một xương), đưa về không gian của nhân vật, tô ô 3,5 cm có tâm nằm trong bộ phận, gộp ô liền nhau theo hàng thành dải. Lưới theo trục màn hình nên phần chéo thành bậc thang. Mesh gốc bị ẩn nhưng vẫn dùng cho xuất file và đặt chân xuống sàn.
 
+## 61. Điều khiển pixel, lưu mặc định ở tab Parts, mặc định mới (14/10/2026)
+
+- Anh Nam muốn điều khiển phần pixel hóa và có lượng tử hóa FPS: **Pixel part** On/Off, **Pixel size** 1,5–8 cm, **FPS** Smooth/24/12/8/4 (ô pixel chỉ vẽ lại từng ấy lần mỗi giây; các bộ phận khác vẫn mượt). Lưu theo trình duyệt (`geofolk.pixel`) và trong Save all as default (`pixel` trong `src/settings.json`).
+- Nút **Save all as default** thêm ở cuối tab Parts, làm đúng như nút ở tab Proportions (lưu tất cả).
+- Mặc định mới theo ảnh anh gửi: Pattern scale 20 ô, Checker scale 80%, Flow speed −300%, HFCD, Paper bật, Riso bật (Opacity 75%, chấm 7,5 mm, Ink coverage 30%, Screen angle 90°, Grain 100%, màu #ffffff, Overlay, màu trong chấm). Các tỉ lệ khác, thứ tự lớp và nền giữ như cũ (trình duyệt của anh đang có Fingers 150% và Finger stiffness 50% chưa lưu; bấm Save all as default nếu muốn lưu cả hai).
+

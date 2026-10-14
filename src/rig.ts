@@ -9,7 +9,7 @@ import {defaultRiso,risoBlends,type RisoSettings} from './riso';
 import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
-import {createPixelPart} from './pixelate';
+import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -442,6 +442,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
  };
  // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
+ let pixelSettings:PixelSettings=defaultPixel,pixelClock=0;
  const pixelId=pixelPartOf(spec),pixel=pixelId?createPixelPart(group,group.getObjectByName(`${pixelId}_mesh`) as THREE.SkinnedMesh,colorOf(spec.parts[pixelId].color),decorate):null;
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
@@ -482,7 +483,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const applyAngles=(angles:Record<string,number>)=>{
   const a=halfway(unbent(angles));bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));
   for(const side of ['L','R'])map.get(`upperarm_${side}`)!.position.copy(rest.get(`upperarm_${side}`)!).applyAxisAngle(zAxis,-(a[`shoulder_${side}`]??0));
-  settleFeet();ground();pixel?.update();
+  settleFeet();ground();if(!pixelSettings.fps)pixel?.update();
  };
  // Preset poses only turn in the picture plane (Z), so they go through the same path.
  const applyPose=(pose:Pose)=>applyAngles(Object.fromEntries(bones.map(def=>[def.id,poseRotation(def.id,pose)[2]])));
@@ -504,9 +505,14 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
  let clock=0;
  /** Advance the moving parts by dt seconds: the flow gradients, the ragdoll fingers and the ragdoll hair. */
- const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);};
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);
+  // Frame-rate quantised pixel part: redraw its cells only every 1/fps seconds.
+  if(pixel&&pixelSettings.fps){pixelClock+=dt;if(pixelClock>=1/pixelSettings.fps){pixelClock%=1/pixelSettings.fps;pixel.update();}}
+ };
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
- const settleFingers=()=>{fingers.settle();dangles.settle();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setStage,dispose,fingers,hair:dangles,pixel,tick,updateFingers:fingers.update,settleFingers};
+ const settleFingers=()=>{fingers.settle();dangles.settle();pixel?.update();};
+ /** Pixel part settings (pixelate.ts): on/off, cell size, and the rate its cells are redrawn at (0 = with every pose). */
+ const setPixel=(s:PixelSettings)=>{pixelSettings=s;pixelClock=0;pixel?.configure(s);};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setStage,dispose,fingers,hair:dangles,pixel,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

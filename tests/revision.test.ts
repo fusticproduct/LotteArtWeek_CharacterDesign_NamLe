@@ -5,7 +5,7 @@ import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
-import {pixelSize} from '../src/pixelate';
+import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
@@ -564,4 +564,15 @@ it('draws one plain limb segment on the pixel grid, cells square and on the grid
   const before=box();rig.applyPose('stride');expect(box(),id).not.toBe(before);
   rig.dispose();
  }
+});
+
+it('lets the pixel part be turned off, resized and redrawn at a low frame rate',()=>{
+ expect(normalizePixel(undefined)).toEqual(defaultPixel);expect(normalizePixel({on:false,size:1,fps:7})).toEqual({on:false,size:.08,fps:0});
+ const rig=createCharacter(generate('pixel-controls')),pixel=rig.pixel!,cells=()=>pixel.mesh.geometry.drawRange.count;
+ const p=pixel.mesh.geometry.getAttribute('position'),snapshot=()=>Array.from((p.array as Float32Array).subarray(0,cells()*2)).join();
+ rig.setPixel({on:true,size:.07,fps:0});const big=cells();rig.setPixel({on:true,size:.02,fps:0});expect(cells()).toBeGreaterThan(big);
+ rig.setPixel({on:true,size:.035,fps:4});const still=snapshot();rig.applyPose('stride');expect(snapshot()).toBe(still);
+ rig.tick(.1);expect(snapshot()).toBe(still);rig.tick(.2);expect(snapshot()).not.toBe(still);
+ rig.setPixel({on:false,size:.035,fps:0});expect(pixel.mesh.visible).toBe(false);expect(pixel.part.visible).toBe(true);
+ rig.dispose();
 });
