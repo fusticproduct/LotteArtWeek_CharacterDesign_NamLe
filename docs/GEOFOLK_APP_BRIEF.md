@@ -655,3 +655,11 @@ Anh Nam: khớp lúc nào cũng tròn; muốn đa dạng hình, nhưng luôn đ�
 - Hình phẳng có bán kính trong bằng bán kính quả cầu cũ, nên đầu các đoạn tay chân (tựa trên quả cầu) luôn nằm trong hình ở mọi góc gập. Tam giác vì vậy to gấp đôi quả cầu.
 - Random dòng vai/khuỷu/gối: đổi hình của cặp đó, giữ màu. Random dòng Hip joints (bị thân che): đổi màu mọi khớp. Khóa một dòng khớp vẫn khóa tất cả khớp.
 - Seed phiên bản 4; seed phiên bản 1–3 mở ra khớp tròn như lúc được tạo.
+
+## 31. Vân giấy nét hơn (14/10/2026)
+
+Anh Nam: vân giấy trông độ phân giải thấp.
+
+- Trước: tấm vân 256 px cho mỗi 0,6 m, mảng loang phóng to từ ảnh 16 px, mép không liền. Phóng to là nhòe và vỡ khối.
+- Giờ: tấm vân 1024 px cho mỗi mét, liền mép (lặp không thấy đường nối), 4 tầng nhiễu mịn (mảng loang, đốm, gân, gân mịn), hạt từng điểm ảnh, 1000 sợi giấy mảnh sáng/tối; có mipmap và lọc anisotropy 8. Độ đậm nhạt tổng thể giữ gần như cũ.
+- Hoa văn đan vẽ ở 2048 px thay vì 1024 (vẽ vẫn khoảng 6 ms); bộ nhớ đệm giữ 12 tấm thay vì 24 để không tốn RAM.

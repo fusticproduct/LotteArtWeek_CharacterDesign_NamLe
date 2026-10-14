@@ -283,7 +283,7 @@ Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture
 | Đổi luật ghép thân | `bodyBuilds`, `pairPartners`, `buildWeights` trong `model.ts`; `drawBuild()`, `fitBody()` |
 | Đổi tư thế có sẵn | `poseRotation()` trong `model.ts`; nhịp thở trong `breathe()` (`motion.ts`) |
 | Đổi điệu Dance | Trích landmark từ video bằng `scripts/extract_landmarks.py`, rồi `npx vite-node scripts/bake-dance.ts <landmarks.json>` ghi lại `src/dance.json` (đi qua đúng bộ giải, làm mượt và xếp lớp của Live pose; bước quay quá 0.9 rad/khung bị chặn vì là MediaPipe đọc nhầm) |
-| Đổi chất giấy | `paperGrain()` và `addPaper()` trong `rig.ts` |
+| Đổi chất giấy | `paperGrain()` và `addPaper()` trong `rig.ts`: tấm vân 1024 px liền mép cho mỗi mét, 4 tầng nhiễu mịn, hạt từng điểm ảnh và 1000 sợi giấy. Hoa văn đan vẽ ở 2048 px (`weaveCanvas()`, giữ 12 tấm gần nhất) |
 | Đổi cách bắt chuyển động | `solvePose()` trong `pose.ts` |
 | Đổi màu / bảng màu weave | `palette.json`; `weavePalettes` trong `weave.ts`; màu thân và nền của XMAS/TET trong `paletteLooks` (`themes.ts`) |
 | Đổi thứ tự lớp mặc định | `defaultLayerOrder` trong `rig.ts` |

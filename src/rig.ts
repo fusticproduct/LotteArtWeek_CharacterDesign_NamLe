@@ -58,8 +58,9 @@ const weaveCache=new Map<string,HTMLCanvasElement>();
 function weaveCanvas(seed:string,palette:WeavePaletteName){
  const key=`${palette}|${seed}`;let canvas=weaveCache.get(key);
  if(!canvas){
-  canvas=document.createElement('canvas');canvas.width=canvas.height=1024;drawWeave(canvas,seed,palette);
-  weaveCache.set(key,canvas);if(weaveCache.size>24)weaveCache.delete(weaveCache.keys().next().value!);
+  // 2048 px so the threads stay sharp when zoomed in; the cache keeps the last 12 cloths.
+  canvas=document.createElement('canvas');canvas.width=canvas.height=2048;drawWeave(canvas,seed,palette);
+  weaveCache.set(key,canvas);if(weaveCache.size>12)weaveCache.delete(weaveCache.keys().next().value!);
  }
  return canvas;
 }
@@ -85,21 +86,40 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
  return material;
 }
 /**
- * Paper grain (A5): a tiling noise texture with a few fibres, shared by every character. Made on first use
- * because it needs a canvas (not available in the Node tests, which never render).
+ * Paper grain (A5): a seamless 1024 px tile, one per metre of part, shared by every character. Four octaves of
+ * smooth value noise (cloudy blotches, mottling, tooth, fine tooth), per-pixel grit and a thousand thin light and dark fibres.
+ * The first version was a 256 px tile with blotches blown up from 16 px, which read as low resolution (Nam, 2026-10-14).
+ * Made on first use because it needs a canvas (not available in the Node tests, which never render).
  */
 let grainTexture:THREE.CanvasTexture|null=null;
+export const paperGrainSize=1024;
 function paperGrain(){
  if(grainTexture)return grainTexture;
- const size=256,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d')!;
- // Coarse blotches (a small noise image scaled up smoothly) under fine per-pixel grain.
- const coarse=document.createElement('canvas');coarse.width=coarse.height=16;const cctx=coarse.getContext('2d')!,blot=cctx.createImageData(16,16);
- for(let i=0;i<blot.data.length;i+=4){const v=128+(Math.random()-.5)*70;blot.data[i]=blot.data[i+1]=blot.data[i+2]=v;blot.data[i+3]=255;}
- cctx.putImageData(blot,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(coarse,0,0,size,size);
- const img=ctx.getImageData(0,0,size,size);for(let i=0;i<img.data.length;i+=4){const n=(Math.random()-.5)*60;for(let j=0;j<3;j++)img.data[i+j]=Math.max(0,Math.min(255,img.data[i+j]+n));}
+ const size=paperGrainSize,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d')!;
+ const value=new Float32Array(size*size).fill(128);
+ // Smooth value noise on an n × n lattice that wraps, so the tile repeats without seams.
+ const octave=(n:number,amp:number)=>{
+  const lattice=Float32Array.from({length:n*n},()=>Math.random()-.5),ease=(t:number)=>t*t*(3-2*t);
+  for(let y=0;y<size;y++){const fy=y/size*n,y0=Math.floor(fy),ty=ease(fy-y0),r0=y0%n*n,r1=(y0+1)%n*n;
+   for(let x=0;x<size;x++){const fx=x/size*n,x0=Math.floor(fx),tx=ease(fx-x0),c0=x0%n,c1=(x0+1)%n;
+    const top=lattice[r0+c0]+(lattice[r0+c1]-lattice[r0+c0])*tx,bottom=lattice[r1+c0]+(lattice[r1+c1]-lattice[r1+c0])*tx;
+    value[y*size+x]+=(top+(bottom-top)*ty)*amp;}}
+ };
+ octave(6,34);octave(24,28);octave(96,26);octave(320,18);
+ const img=ctx.createImageData(size,size);
+ for(let i=0;i<size*size;i++){const v=Math.max(0,Math.min(255,value[i]+(Math.random()-.5)*24));img.data[i*4]=img.data[i*4+1]=img.data[i*4+2]=v;img.data[i*4+3]=255;}
  ctx.putImageData(img,0,0);
- ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=1;for(let i=0;i<40;i++){const x=Math.random()*size,y=Math.random()*size,a=Math.random()*Math.PI;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*18,y+Math.sin(a)*18);ctx.stroke();}
- grainTexture=new THREE.CanvasTexture(canvas);grainTexture.wrapS=grainTexture.wrapT=THREE.RepeatWrapping;
+ // Fibres: short, thin, slightly curved strokes; drawn again shifted by a tile where they cross an edge.
+ ctx.lineCap='round';
+ for(let i=0;i<1000;i++){
+  const x=Math.random()*size,y=Math.random()*size,a=Math.random()*Math.PI,len=8+Math.random()*34,bend=(Math.random()-.5)*len*.5;
+  ctx.strokeStyle=Math.random()<.65?`rgba(255,255,255,${.1+Math.random()*.16})`:`rgba(0,0,0,${.07+Math.random()*.1})`;ctx.lineWidth=.8+Math.random()*1.2;
+  for(const dx of [-size,0,size])for(const dy of [-size,0,size]){
+   const sx=x+dx,sy=y+dy;if(sx<-60||sx>size+60||sy<-60||sy>size+60)continue;
+   ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(sx+Math.cos(a)*len/2-Math.sin(a)*bend,sy+Math.sin(a)*len/2+Math.cos(a)*bend,sx+Math.cos(a)*len,sy+Math.sin(a)*len);ctx.stroke();
+  }
+ }
+ grainTexture=new THREE.CanvasTexture(canvas);grainTexture.wrapS=grainTexture.wrapT=THREE.RepeatWrapping;grainTexture.anisotropy=8;
  return grainTexture;
 }
 /**
@@ -114,7 +134,7 @@ function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry
   Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span}});
   shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vPaper;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPaper=position;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount;uniform vec2 paperSpan;varying vec3 vPaper;')
-   .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy*1.6).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);');
+   .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);');
  };
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
