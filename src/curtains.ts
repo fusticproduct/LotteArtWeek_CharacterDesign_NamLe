@@ -11,7 +11,7 @@ import {rng,palette} from './model';
  */
 /**
  * `density`: strands per forearm; `length`, `size` and `spacing` scale the strands' length, the shapes' size and the
- * gap between shapes (1 = 18–32 cm strands, 2.2–3.4 cm shapes about 4.5 cm apart). `stiffness` 0 is a loose rope; up to
+ * gap between shapes (1 = a hem 25 cm below the lowest pin, 2.2–3.4 cm shapes about 4.5 cm apart). `stiffness` 0 is a loose rope; up to
  * 1 the strands resist bending (each link leans toward the line of the one above) and swing less.
  */
 /** Where curtains can hang (checkboxes in the Look tab). */
@@ -59,16 +59,21 @@ const onPath=(path:THREE.Vector3[],t:number)=>{
 export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:string,settings:CurtainSettings,colorOf:(index:number)=>string,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
  const one=curtainColours[Math.floor(rng(`${seed}|colour`)()*curtainColours.length)];
  const n=settings.density;
- const strands:Strand[]=mounts.flatMap(arm=>Array.from({length:n},(_,i)=>{
-  // Each strand draws from its own stream, so changing one setting does not reshuffle the others.
+ const strands:Strand[]=mounts.flatMap(arm=>{
+  // Pinned evenly along the mount's path. An even hem (Nam, 2026-10-14): every strand of a mount ends on the same line
+  // at rest, 25 cm (× Length) below the lowest pin, so a strand pinned higher up (round the top of a circle, near the
+  // elbow) is that much longer.
+  const pins=Array.from({length:n},(_,i)=>onPath(arm.path,(i+.5)/n)),hem=Math.min(...pins.map(a=>a.y))-.25*settings.length;
+  return pins.map((anchor,i)=>{
+  // Each strand draws from its own stream, so changing one setting does not reshuffle the others; one shape cloned along it.
   const r=rng(`${seed}|${arm.key}|${i}`),pick=()=>curtainColours[Math.floor(r()*curtainColours.length)];
-  // Pinned evenly along the mount's line; 18–32 cm long; one shape cloned along it.
-  const length=(.18+.14*r())*settings.length,shape=Math.floor(r()*beadShapes.length),size=(.011+.006*r())*settings.size,count=Math.max(1,Math.round(length/(.045*settings.spacing)));
+  const length=anchor.y-hem,shape=Math.floor(r()*beadShapes.length),size=(.011+.006*r())*settings.size,count=Math.max(1,Math.round(length/(.045*settings.spacing)));
   const colour=settings.colors==='one'?one:pick();
-  return {bone:arm.bone,side:arm.key,anchor:onPath(arm.path,(i+.5)/n),link:length/links,
+  return {bone:arm.bone,side:arm.key,anchor,link:length/links,
    pos:Array.from({length:links+1},()=>new THREE.Vector3()),prev:Array.from({length:links+1},()=>new THREE.Vector3()),colour,
    beads:Array.from({length:count},(_,k)=>({t:(k+.7)/count,r:size,shape,colour:settings.colors==='one'?one:pick()}))};
- }));
+  });
+ });
  // One mesh per colour, kind and arm, so a bead is never drawn under another strand's string.
  const layers=new Map<string,Layer>(),layer=(colour:number,kind:'string'|'bead',side:string)=>{
   const key=`${colour}|${kind}|${side}`;let l=layers.get(key);

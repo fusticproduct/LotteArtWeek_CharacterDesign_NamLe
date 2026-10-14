@@ -962,3 +962,9 @@ Anh Nam thấy kiểu Leaves giống tai thỏ: chuyển thành kiểu nghỉ (s
 ## 73. Độ cứng của rèm (14/10/2026)
 
 Anh Nam muốn thanh chỉnh độ cứng cho rèm. **Stiffness** 0–100% (mặc định 0, dây thả lỏng như trước): mỗi lượt ràng buộc kéo từng điểm về phía đường thẳng nối tiếp đoạn phía trên (tối đa 45%/lượt), và giảm chấn tăng nhẹ (0,985 → 0,95) nên sợi cứng đung đưa ít hơn. Test: sau cùng một cú vung, sợi cứng cong ít hơn 60% so với sợi thả lỏng.
+
+## 74. Không còn khe hở ở hình ghép; gấu rèm bằng nhau (14/10/2026)
+
+- Anh Nam gửi ảnh một vệt sáng mảnh giữa hai mảng hồng–vàng ("trông như lỗi"). Kiểm tra: khối thân không bị thủng (diện tích tam giác hóa khớp diện tích hình ở mọi tổ hợp). Nguyên nhân hợp lý nhất: các kiểu tóc ghép từ nhiều mảnh chung cạnh, mỗi mảnh bo góc nên hở khe hoặc lẹm góc ở chỗ nối. Sửa: Bowtie vẽ một hình vuông liền màu chính rồi đặt 2 tam giác màu phụ lên trên; các mảnh đặt chồng (sọc Cone, dải Top hat, dải Bucket, tam giác Bowtie) và hình vuông Bowtie giữ góc nhọn (`inlay`, hair.ts) để mép trùng khít.
+- Gấu rèm: mọi sợi của một chỗ kết thúc trên cùng một đường lúc đứng yên, thấp hơn chỗ ghim thấp nhất 25 cm × Length; sợi ghim cao hơn dài hơn tương ứng (không còn độ dài ngẫu nhiên).
+

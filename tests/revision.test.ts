@@ -708,11 +708,33 @@ it('hangs a relaxed curtain of strands and shapes from both forearms, in one or 
  const pins=(side:string)=>rig.curtains().state().filter(s=>s.side===side).map(s=>s.anchor);
  // Head pins lie on the head's lower half; top-piece pins on its upper half (above the piece's middle).
  const headPins=pins('head'),headY=rig.group.getObjectByName('head')!.getWorldPosition(new Vector3()).y;for(const p of headPins)expect(p.y).toBeLessThan(headY+.31*.5+1e-3);
- const reach=(st:typeof dense)=>st.reduce((a,s)=>a+s.link,0)/st.length;rig.setCurtains({...base,density:12,length:1});expect(reach(dense)/reach(rig.curtains().state())).toBeCloseTo(2,1);
+ // Length sets how far the hem hangs below the lowest pin: the shortest strand (from that pin) doubles.
+ const reach=(st:typeof dense)=>Math.min(...st.map(s=>s.link));rig.setCurtains({...base,density:12,length:1});expect(reach(dense)/reach(rig.curtains().state())).toBeCloseTo(2,1);
  rig.setCurtains({...base,on:false});for(const m of rig.curtains().meshes)expect(m.visible).toBe(false);
  rig.dispose();
 });
 
 it('reads older curtain switches into places',()=>{
  expect(normalizeCurtains({arms:false,torso:true,head:false}).places).toEqual({head:false,torso:true,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false});
+});
+
+it('lays bands, stripes and split halves flush over the piece under them (sharp corners), and draws the Bowtie on one whole square',()=>{
+ for(const name of ['Bowtie','Cone','Top hat','Bucket']){
+  const style=hairStyles.find(s=>s.name===name)!,accents=[...style.back,...(style.front??[])].filter(p=>p.accent);
+  expect(accents.length,name).toBeGreaterThan(0);for(const p of accents)expect(p.sharp?.every(Boolean),name).toBe(true);
+  // Kept through placing it on a head.
+  const h=headOutlines[0],placed=placeHair(style,h.outline,h.markY+.05);for(const p of [...placed.back,...placed.front].filter(p=>p.accent))expect(p.sharp?.length,name).toBe(p.points.length);
+ }
+ const bowtie=hairStyles.find(s=>s.name==='Bowtie')!,main=bowtie.back.filter(p=>!p.accent);expect(main.length).toBe(1);expect(main[0].points.length).toBe(4);
+});
+
+it('evens the curtain hem: every strand of a place ends on one line at rest, the ones pinned higher are longer',()=>{
+ const spec=generate('hem');spec.parts.spine_lower.variant=0;spec.parts.spine_upper.variant=0;
+ const rig=createCharacter(spec);rig.setCurtains({on:true,colors:'random',density:9,length:1,size:1,spacing:1,stiffness:0,places:{head:false,torso:true,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false}});
+ rig.applyPose('idle');rig.settleFingers();for(let i=0;i<240;i++)rig.tick(1/60);
+ const strands=rig.curtains().state(),ends=strands.map(s=>s.points[s.points.length-1].y),reach=strands.map(s=>s.link*(s.points.length-1));
+ expect(Math.max(...ends)-Math.min(...ends)).toBeLessThan(.02);
+ // On a round top piece the pins follow its upper edge, so the lengths differ and the highest pin has the longest strand.
+ const highest=strands.reduce((best,s,i)=>s.anchor.y>strands[best].anchor.y?i:best,0);expect(reach[highest]).toBeCloseTo(Math.max(...reach),6);expect(Math.max(...reach)-Math.min(...reach)).toBeGreaterThan(.05);
+ rig.dispose();
 });
