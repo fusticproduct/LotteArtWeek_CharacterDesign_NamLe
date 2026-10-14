@@ -602,3 +602,11 @@ Anh Nam duyệt bản `docs/color-proposal.html`.
 - Nút random từng bộ phận giờ chỉ đổi hình (giữ màu); dòng khớp đổi màu khớp. Nút **Colors** trên thanh trên rút bộ màu mới, giữ hình và tên.
 - Seed không đổi định dạng (vẫn lưu màu từng bộ phận); seed cũ mở ra đúng màu cũ.
 
+
+## 25. Hạt Chain tròn đều (14/10/2026)
+
+Anh Nam: mọi hạt trong dạng Chain phải là hình tròn đều, không bị kéo dãn hay ép dẹt.
+
+- Trước đây mỗi đoạn Chain luôn có 4 hạt, chiều cao mỗi hạt lấy theo độ dài đoạn, nên hạt bị méo: tay thì dẹt, chân thì dài. Slider Proportions cũng chỉ kéo bề ngang.
+- Giờ mỗi hạt là hình cầu thật (`beads()` trong `rig.ts`). Độ dài đoạn quyết định số hạt: các tâm cách nhau khoảng 1.35 bán kính, ít nhất 2 hạt. Slider Arms/Legs đổi cỡ hạt (và số hạt), không làm méo hạt. Hạt tay đều cỡ (bán kính bằng thân tay), hạt chân vẫn to dần xuống dưới.
+- Seed không đổi.

@@ -177,22 +177,31 @@ function pelvisGeometry(v:number){
 export const kneeRadius=.105*.85,elbowRadius=.088*.85,shoulderRadius=.09*.85;
 /** Distance from a ball joint's centre at which a segment end of radius `end` sits flush on the ball. */
 const seat=(ball:number,end:number)=>Math.sqrt(Math.max(ball*ball-end*end,0));
-/** Leg segment spanning y=-from … y=-to (slim at the hip, widening towards the foot). */
-function legGeometry(v:number,from:number,to:number,top:number,bottom:number,hipCap:boolean){
+/**
+ * Chain of true spheres along y=0 … L, radius going from `bottom` (y=0) to `top` (y=L). Never stretched or squashed:
+ * the length sets how many beads fit, about 1.35 radii apart (Nam, 2026-10-14).
+ */
+const beads=(L:number,top:number,bottom:number)=>{const n=Math.max(2,Math.round(L/((top+bottom)/2*1.35)));return stack(...Array.from({length:n},(_,i)=>[sphere(top+(bottom-top)*(n-1-i)/(n-1)),L*(i+.5)/n] as [THREE.BufferGeometry,number]));};
+/** Leg segment spanning y=-from … y=-to (slim at the hip, widening towards the foot); `w` scales its width. */
+function legGeometry(v:number,from:number,to:number,top:number,bottom:number,hipCap:boolean,w:number){
  const L=to-from;let g:THREE.BufferGeometry;
- if(v===2){const n=4,h=L/n+.012;g=stack(...Array.from({length:n},(_,i)=>[puck(top+(bottom-top)*(n-1-i)/(n-1),h,h*.42),i*(L-h)/(n-1)] as [THREE.BufferGeometry,number]));}
- else if(v===3){const n=4;g=stack(...Array.from({length:n},(_,i)=>{const r=(top+(bottom-top)*(n-1-i)/(n-1))*1.12;return [sphere(1).scale(r,L/n*.62,r),L*(i+.5)/n] as [THREE.BufferGeometry,number];}));}
- else g=v===0?frustum(bottom,top,L,.02):v===1?flare(bottom,top,L,2.2,.02):v===4?faceted(frustum(bottom,top,L,.012,8)):taperedPill(bottom,top,L);
+ if(v===3)g=beads(L,top*1.12*w,bottom*1.12*w);
+ else{
+  if(v===2){const n=4,h=L/n+.012;g=stack(...Array.from({length:n},(_,i)=>[puck(top+(bottom-top)*(n-1-i)/(n-1),h,h*.42),i*(L-h)/(n-1)] as [THREE.BufferGeometry,number]));}
+  else g=v===0?frustum(bottom,top,L,.02):v===1?flare(bottom,top,L,2.2,.02):v===4?faceted(frustum(bottom,top,L,.012,8)):taperedPill(bottom,top,L);
+  g.scale(w,1,w);
+ }
  g.translate(0,-to,0);
- return hipCap?mergeGeometries([g,sphere(top*.95)]):g;
+ return hipCap?mergeGeometries([g,sphere(top*.95*w)]):g;
 }
-/** Arm segment spanning y=-from … y=-to. `upper` picks the taper direction for the cone variant. */
-function armGeometry(v:number,from:number,to:number,upper:boolean){
+/** Arm segment spanning y=-from … y=-to; `upper` picks the taper direction for the cone variant, `w` scales its width. */
+function armGeometry(v:number,from:number,to:number,upper:boolean,w:number){
  const r=.068,h=to-from;let g:THREE.BufferGeometry;
- if(v===4)g=stack(...Array.from({length:4},(_,i)=>[sphere(1).scale(r*1.15,h/4*.62,r*1.15),h*(i+.5)/4] as [THREE.BufferGeometry,number]));
+ if(v===4)g=beads(h,r*w,r*w);
  else{
   const cone=upper?[r*.85,r*1.25]:[r*1.35,r*.8];
   g=v===0?frustum(r,r,h,.012):v===1?frustum(cone[0],cone[1],h,.012):v===2?taperedPill(r,r,h):v===3?new RoundedBoxGeometry(r*1.7,h,r*1.7,4,.022).translate(0,h/2,0):faceted(frustum(r,r,h,.012,8));
+  g.scale(w,1,w);
  }
  g.translate(0,-to,0);
  return g;
@@ -230,11 +239,11 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
  } else if(b.kind==='leg'){
   // Both segments stop where they sit flush on the knee ball, so the knee reads as its own part.
   const knee=seat(kneeRadius*prop.joints,.08*prop.legs);
-  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,.08,true):legGeometry(v,knee,L,.08,.118,false);g.scale(prop.legs,1,prop.legs);
+  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,.08,true,prop.legs):legGeometry(v,knee,L,.08,.118,false,prop.legs);
  } else if(b.kind==='limb'){
   // Upper arm plugs into the shoulder ball; both arm segments stop flush on the elbow ball.
   const upper=b.id.startsWith('upperarm'),endRadius=v===1?.068*(upper?.85:.8):v===3?.058:.068,elbow=seat(elbowRadius*prop.joints,endRadius*prop.arms);
-  g=upper?armGeometry(v,0,L-elbow,true):armGeometry(v,elbow,L,false);g.scale(prop.arms,1,prop.arms);
+  g=upper?armGeometry(v,0,L-elbow,true,prop.arms):armGeometry(v,elbow,L,false,prop.arms);
  } else if(b.kind==='hand'){
   g=v===0?sphere(.09):v===1?box(.145,.15,.14,.035):v===2?new THREE.TorusGeometry(.064,.032,16,48):v===3?cylinder(0,.105,.17):v===4?faceted(bicone(.035,.095,.08,.035,.16,.008,8)).translate(0,-.08,0):new THREE.CapsuleGeometry(.064,.055,8,24);g.translate(0,-.045,0);
  } else if(b.kind==='foot'){
