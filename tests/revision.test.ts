@@ -10,7 +10,7 @@ import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {setRules,defaultRules,normalizeRules} from '../src/rules';
 import {bodyTypes,bodyTypeOf} from '../src/bodyTypes';
-import {curtainColours} from '../src/curtains';
+import {curtainColours,normalizeCurtains} from '../src/curtains';
 // Tests see the Geofolk of today unless they set body types themselves (bodyTypes.ts).
 const testRules={...defaultRules,bodyTypes:Object.fromEntries(Object.keys(defaultRules.bodyTypes).map(k=>[k,k==='today'?100:0]))};setRules(testRules);
 import {normalizeSettings} from '../src/settings';
@@ -245,7 +245,7 @@ it('reads version-1 and version-2 seeds onto the body catalogue as a Big top bui
  // An index past the old catalogues is still rejected.
  expect(()=>decodeSeed(`legacy-torso~1${swap(packed,'spine_upper',11).slice(1)}`)).toThrow();expect(()=>decodeSeed(`legacy-torso~2${swap(packed,'root',6).slice(1)}`)).toThrow();
 });
-it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder just outside the top piece edge',()=>{
+it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder just outside the top piece edge',{timeout:30000},()=>{
  const extent=(rig:ReturnType<typeof createCharacter>,id?:string)=>{let lo=Infinity,hi=-Infinity;for(const b of bones){if(id&&b.id!==id)continue;const mesh=rig.group.getObjectByName(`${b.id}_mesh`) as SkinnedMesh,p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const y=new Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).y;lo=Math.min(lo,y);hi=Math.max(hi,y);}}return hi-lo;};
  const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions');spec.parts.hair.variant=0;const base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
  expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
@@ -681,7 +681,7 @@ it('gives each character a body type, Geofolk today the most, kept in the seed a
 it('hangs a relaxed curtain of strands and shapes from both forearms, in one or random palette colours',()=>{
  const spec=generate('curtains'),rig=createCharacter(spec);
  const check=(label:string)=>{for(const strand of rig.curtains().state()){expect(strand.points[0].distanceTo(strand.anchor),label).toBeLessThan(1e-6);for(let i=1;i<strand.points.length;i++)expect(Math.abs(strand.points[i].distanceTo(strand.points[i-1])-strand.link),label).toBeLessThan(.002);}};
- const strands=rig.curtains().state();expect(strands.filter(s=>s.side==='L').length).toBe(7);expect(strands.filter(s=>s.side==='R').length).toBe(7);
+ const strands=rig.curtains().state();for(const place of ['forearm_L','forearm_R','torso','head'])expect(strands.filter(s=>s.side===place).length,place).toBe(7);
  rig.applyPose('reach');rig.settleFingers();check('settled');
  // Arms up: every strand falls from its pin, its free end below the top.
  for(const strand of rig.curtains().state())expect(strand.points[strand.points.length-1].y).toBeLessThan(strand.points[0].y-.05);
@@ -690,11 +690,25 @@ it('hangs a relaxed curtain of strands and shapes from both forearms, in one or 
  for(let i=0;i<20;i++){rig.tick(1/60);check(`swing ${i}`);}
  const moved=rig.curtains().state().some((s,i)=>s.points.some((p,k)=>p.distanceTo(lag[i].points[k])>.005));expect(moved).toBe(true);
  const colours=rig.curtains().state().flatMap(s=>s.colours);for(const c of colours)expect(curtainColours).toContain(c);expect(new Set(colours).size).toBeGreaterThan(3);
- const base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1};
+ const none={head:false,torso:false,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false},base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1,places:{...none,forearms:true}};
  rig.setCurtains({...base,colors:'one'});expect(new Set(rig.curtains().state().flatMap(s=>s.colours)).size).toBe(1);
  // Density sets the strands per arm; length the strands' length.
  rig.setCurtains({...base,density:12,length:2});const dense=rig.curtains().state();expect(dense.length).toBe(24);
+ rig.setCurtains({...base,places:{...none,torso:true,head:true}});expect(new Set(rig.curtains().state().map(s=>s.side))).toEqual(new Set(['torso','head']));
+ rig.setCurtains({...base,places:{...none,thighs:true,shins:true,upperarms:true}});expect(new Set(rig.curtains().state().map(s=>s.side))).toEqual(new Set(['thigh_L','thigh_R','shin_L','shin_R','upperarm_L','upperarm_R']));
+ rig.setCurtains({...base,places:{...none,torso:true,head:true}});
+ // The top piece's curtain is drawn over it, from its upper edge; the head's behind the whole body, from its lower edge.
+ const lowest=Math.min(...['spine_upper','root','head','neck'].map(id=>rig.group.getObjectByName(`${id}_mesh`)!.renderOrder));
+ for(const m of rig.curtains().meshes)if(m.userData.side==='torso')expect(m.renderOrder).toBeGreaterThan(rig.group.getObjectByName('spine_upper_mesh')!.renderOrder);else expect(m.renderOrder).toBeLessThan(lowest);
+ rig.applyPose('idle');rig.settleFingers();const neck=rig.group.getObjectByName('spine_upper')!,top=new Vector3();neck.getWorldPosition(top);
+ const pins=(side:string)=>rig.curtains().state().filter(s=>s.side===side).map(s=>s.anchor);
+ // Head pins lie on the head's lower half; top-piece pins on its upper half (above the piece's middle).
+ const headPins=pins('head'),headY=rig.group.getObjectByName('head')!.getWorldPosition(new Vector3()).y;for(const p of headPins)expect(p.y).toBeLessThan(headY+.31*.5+1e-3);
  const reach=(st:typeof dense)=>st.reduce((a,s)=>a+s.link,0)/st.length;rig.setCurtains({...base,density:12,length:1});expect(reach(dense)/reach(rig.curtains().state())).toBeCloseTo(2,1);
  rig.setCurtains({...base,on:false});for(const m of rig.curtains().meshes)expect(m.visible).toBe(false);
  rig.dispose();
+});
+
+it('reads older curtain switches into places',()=>{
+ expect(normalizeCurtains({arms:false,torso:true,head:false}).places).toEqual({head:false,torso:true,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false});
 });

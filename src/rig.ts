@@ -466,7 +466,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   for(const pixel of pixels)pixel.mesh.renderOrder=pixel.part.renderOrder;
   // Curtains just behind their forearm: strings under the shapes threaded on them.
-  for(const m of curtains.meshes)m.renderOrder=group.getObjectByName(`forearm_${m.userData.side}_mesh`)!.renderOrder-(m.userData.kind==='bead'?.2:.25);
+  // (just behind a limb segment, just over a body piece; the head's behind everything, like long hair)
+  for(const m of curtains.meshes){const bead=m.userData.kind==='bead',key=m.userData.side as string,over=(id:string)=>group.getObjectByName(`${id}_mesh`)!.renderOrder+(bead?.35:.3);m.renderOrder=key==='torso'?over('spine_upper'):key==='pelvis'?over('root'):key==='head'?(bead?-9.9:-10):group.getObjectByName(`${key}_mesh`)!.renderOrder-(bead?.2:.25);}
   for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
@@ -474,10 +475,28 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  };
  // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
  let pixelSettings:PixelSettings=defaultPixel,pixelClock=0;
- // Curtains on both forearms (curtains.ts): rebuilt when their settings change.
+ // Curtains (curtains.ts), wherever their settings place them: along a limb segment (15–85% of its length), round
+ // the upper half of a body piece's edge (drawn over it, like a shirt's fringe), or round the lower half of the head's
+ // edge (drawn behind the whole body, like hair).
  let curtainSettings:CurtainSettings=defaultCurtains;
- const forearms=(['L','R'] as const).map(side=>({bone:map.get(`forearm_${side}`)!,side,length:.28*type.arms}));
- const makeCurtains=()=>createCurtains(group,forearms,`${spec.label}|curtains`,curtainSettings,colorOf,decorate);
+ /** The part of an outline above (or below) its middle height, traced along the edge in 1 cm steps, as a path. */
+ const halfEdge=(outline:Point2[],upper:boolean,toBone:(p:Point2)=>THREE.Vector3)=>{
+  const ys=outline.map(p=>p[1]),mid=(Math.min(...ys)+Math.max(...ys))/2,dense:Point2[]=[];
+  for(let i=0;i<outline.length;i++){const a=outline[i],b=outline[(i+1)%outline.length],k=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/.01));for(let j=0;j<k;j++)dense.push([a[0]+(b[0]-a[0])*j/k,a[1]+(b[1]-a[1])*j/k]);}
+  const keep=dense.map(p=>upper?p[1]>=mid:p[1]<=mid),start=keep.findIndex((v,i)=>v&&!keep[(i-1+dense.length)%dense.length]),out:Point2[]=[];
+  if(start<0)return dense.map(toBone);
+  for(let i=start;keep[i%dense.length]&&out.length<dense.length;i++)out.push(dense[i%dense.length]);
+  return out.map(toBone);
+ };
+ const headShape=headOutlines[spec.parts.head.variant],headLift=.31-Math.max(...headShape.outline.map(p=>p[1]));
+ const along=(id:string)=>{const length=bones.find(b=>b.id===id)!.length*lengthScale(type,id);return {key:id,bone:map.get(id)!,path:[new THREE.Vector3(0,-length*.15,0),new THREE.Vector3(0,-length*.85,0)]};};
+ const mounts=()=>{const on=curtainSettings.places,limbs=(part:string)=>(['L','R'] as const).map(side=>along(`${part}_${side}`));return [
+  ...(on.head?[{key:'head',bone:map.get('head')!,path:halfEdge(headShape.outline,false,([x,y])=>new THREE.Vector3(x*proportions.head,(y+headLift)*proportions.head,0))}]:[]),
+  ...(on.torso?[{key:'torso',bone:map.get('spine_upper')!,path:halfEdge(body.top.outline,true,([x,y])=>new THREE.Vector3(x,y-body.pivot,0))}]:[]),
+  ...(on.pelvis&&body.bottom?[{key:'pelvis',bone:map.get('root')!,path:halfEdge(body.bottom.outline,true,([x,y])=>new THREE.Vector3(x,y,0))}]:[]),
+  ...(on.upperarms?limbs('upperarm'):[]),...(on.forearms?limbs('forearm'):[]),...(on.thighs?limbs('thigh'):[]),...(on.shins?limbs('shin'):[]),
+ ];};
+ const makeCurtains=()=>createCurtains(group,mounts(),`${spec.label}|curtains`,curtainSettings,colorOf,decorate);
  let curtains=makeCurtains();
  // Spray-blurred parts (spray.ts): off until setSpray turns them on.
  const sprays=sprayPartsOf(spec).map(id=>createSpray(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,`${spec.label}|${id}|spray`));

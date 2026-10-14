@@ -1,23 +1,31 @@
 import * as THREE from 'three';
 import {rng,palette} from './model';
 /**
- * Curtains (Nam, 2026-10-14): a fringe hanging from each forearm, many thin strands (splines), each threaded with
+ * Curtains (Nam, 2026-10-14): a fringe hanging from each forearm, across the chest (over the body, like a shirt) and
+ * from the head (behind it, like hair); many thin strands (splines), each threaded with
  * clones of one random geometric shape. Each strand is a loose verlet rope: its top is pinned along the forearm, the
  * rest falls with gravity and keeps its link lengths, nothing pulls it back into shape, so it hangs relaxed and sways
  * and lags as the arm moves. Colours come from the palette: one colour for the whole curtain, or a random one per
- * strand and per shape. Drawn just behind the forearm, so the strands come out from under it. Simulated in the
- * character group's space like the fingers (fingers.ts).
+ * strand and per shape. Drawn just behind a forearm (the strands come out from under it), over the top body piece,
+ * and behind the head. Simulated in the character group's space like the fingers (fingers.ts).
  */
 /**
  * `density`: strands per forearm; `length`, `size` and `spacing` scale the strands' length, the shapes' size and the
  * gap between shapes (1 = 18–32 cm strands, 2.2–3.4 cm shapes about 4.5 cm apart).
  */
-export interface CurtainSettings {on:boolean;colors:'one'|'random';density:number;length:number;size:number;spacing:number;}
-export const defaultCurtains:CurtainSettings={on:true,colors:'random',density:7,length:1,size:1,spacing:1};
-export const curtainRanges={density:{min:2,max:16},length:{min:.4,max:2.5},size:{min:.4,max:2.5},spacing:{min:.4,max:3}};
+/** Where curtains can hang (checkboxes in the Look tab). */
+export const curtainPlaces=['head','torso','pelvis','upperarms','forearms','thighs','shins'] as const;
+export type CurtainPlace=typeof curtainPlaces[number];
+export const curtainPlaceNames:Record<CurtainPlace,string>={head:'Head',torso:'Top piece',pelvis:'Bottom piece',upperarms:'Upper arms',forearms:'Forearms',thighs:'Thighs',shins:'Shins'};
+export interface CurtainSettings {on:boolean;colors:'one'|'random';density:number;length:number;size:number;spacing:number;places:Record<CurtainPlace,boolean>;}
+export const defaultCurtains:CurtainSettings={on:true,colors:'random',density:7,length:1,size:1,spacing:1,places:{head:true,torso:true,pelvis:false,upperarms:false,forearms:true,thighs:false,shins:false}};
+export const curtainRanges={density:{min:2,max:40},length:{min:.4,max:2.5},size:{min:.4,max:2.5},spacing:{min:.4,max:3}};
 export const normalizeCurtains=(value:unknown):CurtainSettings=>{
  const v=(value??{}) as Partial<CurtainSettings>,num=(k:keyof typeof curtainRanges)=>{const n=Number(v[k]),r=curtainRanges[k];return Number.isFinite(n)?Math.min(r.max,Math.max(r.min,k==='density'?Math.round(n):n)):defaultCurtains[k];};
- return {on:v.on!==false,colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing')};
+ // (Older settings had arms/torso/head switches.)
+ const old=v as Partial<Record<'arms'|'torso'|'head',boolean>>,given=(v.places??{}) as Partial<Record<CurtainPlace,boolean>>;
+ const places=Object.fromEntries(curtainPlaces.map(p=>[p,typeof given[p]==='boolean'?given[p]:p==='forearms'&&typeof old.arms==='boolean'?old.arms:(p==='torso'||p==='head')&&typeof old[p]==='boolean'?old[p]:defaultCurtains.places[p]])) as Record<CurtainPlace,boolean>;
+ return {on:v.on!==false,colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing'),places};
 };
 type Point2=[number,number];
 /** Bead outlines around (0, 0), pointing along +y (the strand's direction): circle, square, triangle, diamond, hexagon. */
@@ -35,17 +43,28 @@ const gravity=-9.8,damping=.985,step=1/60,passes=12,links=9,ribbon=.006,smooth=3
 interface Bead {t:number;r:number;shape:number;colour:number;}
 interface Strand {bone:THREE.Bone;side:string;anchor:THREE.Vector3;link:number;pos:THREE.Vector3[];prev:THREE.Vector3[];colour:number;beads:Bead[];}
 interface Layer {colour:number;kind:'string'|'bead';side:string;mesh:THREE.Mesh;positions:Float32Array;count:number;}
-/** `arms`: each forearm bone with its side and length; `colorOf` gives a palette index's colour in the current palette. */
-export function createCurtains(group:THREE.Group,arms:{bone:THREE.Bone;side:string;length:number}[],seed:string,settings:CurtainSettings,colorOf:(index:number)=>string,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
+/**
+ * A curtain mount: a bone and the path its strands hang from, in the bone's space (`density` pins spread evenly along
+ * it by length): along a limb segment, or traced round a body piece's upper edge or the head's lower edge. `key` names
+ * it: the limb bone (forearm_L…), torso, pelvis or head. `colorOf` gives a palette index's colour in the current palette.
+ */
+export interface CurtainMount {key:string;bone:THREE.Bone;path:THREE.Vector3[];}
+/** Point at fraction t of a path's length. */
+const onPath=(path:THREE.Vector3[],t:number)=>{
+ const lengths=path.slice(1).map((p,i)=>p.distanceTo(path[i])),total=lengths.reduce((a,b)=>a+b,0);let left=t*total;
+ for(let i=0;i<lengths.length;i++){if(left<=lengths[i]||i===lengths.length-1)return path[i].clone().lerp(path[i+1],lengths[i]?Math.min(1,left/lengths[i]):0);left-=lengths[i];}
+ return path[0].clone();
+};
+export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:string,settings:CurtainSettings,colorOf:(index:number)=>string,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
  const one=curtainColours[Math.floor(rng(`${seed}|colour`)()*curtainColours.length)];
  const n=settings.density;
- const strands:Strand[]=arms.flatMap(arm=>Array.from({length:n},(_,i)=>{
+ const strands:Strand[]=mounts.flatMap(arm=>Array.from({length:n},(_,i)=>{
   // Each strand draws from its own stream, so changing one setting does not reshuffle the others.
-  const r=rng(`${seed}|${arm.side}|${i}`),pick=()=>curtainColours[Math.floor(r()*curtainColours.length)];
-  // Pinned evenly along the forearm (bone −y), 15% to 85% of its length; 18–32 cm long; one shape cloned along it.
+  const r=rng(`${seed}|${arm.key}|${i}`),pick=()=>curtainColours[Math.floor(r()*curtainColours.length)];
+  // Pinned evenly along the mount's line; 18–32 cm long; one shape cloned along it.
   const length=(.18+.14*r())*settings.length,shape=Math.floor(r()*beadShapes.length),size=(.011+.006*r())*settings.size,count=Math.max(1,Math.round(length/(.045*settings.spacing)));
   const colour=settings.colors==='one'?one:pick();
-  return {bone:arm.bone,side:arm.side,anchor:new THREE.Vector3(0,-arm.length*(.15+.7*i/Math.max(1,n-1)),0),link:length/links,
+  return {bone:arm.bone,side:arm.key,anchor:onPath(arm.path,(i+.5)/n),link:length/links,
    pos:Array.from({length:links+1},()=>new THREE.Vector3()),prev:Array.from({length:links+1},()=>new THREE.Vector3()),colour,
    beads:Array.from({length:count},(_,k)=>({t:(k+.7)/count,r:size,shape,colour:settings.colors==='one'?one:pick()}))};
  }));

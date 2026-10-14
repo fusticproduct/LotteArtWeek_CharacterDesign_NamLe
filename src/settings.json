@@ -35,7 +35,16 @@
   "density": 7,
   "length": 1,
   "size": 1,
-  "spacing": 1
+  "spacing": 1,
+  "places": {
+   "head": true,
+   "torso": true,
+   "pelvis": false,
+   "upperarms": false,
+   "forearms": true,
+   "thighs": false,
+   "shins": false
+  }
  },
  "rules": {
   "bodyTypes": {
