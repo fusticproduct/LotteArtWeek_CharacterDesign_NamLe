@@ -155,10 +155,10 @@ function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry
  };
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
-/** Flow mapping: U runs along a direction in the part's plane, picked per part from the seed; V is constant. */
-function flowUV(g:THREE.BufferGeometry,angle:number){
- const position=g.getAttribute('position'),uv=new THREE.BufferAttribute(new Float32Array(position.count*2),2),c=Math.cos(angle),s=Math.sin(angle);
- for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i)*c+position.getY(i)*s,.5);
+/** Flow mapping: U runs along the part's own axis (its bone's Y), so the colours run up a leg or an arm and turn with it (Nam, 2026-10-14); V is constant. */
+function flowUV(g:THREE.BufferGeometry){
+ const position=g.getAttribute('position'),uv=new THREE.BufferAttribute(new Float32Array(position.count*2),2);
+ for(let i=0;i<position.count;i++)uv.setXY(i,position.getY(i),.5);
  g.setAttribute('uv',uv);return g;
 }
 const seedAngle=(text:string)=>{let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return (h>>>0)/4294967296*Math.PI*2;};
@@ -314,7 +314,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  bones.forEach((def,index)=>{
-  const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):choice.pattern===flow?flowUV(shaped,seedAngle(`${spec.label}|${def.id}`)):shaped,count=geometry.getAttribute('position').count;
+  const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):choice.pattern===flow?flowUV(shaped):shaped,count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
