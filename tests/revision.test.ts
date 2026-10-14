@@ -438,7 +438,9 @@ it('places every hair style on every head: caps and helmets stay above the face 
   expect(front.renderOrder,label).toBeGreaterThan(headMesh.renderOrder);expect(mark.renderOrder,label).toBeGreaterThan(front.renderOrder);
   // The cap's lowest point is above the mark's top (both in world space at rest).
   const extreme=(m:SkinnedMesh,pick:(a:number,b:number)=>number,start:number)=>{const p=m.geometry.getAttribute('position'),v=new Vector3();let y=start;for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);y=pick(y,v.y);}return y;};
-  if(hairStyles[style].cap||hairStyles[style].front)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
+  // (A style whose front is all accent, like Shades, keeps only a hidden speck in the hair colour.)
+  front.geometry.computeBoundingBox();const speck=front.geometry.boundingBox!.max.x-front.geometry.boundingBox!.min.x<.01;
+  if(!speck)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
   const accent=rig.group.getObjectByName('hair_front_accent') as SkinnedMesh|undefined;
   if(accent){expect(extreme(accent,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));expect(accent.renderOrder,label).toBeGreaterThan(front.renderOrder);expect(accent.renderOrder,label).toBeLessThan(mark.renderOrder);}
   for(const dangle of rig.hair.meshes)expect(dangle.renderOrder,label).toBeLessThan(headMesh.renderOrder);
@@ -449,7 +451,7 @@ it('places every hair style on every head: caps and helmets stay above the face 
  // The Hair slider scales the back pieces.
  const spec=generate('hair-size');spec.parts.hair.variant=hairStyles.findIndex(s=>s.name==='Fin');const size=(hair:number)=>{const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,hair}),g=(rig.group.getObjectByName('hair_back') as SkinnedMesh).geometry;g.computeBoundingBox();const w=g.boundingBox!.max.x-g.boundingBox!.min.x;rig.dispose();return w;};
  expect(size(1.5)/size(1)).toBeCloseTo(1.5,2);
-});
+},30000);
 
 it('keeps every hair style symmetrical, and every helmet covers the top of every head shape',()=>{
  const inside=([x,y]:[number,number],poly:[number,number][])=>{let hit=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)hit=!hit;}return hit;};
@@ -457,7 +459,7 @@ it('keeps every hair style symmetrical, and every helmet covers the top of every
  for(let style=0;style<hairStyles.length;style++){
   const {hair}=placed(0,style),points=[...hair.back,...hair.front].flatMap(p=>p.points).concat(hair.dangles.flatMap(d=>restCircles(d).map(c=>[c.x,c.y] as [number,number])));
   for(const [x,y] of points)expect(Math.min(...points.map(([u,v])=>Math.hypot(u+x,v-y))),`${hairStyles[style].name} at ${x.toFixed(3)},${y.toFixed(3)}`).toBeLessThan(2e-4);
-  if(!hairStyles[style].front)continue;
+  if(!hairStyles[style].front||hairStyles[style].cover===false)continue;
   for(let head=0;head<headOutlines.length;head++)for(const size of [.5,1,1.5]){
    const {outline,markTop,hair}=placed(head,style,size),brow=Math.min(...hair.front.flatMap(p=>p.points.map(q=>q[1])));
    expect(brow,`${hairStyles[style].name} on head ${head}`).toBeGreaterThanOrEqual(markTop+.008-1e-9);
@@ -471,7 +473,7 @@ it('keeps every hair style symmetrical, and every helmet covers the top of every
 
 it('swings ragdoll hair as the head moves, never stretching or overlapping, and brings it back to rest',()=>{
  const named=(name:string)=>hairStyles.findIndex(s=>s.name===name);
- for(const name of ['Antenna','Twin antennas','Plume','Beanie','Ball top']){
+ for(const name of ['Antenna','Twin antennas','Plume','Asterisk','Star','Ball top']){
   const spec=generate('dangles');spec.parts.hair.variant=named(name);const rig=createCharacter(spec);
   const check=(label:string)=>{for(const chain of rig.hair.state()){let from=chain.anchor,reach=chain.rope;chain.balls.forEach((b,i)=>{expect(b.pos.distanceTo(from),`${name} ${label} ${i}`).toBeCloseTo(reach,4);from=b.pos;reach=b.r+(chain.balls[i+1]?.r??0);});}};
   expect(rig.hair.meshes.length,name).toBeGreaterThan(0);check('rest');
@@ -508,4 +510,14 @@ it('fills Donut and Ring holes with the stage colour, just under their part, but
  rig.setStage('#eae7e6');
  for(const plug of plugs)expect((plug.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:'#eae7e6'}).color.getHexString());
  rig.dispose();
+});
+
+it('rests totem headwear on the head, touching it without overlapping, on every head shape',()=>{
+ for(let head=0;head<headOutlines.length;head++)for(const style of hairStyles.filter(s=>s.sits)){
+  const h=headOutlines[head],lift=.31-Math.max(...h.outline.map(p=>p[1])),outline=h.outline.map(([x,y])=>[x,y+lift] as [number,number]),hair=placeHair(style,outline,h.markY+.05);
+  const top=(x:number)=>{let t=-Infinity;for(let i=0;i<outline.length;i++){const [ax,ay]=outline[i],[bx,by]=outline[(i+1)%outline.length];if((ax-x)*(bx-x)<=0&&ax!==bx)t=Math.max(t,ay+(by-ay)*(x-ax)/(bx-ax));}return t;};
+  let gap=Infinity;
+  for(const p of hair.back)for(let i=0;i<p.points.length;i++){const a=p.points[i],b=p.points[(i+1)%p.points.length];for(let k=0;k<20;k++){const x=a[0]+(b[0]-a[0])*k/20,y=a[1]+(b[1]-a[1])*k/20,t=top(x);if(Number.isFinite(t))gap=Math.min(gap,y-t);}}
+  expect(gap,`${style.name} on head ${head}`).toBeGreaterThan(-.003);expect(gap,`${style.name} on head ${head}`).toBeLessThan(.003);
+ }
 });

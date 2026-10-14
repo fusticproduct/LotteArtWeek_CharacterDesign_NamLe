@@ -29,10 +29,15 @@ figcaption i{font-style:normal;font:600 10px 'Courier New',monospace;color:var(-
 </head>
 <body>
 <div class="wrap">
- <div class="eyebrow">Geofolk · Lotte Art Week · 14/10/2026 · vòng 2: đối xứng, nhiều mũ bảo hiểm, tóc robot, phần lủng lẳng</div>
- <h1>Tóc và mũ: 25 kiểu + trọc</h1>
- <p class="lead">Trang này vẽ trực tiếp từ <code>src/hair.ts</code>, đúng như app vẽ. Vòng 2 theo góp ý: giữ 11 kiểu anh chọn (Crown, Gem, Fin, Flame, Ball top, Halo, Bowl, Flat top, Sunburst, Helmet, Leaves), chỉnh Flame và Leaves cho đối xứng, gai Sunburst to và ngắn hơn; bỏ Ears (giống chuột Mickey), Afro, Fan/quạt, Cloud, Waves, Ridge, Horns, Sweep, Swoosh, Spikes nghiêng. Mọi kiểu đều đối xứng. Thêm mũ (Moto: mũ bảo hiểm nửa đầu, Hard hat, Segments dùng kiểu múi xen màu của quạt, Beanie, Plume, Bucket, Cap, Racer) và tóc robot (Antenna, Twin antennas, Knight, Gear, Siren, Blocks xen màu). Mũ là khối đặc riêng đặt trên đầu, không cắt theo hình đầu: mép dưới luôn trên dấu mặt, và tự to lên vừa đủ để che kín đỉnh mọi hình đầu. Kiểu có chữ <b>ragdoll</b> có chuỗi tròn lủng lẳng (ăng-ten, chùm lông, quả bông, quả cầu) đung đưa theo chuyển động; ở đây vẽ lúc đứng yên.</p>
+ <div class="eyebrow">Geofolk · Lotte Art Week · 14/10/2026 · vòng 3: theo ảnh tham chiếu (totem hình học, đầu punk, người tối giản, mũ mùa đông)</div>
+ <h1>Tóc và mũ: 34 kiểu + trọc</h1>
+ <p class="lead">Trang này vẽ trực tiếp từ <code>src/hair.ts</code>, đúng như app vẽ. Phân tích ảnh tham chiếu: (1) totem hình học: chỉ dùng hình cơ bản, các khối xếp chồng chạm nhau chứ không đè, tách hai màu theo đường chéo; (2) đầu punk: tóc là một mảng phẳng, mohawk răng cưa, gai với băng đô, ngôi sao trên ăng-ten, kính râm gác trên đầu; (3, 4) người tối giản: mũ/tóc một màu bo theo đỉnh đầu, quả cầu trên đỉnh; (5) mũ mùa đông: silhouette to bản, nón chóp có sọc, mũ chóp cao, mũ nấm chấm bi.</p>
+ <p class="lead">Mới vòng này: <b>Totem</b> (Slab, Quad, Bowtie, Saucer: đặt chạm đỉnh đầu, không đè lên đầu, trên mọi hình đầu), Top hat, Cone sọc, Mushroom chấm bi, Shades, Mohawk, Punk (gai + băng đô), Star và Asterisk (ragdoll: que tròn + ngôi sao/dấu sao đung đưa), mũ tương lai Visor và Jet thay Moto và Hard hat. Đã bỏ: Moto, Hard hat, Segments, Cap, Racer, quả bông của Beanie; Gear còn 6 răng to. Giữ 11 kiểu anh chọn. Mọi kiểu đối xứng. Kiểu có chữ <b>ragdoll</b> đung đưa theo chuyển động; ở đây vẽ lúc đứng yên.</p>
+ <h2>Totem</h2>
+ <div class="grid" id="grid-Totem"></div>
  <h2>Mũ</h2>
+ <div class="grid" id="grid-Hat"></div>
+ <h2>Mũ bảo hiểm</h2>
  <div class="grid" id="grid-Helmet"></div>
  <h2>Robot</h2>
  <div class="grid" id="grid-Robot"></div>
@@ -42,7 +47,7 @@ figcaption i{font-style:normal;font:600 10px 'Courier New',monospace;color:var(-
  <div class="matrix" id="matrix"></div>
 </div>
 <script type="module">
-import {hairStyles,placeHair,restCircles} from '/src/hair.ts';
+import {hairStyles,placeHair,restCircles,tipAt} from '/src/hair.ts';
 import {headOutlines} from '/src/rig.ts';
 const colours=['#facc67','#eb4db2','#0c52e9','#0c8953','#7c3eee','#f49058','#3ba6ac'],accents=['#fab1dd','#facc67','#579ef0','#38ae79'];
 const headColours=['#f55d59','#facc67','#3ba6ac','#eb4db2','#38ae79','#579ef0'];
@@ -56,11 +61,11 @@ function figure(h,s){
  const paint=p=>p.accent?accent:hair;
  return `<svg viewBox="-.48 -.86 .96 1.04"><rect x="-.48" y="-.86" width=".96" height="1.04" fill="#f6f2ea"/>`+
   `<rect x="-.16" y="-.02" width=".32" height=".2" rx=".02" fill="#0c52e9"/><rect x="-.03" y="-.04" width=".06" height=".08" fill="#0c8953"/>`+
-  placed.dangles.flatMap(d=>restCircles(d)).map(c=>dot(c,c.accent?accent:hair)).join('')+
+  placed.dangles.map(d=>restCircles(d).map((c,i,all)=>d.tip&&i===all.length-1?path(tipAt(d.tip,c.x,c.y,d.dir),c.accent?accent:hair):dot(c,c.accent?accent:hair)).join('')).join('')+
   placed.back.filter(p=>!p.accent).map(p=>path(p.points,hair)).join('')+placed.back.filter(p=>p.accent).map(p=>path(p.points,accent)).join('')+
   path(outline,headColour)+placed.front.filter(p=>!p.accent).map(p=>path(p.points,hair)).join('')+placed.front.filter(p=>p.accent).map(p=>path(p.points,accent)).join('')+`<rect x="-.012" y="${-(markY+.045)}" width=".024" height=".09" rx=".006" fill="#27234d"/></svg>`;
 }
-for(const group of ['Helmet','Robot','Hair'])document.getElementById(`grid-${group}`).innerHTML=hairStyles.map((s,i)=>[s,i]).filter(([s])=>s.group===group).map(([s,i])=>`<figure>${figure(0,i)}<figcaption><b>${String(i).padStart(2,'0')}</b>${s.name}<i>${[kept.has(s.name)?'giữ từ vòng 1':'mới',s.dangles?'ragdoll':''].filter(Boolean).join(' · ')}</i></figcaption></figure>`).join('');
+for(const group of ['Totem','Hat','Helmet','Robot','Hair'])document.getElementById(`grid-${group}`).innerHTML=hairStyles.map((s,i)=>[s,i]).filter(([s])=>s.group===group).map(([s,i])=>`<figure>${figure(0,i)}<figcaption><b>${String(i).padStart(2,'0')}</b>${s.name}<i>${[kept.has(s.name)?'giữ từ vòng 1':'mới',s.dangles?'ragdoll':''].filter(Boolean).join(' · ')}</i></figcaption></figure>`).join('');
 const names=['Circle','Triangle','Hexagon','Down tri','Square','Dome'];
 document.getElementById('matrix').innerHTML='<div></div>'+names.map(n=>`<div class="head">${n}</div>`).join('')+hairStyles.map((s,i)=>`<div><b>${String(i).padStart(2,'0')}</b> ${s.name}</div>`+names.map((_,h)=>figure(h,i)).join('')).join('');
 </script>

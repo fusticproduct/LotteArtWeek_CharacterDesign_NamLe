@@ -837,3 +837,20 @@ Anh Nam muốn thêm một texture dưới Paper texture để mọi màu trông
 - Nút **Riso** On/Off dưới Paper texture. Trong shader giấy (`addPaper`, rig.ts): lưới chấm 3 px (theo pixel màn hình) nghiêng 45°, cố định theo màn hình như tờ in; độ phủ mực 74–98% (màu đậm phủ dày hơn), lệch nhẹ theo vân giấy; giữa các chấm lộ màu giấy. Áp cho mọi bộ phận, cả ngón tay, ngón chân và tóc lủng lẳng (giờ cũng có vân giấy). Miếng lấp lỗ donut không có Riso để vẫn trùng màu nền.
 - Mặc định tắt; lưu theo trình duyệt và trong Save all as default (`riso` trong `src/settings.json`).
 
+## 57. Tóc vòng 3: theo ảnh tham chiếu (14/10/2026)
+
+Góp ý trên vòng 2: Moto giống beanie (bỏ); Hard hat giống công nhân xây dựng (làm tương lai hơn); bỏ Segments; Beanie bỏ quả bông; Gear trông như vi khuẩn (bớt rối); bỏ một kiểu ở ảnh 7 (ảnh không gửi tới được, chưa biết kiểu nào). Rồi anh gửi 5 ảnh tham chiếu và yêu cầu phân tích kỹ để làm bộ mới theo phong cách tối giản của nhân vật.
+
+Phân tích tham chiếu:
+- Totem hình học: chỉ hình cơ bản (thanh chữ nhật, tròn, nửa tròn úp/ngửa, tam giác, thoi, dấu sao 8 cánh), các khối xếp chồng **chạm nhau, không đè**, tách hai màu theo đường chéo.
+- Đầu punk: tóc là một mảng phẳng; mohawk khối răng cưa; vương miện gai với băng đô; ngôi sao trên que ăng-ten; kính râm gác trên đầu; đầu đinh.
+- Người tối giản (2 ảnh): tóc là cái mũ một màu bo theo đỉnh đầu, búi tròn trên đỉnh, mũ lưỡi trai; rất ít chi tiết.
+- Mũ mùa đông: silhouette to bản hơn đầu; nón chóp có sọc, mũ chóp cao, mũ nấm chấm bi, mũ xô, mũ trùm.
+
+Làm:
+- Nhóm Totem mới (`sits`): cả kiểu dời lên/xuống tới khi điểm thấp nhất phía trên đầu vừa chạm đỉnh đầu (đo theo đường viền thật của từng hình đầu). Slab, Quad, Bowtie, Saucer; Top hat và Cone cũng đặt kiểu này.
+- Băng đô (`band`): phần đầu giữa hai đường ngang, rộng hơn đầu một chút, màu phụ, không thấp hơn dấu mặt (Punk).
+- Phụ kiện (`cover: false`): phần trước không cần che kín đầu (Shades).
+- Đầu chuỗi lủng lẳng có thể là hình (ngôi sao 5 cánh, dấu sao 8 cánh), xoay theo hướng chuỗi (Star, Asterisk).
+- Mũ tương lai Visor (vỏ cao + khe kính) và Jet (vòm + hai cánh xếch) lấy số thứ tự của Moto và Hard hat; Saucer, Top hat, Cone lấy số của Segments, Cap, Racer; các kiểu mới khác thêm vào cuối.
+
