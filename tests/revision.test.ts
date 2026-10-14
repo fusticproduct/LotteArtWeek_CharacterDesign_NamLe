@@ -361,13 +361,13 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('arcs five touching ragdoll finger circles around each hand, never inside it, the same size and colour as the toes',()=>{
+it('arcs five touching ragdoll finger circles around each hand, never inside it, drawn over it, the same size and colour as the toes',()=>{
  const spec=generate('fingers'),rig=createCharacter(spec),r=rig.fingers.radius;
  expect(rig.fingers.meshes.length).toBe(10);
  const toe=rig.group.getObjectByName('toes_L') as SkinnedMesh;toe.geometry.computeBoundingBox();
  expect(toe.geometry.boundingBox!.max.y-toe.geometry.boundingBox!.min.y).toBeCloseTo(2*r,3);
  for(const finger of rig.fingers.meshes){
-  expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
+  expect(finger.renderOrder).toBeGreaterThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
   expect((finger.material as MeshBasicMaterial).color.getHexString()).toBe((toe.material as MeshBasicMaterial).color.getHexString());
   expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
  }

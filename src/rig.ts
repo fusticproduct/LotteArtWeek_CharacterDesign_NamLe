@@ -361,7 +361,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const restack=(next:Partial<typeof stacking>)=>{
   stacking={...stacking,...next};const key=JSON.stringify(stacking);if(key===stackKey)return;stackKey=key;
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
-  for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder-.5;
+  for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
   for(const back of hairBack)back.renderOrder=group.getObjectByName('head_mesh')!.renderOrder-(back.userData.accent?.4:.5);
  };

@@ -802,3 +802,7 @@ Anh Nam duyệt bảng 32 kiểu đầu tiên rồi góp ý: tóc không phân b
 - 22 kiểu + None trong `src/hair.ts`, thiết kế trong khung 200 px (đầu tròn tâm (100,112), bán kính 38); `docs/hair-proposal.html` vẽ trực tiếp từ file này (lưới trên đầu tròn và bảng mọi kiểu × 6 hình đầu). Bỏ: tóc buộc hai bên, tóc dài, đuôi ngựa, búi xiên, bím hạt, ăng-ten, chỏm tóc, mái răng cưa, vòng hạt, mũ len, pixie, mullet.
 - Đặt lên đầu: khung thiết kế quy ra mét theo cỡ hình đầu (trung bình rộng và cao so với 76 px), tâm là tâm hình đầu. Mũ/mái trước = đường viền hình đầu cắt phía trên một đường (có thể nghiêng, kiểu Sweep), nở ra vài px; đường cắt không bao giờ thấp hơn đỉnh dấu mặt + 8 mm.
 - Bộ phận mới `hair` (bone con của đầu, cuối danh sách nên seed cũ vẫn đọc được, tóc lấy theo tên nhân vật). Seed phiên bản 6. Màu tóc là vai trò mới R trong bộ màu (khác màu đầu, cách ≥ 60° trên vòng màu khi được); kiểu hai màu dùng màu phụ. Slider Hair (50–150%).
+
+## 52. Không có bóng đổ; ngón tay nằm trên bàn tay (14/10/2026)
+
+Anh Nam yêu cầu bóng đổ giữa các lớp (thử kiểu lệch xuống phải, rồi kiểu nở đều như Expand path trong Illustrator), sau đó bỏ hẳn: app không có bóng đổ. Bản thử được cất ở nhánh `archive/shadows-dropped`, không nằm trong app. Giữ lại một ý trong lượt đó: 5 ngón tay vẽ đè lên bàn tay (như ngón chân đè lên bàn chân); bàn chân vốn đã nằm trên ống chân.
