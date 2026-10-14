@@ -132,10 +132,11 @@ export const twoTone=5;
 export const patchwork=6;
 /**
  * Flow (index 7, Nam 2026-10-14): a linear gradient of 2-3 palette colours that keeps sliding along the part, on four
- * random parts (head, hands, feet or limb segments), never a mirrored pair and never touching another patterned part.
+ * random parts (hands, feet or limb segments; never the head), never a mirrored pair and never touching another patterned part.
  */
 export const flow=7,flowCount=4;
-const flowKinds:SlotKind[]=['head','hand','foot','limb','leg'];
+// Never the head: Nam did not like the gradient there (2026-10-14).
+const flowKinds:SlotKind[]=['hand','foot','limb','leg'];
 /** Weave, patchwork and flow are patterns; two-tone (two colour layers) is not. */
 const textured=(p:PartChoice)=>p.pattern>0&&p.pattern!==twoTone;
 /** Parts that touch with no visible joint between them (a thigh touches the piece carrying the hips, whose joints are hidden). */
@@ -146,7 +147,7 @@ const touching=(parts:Record<string,PartChoice>,id:string):string[]=>{
  if(part==='thigh')return [carrier];if(id==='head')return ['neck'];return [];
 };
 /** Fixed order in which flow parts are kept and filled. */
-const flowOrder=['head','hand_R','forearm_L','shin_R','foot_L','upperarm_R','thigh_L','hand_L','foot_R','forearm_R','shin_L','upperarm_L','thigh_R'];
+const flowOrder=['hand_R','forearm_L','shin_R','foot_L','upperarm_R','thigh_L','hand_L','foot_R','forearm_R','shin_L','upperarm_L','thigh_R'];
 /** Whether a part may take the flow next to the parts already chosen. */
 const flowFits=(parts:Record<string,PartChoice>,id:string,chosen:string[])=>!(textured(parts[id])&&parts[id].pattern!==flow)&&!chosen.includes(id)&&!(rules().flowApart&&chosen.includes(twinOf(id)!))&&(!rules().touching||touching(parts,id).every(n=>!chosen.includes(n)&&!(textured(parts[n])&&parts[n].pattern!==flow)));
 /** Fixed order in which spots are kept and filled, so a seed always settles the same way. */
@@ -359,8 +360,15 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
  while(spots.length<rules().checker){const options=allowed.filter(id=>!spots.includes(id)&&!(rules().checkerApart&&spots.includes(twinOf(id)!))&&!frozen.has(id));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=patchwork;spots.push(id);}
  // Flow: a rerolled part keeps it; missing ones are drawn at random from the parts that fit.
  if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===flow)parts[id].pattern=flow;
- const flows=flowOrder.filter(id=>parts[id].pattern===flow);
- while(flows.length<rules().flow){const options=flowOrder.filter(id=>!frozen.has(id)&&flowFits(parts,id,flows));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=flow;flows.push(id);}
+ // A random pick can box itself in (a hand taken before its forearm…), so up to twelve draws are tried and the one
+ // that places the most is kept.
+ const kept=flowOrder.filter(id=>parts[id].pattern===flow);let flows=kept;
+ for(let attempt=0;attempt<12&&flows.length<rules().flow;attempt++){
+  const draw=[...kept];
+  while(draw.length<rules().flow){const options=flowOrder.filter(id=>!frozen.has(id)&&flowFits(parts,id,draw));if(!options.length)break;draw.push(options[Math.floor(random()*options.length)]);}
+  if(draw.length>flows.length)flows=draw;
+ }
+ for(const id of flows)parts[id].pattern=flow;
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}

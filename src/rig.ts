@@ -535,6 +535,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  /** Spray blur settings (spray.ts) for the two spray parts; a Donut's hole plug hides with its part. */
  const setSpray=(s:SpraySettings)=>{for(const spray of sprays)spray.configure(s,[group.getObjectByName(spray.part.name.replace(/_mesh$/,'_plug'))].filter(o=>!!o) as THREE.Object3D[]);};
  setSpray(defaultSpray);
+ // Every part is drawn in three.js's see-through pass, which keeps to renderOrder like the opaque pass does: the spray
+ // copies blend for real (spray.ts) and still sit in their part's place among the layers.
+ group.traverse(o=>{const m=(o as THREE.Mesh).material;if(m)for(const material of Array.isArray(m)?m:[m])material.transparent=true;});
  return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setStage,dispose,fingers,hair:dangles,pixels,sprays,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

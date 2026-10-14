@@ -141,7 +141,7 @@ it('mirrors hands, feet and joints (shape + colour) and leg shapes across left/r
  }
 });
 it('keeps texture patterns on the body pieces only, also for older seeds',()=>{
- for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind)){const p=s.parts[b.id].pattern,allowed=['limb','leg'].includes(b.kind)?[0,twoTone,patchwork,flow]:['head','hand','foot'].includes(b.kind)?[0,flow]:[0];expect(allowed,`${b.id}: ${p}`).toContain(p);}}
+ for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind)){const p=s.parts[b.id].pattern,allowed=['limb','leg'].includes(b.kind)?[0,twoTone,patchwork,flow]:['hand','foot'].includes(b.kind)?[0,flow]:[0];expect(allowed,`${b.id}: ${p}`).toContain(p);}}
  const legacy=generate('legacy');legacy.parts.thigh_L.pattern=2;legacy.parts.hand_R.variant=3;
  const restored=decodeSeed(encodeSeed(legacy));expect([0,patchwork]).toContain(restored.parts.thigh_L.pattern);expect(restored.parts.hand_R).toEqual(restored.parts.hand_L);
 });
@@ -408,13 +408,17 @@ it('puts five touching toes along each sole over the foot, and sizes fingers and
  rig.dispose();big.dispose();
 });
 
-it('puts a sliding flow gradient on four random parts, never a mirrored pair and never touching another patterned part',()=>{
+it('puts a sliding flow gradient on four random parts (fewer only if no more fit, never the head), never a mirrored pair and never touching another patterned part',()=>{
  const touching:Record<string,string[]>={hand:['forearm'],forearm:['hand'],foot:['shin'],shin:['foot']},textured=(s:ReturnType<typeof generate>,id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern!==twoTone;
  const seen=new Set<string>(),base=generate('flow-base');
  for(let i=0;i<200;i++){
   const s=i%3===0?generate(`fl-${i}`,base,new Set(['head'])):i%3===1?generate(`fl-${i}`,base,new Set(),['hand_L','shin_R','spine_upper'][i%3]):generate(`fl-${i}`);
   const on=bones.filter(b=>s.parts[b.id].pattern===flow).map(b=>b.id);
-  expect(on.length,`${i}`).toBe(4);for(const id of on)expect(on,`${i}`).not.toContain(twinOf(id));
+  expect(on.length,`${i}`).toBeLessThanOrEqual(4);for(const id of on)expect(on,`${i}`).not.toContain(twinOf(id));
+  // Fewer than four only when no other part could take it (the head never does).
+  const fits=(id:string)=>{const [part,side]=id.split('_');return s.parts[id].pattern===0||s.parts[id].pattern===twoTone?!on.includes(twinOf(id)!)&&(touching[part]??[]).every(n=>!on.includes(`${n}_${side}`)&&!textured(s,`${n}_${side}`))&&(part!=='thigh'||!textured(s,s.parts.spine_lower.variant===0?'spine_upper':'root')):false;};
+  if(on.length<4)for(const b of bones)if(['hand','foot','limb','leg'].includes(b.kind)&&!on.includes(b.id))expect(fits(b.id),`${i}: ${b.id} could take a gradient`).toBe(false);
+  expect(s.parts.head.pattern).not.toBe(flow);
   // Two flow parts never touch each other either.
   for(const id of on){const [part,side]=id.split('_');for(const n of touching[part]??[])expect(on,`${i}: ${id}`).not.toContain(`${n}_${side}`);}
   for(const id of on){
@@ -584,7 +588,7 @@ it('lets the pixel part be turned off, resized and redrawn at a low frame rate',
  rig.dispose();
 });
 
-it('spray-blurs two random parts when turned on: grainy copies in the part\'s layer, the part itself hidden',()=>{
+it('spray-blurs two random parts when turned on: see-through copies in the part\'s layer, the part itself hidden',()=>{
  expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({on:true,amount:.15});
  for(let i=0;i<10;i++){
   const spec=generate(`spray-${i}`),ids=sprayPartsOf(spec);
@@ -594,7 +598,7 @@ it('spray-blurs two random parts when turned on: grainy copies in the part\'s la
   rig.setSpray({on:true,amount:.08});
   for(const spray of rig.sprays){
    expect(spray.part.visible).toBe(false);
-   for(const m of spray.meshes){expect(m.visible).toBe(true);expect(m.renderOrder).toBe(spray.part.renderOrder);const mat=m.material as MeshBasicMaterial;expect(mat.alphaHash).toBe(true);expect(mat.transparent).toBe(false);expect(mat.opacity).toBeLessThan(.2);}
+   for(const m of spray.meshes){expect(m.visible).toBe(true);expect(m.renderOrder).toBe(spray.part.renderOrder);const mat=m.material as MeshBasicMaterial;expect(mat.transparent).toBe(true);expect(mat.opacity).toBeLessThan(.2);}
   }
   rig.setSpray({on:false,amount:.08});for(const spray of rig.sprays)expect(spray.part.visible).toBe(true);
   rig.dispose();
@@ -615,7 +619,7 @@ it('follows the pattern rules: counts, mirrored pairs, touching parts, weave, pi
  try{
   expect(normalizeRules({checker:99,flow:-3,twoTone:7,checkerStyles:[false,false,false,false]})).toEqual({...defaultRules,checker:6,flow:0,twoTone:1});
   setRules({...defaultRules,checker:3,flow:6,pixel:3,spray:1});
-  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork),`${i}`).toBe(3);expect(count(spec,flow)).toBeGreaterThanOrEqual(4);expect(count(spec,flow)).toBeLessThanOrEqual(6);expect(pixelPartsOf(spec).length).toBe(3);expect(sprayPartsOf(spec).length).toBe(1);}
+  for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork),`${i}`).toBe(3);expect(count(spec,flow)).toBeGreaterThanOrEqual(3);expect(count(spec,flow)).toBeLessThanOrEqual(6);expect(pixelPartsOf(spec).length).toBe(3);expect(sprayPartsOf(spec).length).toBe(1);}
   setRules({...defaultRules,checker:0,flow:0,weave:0,twoTone:0});
   for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(Object.values(spec.parts).every(p=>p.pattern===0),`${i}`).toBe(true);}
   setRules({...defaultRules,weave:2});
@@ -638,4 +642,10 @@ it('seats the top piece cleanly on the bottom one: nothing of it below the top l
   const near=(poly:[number,number][],[x,y]:[number,number])=>poly.some((a,i)=>{const b=poly[(i+1)%poly.length],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(a[0]+dx*t-x,a[1]+dy*t-y)<1e-4;});
   for(const [x,y] of layout.top.outline)if(y<s-1e-6)expect(inside(layout.bottom.outline as [number,number][],[x,y])||near(layout.bottom.outline as [number,number][],[x,y]),`${JSON.stringify(body)} at ${x.toFixed(3)},${y.toFixed(3)}`).toBe(true);
  }
+});
+
+it('draws every part in the same see-through pass, so the layer order alone decides what is in front',()=>{
+ const rig=createCharacter(generate('one-pass'));rig.setSpray({on:true,amount:.05});
+ rig.group.traverse(o=>{const m=(o as SkinnedMesh).material as MeshBasicMaterial|undefined;if(m)expect(m.transparent,o.name).toBe(true);});
+ rig.dispose();
 });
