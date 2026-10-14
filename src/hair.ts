@@ -72,7 +72,6 @@ const gear=(x:number,y:number,inner:number,outer:number,teeth:number)=>piece(Arr
  const a=Math.PI/2+i*Math.PI*2/teeth,p=Math.PI*2/teeth;
  return [at(a-p*.3,inner,x,y),at(a-p*.22,outer,x,y),at(a+p*.22,outer,x,y),at(a+p*.3,inner,x,y),at(a+p*.5,inner,x,y)];
 }).flat());
-const leaf=piece([...curve([96,86],[52,64],[44,14]),...curve([44,14],[96,34],[96,86]).slice(1)]);
 /**
  * The catalogue. Seeds store a style's index: a retired style either hands its index to a new one or stays as a stub
  * (Nam kept only Star and Antenna of the robot hair) that opens as its stand-in.
@@ -101,7 +100,8 @@ export const hairStyles:HairStyle[]=[
  {name:'Top hat',group:'Hat',sits:true,back:[box(64,30,72,54),box(64,64,72,12,true),roundBox(44,82,112,10,5)]},
  {name:'Ball top',group:'Hair',back:[],cap:cap(cy-18),dangles:[{anchor:[cx,70],angle:0,rope:20,radii:[32],accent:[false]}]},
  {name:'Knight',group:'Robot',back:[],retired:'Visor'},
- {name:'Leaves',group:'Hair',back:[leaf,mirror(leaf,true)]},
+ // Retired: Nam saw bunny ears in it.
+ {name:'Leaves',group:'Hair',back:[],retired:'Flame'},
  {name:'Crown',group:'Hat',back:[piece([[56,96],[56,48],[76,72],[88,28],[cx,62],[112,28],[124,72],[144,48],[144,96]])]},
  {name:'Gem',group:'Totem',back:[piece([[cx,10],[138,52],[cx,94],[62,52]])]},
  // A striped cone resting on the head.

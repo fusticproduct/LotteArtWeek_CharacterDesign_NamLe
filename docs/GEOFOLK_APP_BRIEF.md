@@ -942,3 +942,15 @@ Anh Nam thích các dáng trong `docs/proportion-plan.html` (gửi ảnh 11 dán
 - Rig: `typedProportions` nhân các slider; `bodyLayout(..., length)` dời đường đỉnh thân (dựng lại hình, không kéo); độ dài đoạn tay/chân/cổ và vị trí khuỷu, bàn tay, gối, bàn chân, đầu nhân theo dáng. Chiều cao nghỉ đo thật từ hình (`restHeight`).
 - Test chạy với 100% dáng today để các kích thước danh nghĩa không đổi; một test riêng kiểm tra tỉ lệ dáng, seed, giữ dáng khi random một bộ phận, Build/hình và độ dài theo từng dáng.
 
+## 70. Rèm cẳng tay (14/10/2026)
+
+Anh Nam: trên 2 cẳng tay có rèm ragdoll: nhiều sợi spline với các hình hình học ngẫu nhiên nhân bản trên sợi, rơi theo trọng lực, thả lỏng không cứng; chọn 1 màu hoặc màu ngẫu nhiên từ bảng màu. Sau đó thêm tùy chọn độ dài, mật độ.
+
+- `src/curtains.ts`: mỗi sợi 9 đoạn verlet, đầu ghim trên xương cẳng tay (15–85% chiều dài), trọng lực, giảm chấn 0,985, 12 lượt nới đều rồi một lượt từ chỗ ghim xuống đặt đúng độ dài từng đoạn (tay giật mạnh cũng không giãn dây). Không có lực kéo về dáng. Vẽ: dải 6 mm theo đường Catmull-Rom qua các điểm, hình xâu đều trên sợi, xoay theo hướng sợi. Lưới vẽ gộp theo màu, loại (dây/hình) và tay, vẽ ngay sau cẳng tay (dây −0,25, hình −0,2).
+- Màu: các màu trong bảng màu trừ trắng giấy và màu tối, theo palette đang chọn (XMAS/TET đổi theo). One: một màu cho cả hai rèm; Random: mỗi sợi và mỗi hình một màu. Mỗi sợi rút ngẫu nhiên từ dòng riêng (tên nhân vật + tay + số thứ tự), nên đổi một tùy chọn không xáo trộn các sợi khác.
+- Tùy chọn: Strands per arm 2–16, Curtain length / Shape size 40–250%, Shape spacing 40–300%.
+
+## 71. Bỏ tóc Leaves (14/10/2026)
+
+Anh Nam thấy kiểu Leaves giống tai thỏ: chuyển thành kiểu nghỉ (seed cũ mở thành Flame), Generate không chọn nữa.
+
