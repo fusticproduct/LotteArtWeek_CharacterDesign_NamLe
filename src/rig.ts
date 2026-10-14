@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
-import {drawWeave,drawPatchwork,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
+import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
 import {createFingers} from './fingers';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
@@ -53,6 +53,8 @@ export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):stri
  };
  return [...order].reverse().flatMap(g=>blocks[g]);
 }
+/** Flow: one full loop of its colours per 0.6 m, sliding along at one loop per 14 s. */
+export const flowSpan=.6,flowPeriod=14;
 /** World size (m) of one patchwork tile: 24 units of 3.5 cm, so a limb is about four units across. */
 export const patchworkTile=patchworkUnits*.035;
 /** World size (m) of one weave tile for a pattern-scale value: higher scale = more, smaller cells. */
@@ -70,7 +72,13 @@ function weaveCanvas(seed:string,palette:WeavePaletteName,draw:(canvas:HTMLCanva
 /** `colorOf` gives the hex of a palette index in the chosen palette (see themes.ts). */
 function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string) {
  const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
- if(p.pattern===patchwork&&typeof document!=='undefined'){
+ if(p.pattern===flow&&typeof document!=='undefined'){
+  // Flow: a looping colour strip mapped along the part's own flow direction (see flowUV); tick() slides it.
+  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|flow`,weavePalette,drawFlow,512));
+  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=THREE.RepeatWrapping;texture.repeat.set(1/flowSpan,1);
+  material.map=texture;material.color.setRGB(1,1,1);
+ }
+ else if(p.pattern===patchwork&&typeof document!=='undefined'){
   // Patchwork quilt, mapped flat in metres like the weave; each of the two spots has its own quilt.
   const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
   texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/patchworkTile,1/patchworkTile);
@@ -147,6 +155,13 @@ function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry
  };
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
+/** Flow mapping: U runs along a direction in the part's plane, picked per part from the seed; V is constant. */
+function flowUV(g:THREE.BufferGeometry,angle:number){
+ const position=g.getAttribute('position'),uv=new THREE.BufferAttribute(new Float32Array(position.count*2),2),c=Math.cos(angle),s=Math.sin(angle);
+ for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i)*c+position.getY(i)*s,.5);
+ g.setAttribute('uv',uv);return g;
+}
+const seedAngle=(text:string)=>{let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return (h>>>0)/4294967296*Math.PI*2;};
 function planarUV(g:THREE.BufferGeometry){
  const position=g.getAttribute('position');if(!g.getAttribute('uv'))g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(position.count*2),2));const uv=g.getAttribute('uv');
  for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i),position.getY(i));
@@ -299,7 +314,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  bones.forEach((def,index)=>{
-  const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):shaped,count=geometry.getAttribute('position').count;
+  const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):choice.pattern===flow?flowUV(shaped,seedAngle(`${spec.label}|${def.id}`)):shaped,count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
@@ -378,7 +393,12 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
  const dispose=()=>{fingers.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
  fingers.settle();
+ // Flow parts slide their colours: each starts at its own phase.
+ const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
+ let clock=0;
+ /** Advance the moving parts by dt seconds: the flow gradients and the ragdoll fingers. */
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=(f.phase+clock/flowPeriod)%1;fingers.update(dt);};
  /** Ragdoll fingers: `updateFingers(dt)` every frame; `settleFingers()` before a still picture. */
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,updateFingers:fingers.update,settleFingers:fingers.settle};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,tick,updateFingers:fingers.update,settleFingers:fingers.settle};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

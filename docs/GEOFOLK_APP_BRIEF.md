@@ -740,3 +740,11 @@ Anh Nam: 5 ngón tay "ragdoll" mỗi bàn tay, làm bằng spline.
 - Anh Nam: ngón tay cứng hơn nhiều. Lực giữ dáng 0,05 → 0,3: ngón giữ dáng, chỉ lắc nhẹ theo quán tính; giơ tay thì ngón chỉ lên theo tay. Thêm slider Finger stiffness: lực = 0,3 × độ cứng^2,6 (50% ≈ 0,05 mềm như bản đầu, 150% ≈ 0,86 gần như cứng).
 - Ngón chân (theo ảnh anh gửi): 5 hình tròn dọc theo đế mỗi bàn chân, vẽ đè lên bàn chân, màu = màu phụ của bàn chân. Nhân vật đứng trên ngón chân.
 - Tab Proportions thêm Fingers, Finger stiffness, Toes. Slider Hair sẽ thêm cùng tóc.
+
+## 43. Gradient Flow chuyển động (14/10/2026)
+
+Anh Nam: vài bộ phận ngẫu nhiên có gradient tuyến tính (không dạng tròn), lệch pha chuyển động liên tục, 2–3 màu của palette mỗi lần, chu kỳ dài. Lúc đầu 2 bộ phận, sau đó đổi thành 4.
+
+- Pattern 7 = Flow. 4 bộ phận trong đầu, bàn tay, bàn chân, bắp tay, cẳng tay, đùi, ống chân; không bao giờ là cặp đối xứng, không chạm bộ phận có hoa văn (đan, patchwork, Flow khác). Đùi chạm khối thân mang hông.
+- Màu: 2 hoặc 3 màu đậm trong bảng màu đan của palette đang chọn, xếp thành vòng (màu cuối quay về màu đầu) nên trôi không có đường nối. Hướng dải màu riêng theo từng bộ phận. Một vòng màu mỗi 0,6 m; trôi một vòng mỗi 14 giây, mỗi bộ phận lệch pha riêng.
+- Bộ phận đối xứng (bàn tay, bàn chân, khớp) vẫn chung hình và màu; hoa văn thì nằm riêng một bên.

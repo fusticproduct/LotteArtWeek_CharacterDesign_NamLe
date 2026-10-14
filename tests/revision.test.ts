@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -124,13 +124,14 @@ it('mirrors hands, feet and joints (shape + colour) and leg shapes across left/r
  let s=generate('mirror-0');
  for(let i=0;i<120;i++){
   s=i%3===0?generate(`m-${i}`,s,new Set(['hand_L','thigh_R'])):generate(`m-${i}`,s,new Set(),['hand_R','foot_L','hip_R','shin_L','thigh_R'][i%5]);
-  for(const part of ['shoulder','hip','hand','foot'])expect(s.parts[`${part}_R`],`${i}: ${part}`).toEqual(s.parts[`${part}_L`]);
+  // Shape and colour mirror; patterns (patchwork, flow) are placed on one side on purpose.
+  for(const part of ['shoulder','hip','hand','foot'])for(const key of ['variant','color'] as const)expect(s.parts[`${part}_R`][key],`${i}: ${part}`).toBe(s.parts[`${part}_L`][key]);
   for(const part of ['thigh','shin'])expect(s.parts[`${part}_R`].variant,`${i}: ${part}`).toBe(s.parts[`${part}_L`].variant);
   for(const b of bones){if(b.parent)expect(s.parts[b.id].color,`${i}: ${b.id}`).not.toBe(s.parts[b.parent].color);}
  }
 });
 it('keeps texture patterns on the body pieces only, also for older seeds',()=>{
- for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind))expect([0,twoTone,patchwork].includes(s.parts[b.id].pattern)&&(s.parts[b.id].pattern===0||['limb','leg'].includes(b.kind)),b.id).toBe(true);}
+ for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind)){const p=s.parts[b.id].pattern,allowed=['limb','leg'].includes(b.kind)?[0,twoTone,patchwork,flow]:['head','hand','foot'].includes(b.kind)?[0,flow]:[0];expect(allowed,`${b.id}: ${p}`).toContain(p);}}
  const legacy=generate('legacy');legacy.parts.thigh_L.pattern=2;legacy.parts.hand_R.variant=3;
  const restored=decodeSeed(encodeSeed(legacy));expect([0,patchwork]).toContain(restored.parts.thigh_L.pattern);expect(restored.parts.hand_R).toEqual(restored.parts.hand_L);
 });
@@ -389,4 +390,26 @@ it('puts five toes along each sole over the foot, in the foot accent colour, and
  const box=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.y-g.boundingBox!.min.y;};
  expect(box(big)/box(rig)).toBeCloseTo(1.5,1);
  rig.dispose();big.dispose();
+});
+
+it('puts a sliding flow gradient on four random parts, never a mirrored pair and never touching another patterned part',()=>{
+ const touching:Record<string,string[]>={hand:['forearm'],forearm:['hand'],foot:['shin'],shin:['foot']},textured=(s:ReturnType<typeof generate>,id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern!==twoTone;
+ const seen=new Set<string>(),base=generate('flow-base');
+ for(let i=0;i<200;i++){
+  const s=i%3===0?generate(`fl-${i}`,base,new Set(['head'])):i%3===1?generate(`fl-${i}`,base,new Set(),['hand_L','shin_R','spine_upper'][i%3]):generate(`fl-${i}`);
+  const on=bones.filter(b=>s.parts[b.id].pattern===flow).map(b=>b.id);
+  expect(on.length,`${i}`).toBe(4);for(const id of on)expect(on,`${i}`).not.toContain(twinOf(id));
+  // Two flow parts never touch each other either.
+  for(const id of on){const [part,side]=id.split('_');for(const n of touching[part]??[])expect(on,`${i}: ${id}`).not.toContain(`${n}_${side}`);}
+  for(const id of on){
+   seen.add(id.split('_')[0]);const [part,side]=id.split('_');
+   for(const n of touching[part]??[])expect(textured(s,`${n}_${side}`),`${i}: ${id} touches ${n}`).toBe(false);
+   if(part==='thigh')expect(textured(s,s.parts.spine_lower.variant===0?'spine_upper':'root'),`${i}: ${id}`).toBe(false);
+  }
+  expect(decodeSeed(encodeSeed(s)).parts[on[0]].pattern).toBe(flow);
+ }
+ expect(seen.size).toBeGreaterThan(5);
+ // The flow keeps moving: one tick slides each flow texture along.
+ const rig=createCharacter(base),id=bones.find(b=>base.parts[b.id].pattern===flow)!.id;
+ expect(rig.group.getObjectByName(`${id}_mesh`)).toBeDefined();rig.tick(1);rig.dispose();
 });

@@ -142,6 +142,16 @@ export function drawWeave(canvas:HTMLCanvasElement,seed:string,paletteName:Weave
  return {cols,rows};
 }
 
+/**
+ * Flow gradient (Nam, 2026-10-14): 2 or 3 of the palette's strong colours in a loop (first, second, [third,] back to the
+ * first), drawn as a strip that repeats without a seam, so sliding it along a part keeps the colours moving.
+ */
+export function drawFlow(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName){
+ const src=weavePalettes[paletteName],r=rngFrom(seed),ctx=canvas.getContext('2d')!,strong=[...src.main,...src.secondary].filter(c=>lightness(c)<.85);
+ const colours=shuffle(r,strong).slice(0,r()<.5?2:3),gradient=ctx.createLinearGradient(0,0,canvas.width,0);
+ colours.forEach((c,i)=>gradient.addColorStop(i/colours.length,c));gradient.addColorStop(1,colours[0]);
+ ctx.fillStyle=gradient;ctx.fillRect(0,0,canvas.width,canvas.height);
+}
 /** Units per side of one patchwork tile; blocks are 2 or 3 units, so a tile repeats without seams. */
 export const patchworkUnits=24;
 /** Splits n units into a random run of 2s and 3s (never leaving a single unit). */

@@ -38,7 +38,7 @@ function World(p:Props){
   else if(p.pose==='dance'){const frame=danceFrame(t);rig.applyAngles(frame.angles);rig.setDepth(frame.depth);posed.current=false;}
   else if(!calm){rig.applyAngles(breathe(p.pose,t));rig.setDepth(null);posed.current=false;}
   else if(!posed.current){rig.applyPose(p.pose);rig.setDepth(null);posed.current=true;}
-  rig.updateFingers(delta);
+  rig.tick(delta);
  });
  const helper=useMemo(()=>{const h=new SkeletonHelper(rig.group);(Array.isArray(h.material)?h.material:[h.material]).forEach(m=>m.depthTest=false);const colors=h.geometry.getAttribute('color');const tint=new Color(p.dark?theme.paper:theme.ink);for(let i=0;i<colors.count;i++)colors.setXYZ(i,tint.r,tint.g,tint.b);h.renderOrder=99;return h;},[rig,p.dark]);
  useEffect(()=>()=>{helper.geometry.dispose();(Array.isArray(helper.material)?helper.material:[helper.material]).forEach(m=>m.dispose());},[helper]);
