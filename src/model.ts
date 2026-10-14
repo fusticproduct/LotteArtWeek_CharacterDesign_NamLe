@@ -52,9 +52,12 @@ export const single=0,pair=1,bigTop=2,bigBottom=3,donut=6;
 const buildWeights=[.25,.3,.25,.2];
 /** Mirrored partner of a body shape (Bowl <-> Dome, Funnel <-> A-line); the others mirror onto themselves. */
 export const mirrorShape=(v:number)=>v===2?3:v===3?2:v===4?5:v===5?4:v;
-/** Dome and A-line read as a skirt when they sit below, so they are never a bottom piece (Nam, 2026-10-14). */
-const skirts=[3,5],allShapes=bodyShapes.map((_,i)=>i);
-/** Bottom shapes a Pair may use under a top shape: the same shape or its mirror, never a skirt (a Dome over a Bowl makes a split circle, an A-line over a Funnel a diamond). */
+/**
+ * Shapes that are never a bottom piece (Nam, 2026-10-14): Dome and A-line read as a skirt, Funnel as a V. A seed that
+ * has one below opens with `safeBottom` instead (Dome → Bowl, A-line and Funnel → Block).
+ */
+const skirts=[3,4,5],safeBottom:Record<number,number>={3:2,4:1,5:1},allShapes=bodyShapes.map((_,i)=>i);
+/** Bottom shapes a Pair may use under a top shape: the same shape or its mirror, never a skirt (a Dome over a Bowl makes a split circle). Funnel and A-line have none, so they are never a Pair. */
 export const pairPartners=(top:number)=>[...new Set([top,mirrorShape(top)])].filter(v=>!skirts.includes(v));
 /** Top shapes a Pair may use over a bottom shape. */
 const pairTops=(bottom:number)=>allShapes.filter(top=>pairPartners(top).includes(bottom));
@@ -62,7 +65,7 @@ const pairTops=(bottom:number)=>allShapes.filter(top=>pairPartners(top).includes
  * Shapes each piece may take in a build. No skirt below; no Donut as the small piece (its hole would shrink to a dot);
  * a Single body is never a half circle (one true half circle that tall would be 1.5 m wide).
  */
-export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&(v===2||v===3))&&!(build===bigBottom&&v===donut));
+export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&(v===2||v===3))&&!(build===bigBottom&&v===donut)&&!(build===pair&&!pairPartners(v).length));
 export const bottomShapes=(build:number)=>allShapes.filter(v=>!skirts.includes(v)&&!(build===bigTop&&v===donut));
 export const variants:Record<SlotKind,string[]>={
  // Head, body pieces and face mark are flat 2D shapes (seed version 3); the other parts are still turned 3D shapes.
@@ -89,7 +92,7 @@ export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntrie
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */
 export const studioProportions=normalizeProportions(savedProportions);
 /** Shapes of the visible ball joints (Nam, 2026-10-14). Flat shapes are as wide inside as the ball, so they still cover the segment ends. */
-export const jointShapes=['Sphere','Square','Diamond','Hexagon','Triangle'];
+export const jointShapes=['Sphere','Square','Diamond','Hexagon','Ring'];
 const isBallJoint=(id:string)=>/^(shoulder|elbow|knee)_/.test(id);
 export const variantNames=(bone:BoneDefinition)=>isBallJoint(bone.id)?jointShapes:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
 /** Name shown for a part; a Single body has no bottom piece. */
@@ -120,10 +123,10 @@ const upperSegment:Record<string,string>={forearm:'upperarm',shin:'thigh'};
 export const pairedSegment=(id:string)=>{const [part,side]=id.split('_');const other=lowerSegment[part]??upperSegment[part];return other?`${other}_${side}`:undefined;};
 const boneById=(id:string)=>bones.find(b=>b.id===id)!;
 export const twinOf=(id:string)=>/_[LR]$/.test(id)?id.slice(0,-1)+(id.endsWith('L')?'R':'L'):undefined;
-/** Ball joints. They share one colour per character (Nam, 2026-10-11), so they lock and reroll as one group. */
+/** Joints. Each joint type has its own colour and shape, the same on both sides (Nam, 2026-10-14); a pair locks and rerolls together. */
 export const isJoint=(id:string)=>/^(shoulder|elbow|knee|hip)_[LR]$/.test(id);
 /** Bones that are locked/rerolled together with `id`. */
-export const linkedIds=(id:string)=>{if(isJoint(id))return bones.filter(b=>isJoint(b.id)).map(b=>b.id);const twin=twinOf(id);return twin&&(mirrorsFully(id)||mirrorsShape(id))?[id,twin]:[id];};
+export const linkedIds=(id:string)=>{const twin=twinOf(id);return twin&&(mirrorsFully(id)||mirrorsShape(id))?[id,twin]:[id];};
 const kindOf=(id:string)=>bones.find(b=>b.id===id)!.kind;
 /** Applies the design rules to any spec, including specs decoded from older seeds. */
 export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
@@ -140,9 +143,9 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
   parts[b.id]=p;
  }
  // The build's shape rules, applied the same way every time (also to decoded seeds): a skirt below becomes its
- // mirror, a small Donut or a Single half circle becomes a Circle, a Pair's bottom follows its top.
+ // safe stand-in, a small Donut or a shape the build does not allow on top becomes a Circle, a Pair's bottom follows its top.
  const build=parts.spine_lower.variant,top=parts.spine_upper,bottom=parts.root;
- if(build!==single&&skirts.includes(bottom.variant))bottom.variant=mirrorShape(bottom.variant);
+ if(build!==single&&skirts.includes(bottom.variant))bottom.variant=safeBottom[bottom.variant];
  if(build===bigTop&&bottom.variant===donut)bottom.variant=0;
  if(!topShapes(build).includes(top.variant))top.variant=0;
  if(build===pair&&!pairPartners(top.variant).includes(bottom.variant))bottom.variant=pairPartners(top.variant)[0];
@@ -152,12 +155,16 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
 }
 /**
  * A character's colour scheme (A1): two body colours spread over the limbs by `layout`, an accent for hands, feet
- * and pelvis, one joint colour and a head colour. Every character draws its own (55,536 schemes × 4 layouts from
- * the 15 vibrant colours), so a crowd rarely repeats while each figure stays to five colours. Not stored in the
- * seed: the seed keeps each part's colour.
+ * and pelvis, one colour per joint type (shoulders, elbows, knees; all different) and a head colour. Every character
+ * draws its own from the 15 vibrant colours, so a crowd rarely repeats while each figure stays to seven colours.
+ * Not stored in the seed: the seed keeps each part's colour.
  */
 export const schemeLayouts=['arms-legs','upper-lower','alternate','sides'] as const;
-export interface Scheme {A:number;B:number;C:number;J:number;H:number;layout:typeof schemeLayouts[number];}
+export interface Scheme {A:number;B:number;C:number;J:number[];H:number;layout:typeof schemeLayouts[number];}
+/** Pinned roles: locked hands/feet (accent), locked joint pairs (by type) and a locked head keep their colour. */
+export interface PinnedScheme {C?:number;J?:(number|undefined)[];H?:number;}
+/** Joint type of a joint bone: 0 shoulders (and the hidden hips), 1 elbows, 2 knees. */
+const jointType=(id:string)=>id.startsWith('elbow')?1:id.startsWith('knee')?2:0;
 const dark=palette.findIndex(c=>c.id==='dark_1');
 /** Hue and lightness (0–1) of each palette colour. */
 const tones=palette.map(c=>{const n=parseInt(c.hex.slice(1),16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
@@ -167,19 +174,25 @@ const lightGap=(a:number,b:number)=>Math.abs(tones[a].l-tones[b].l);
 /** How body colour B relates to A: same family but lighter or darker, across the colour wheel, or light against dark. */
 const pairings=[(a:number,b:number)=>hueGap(a,b)<=70&&lightGap(a,b)>=.08,(a:number,b:number)=>hueGap(a,b)>=120,(a:number,b:number)=>lightGap(a,b)>=.2];
 /** Draws a scheme. Roles pinned by locked parts (hands/feet → accent, joints, head) keep their colour. */
-export function drawScheme(random:()=>number,pinned:Partial<Scheme>={}):Scheme{
+export function drawScheme(random:()=>number,pinned:PinnedScheme={}):Scheme{
  const pick=<T,>(a:readonly T[])=>a[Math.floor(random()*a.length)],either=(rule:number[],fallback:number[])=>rule.length?rule:fallback;
- const taken=[pinned.C,pinned.J,pinned.H].filter((c):c is number=>c!==undefined),free=(...used:number[])=>vibrant.filter(c=>!used.includes(c)&&!taken.includes(c));
+ const pinnedJ=pinned.J??[],taken=[pinned.C,...pinnedJ,pinned.H].filter((c):c is number=>c!==undefined),free=(...used:number[])=>vibrant.filter(c=>!used.includes(c)&&!taken.includes(c));
  const A=pick(free()),pairing=pick(pairings),B=pick(either(free(A).filter(c=>pairing(A,c)),free(A)));
  // The accent sits away from both body colours; the joints are clearly lighter or darker than them.
  const C=pinned.C??pick(either(free(A,B).filter(c=>hueGap(c,A)>=60&&hueGap(c,B)>=60),free(A,B)));
- const others=vibrant.filter(c=>![A,B,C].includes(c)),J=pinned.J??pick(either(others.filter(c=>Math.abs(tones[c].l-(tones[A].l+tones[B].l)/2)>=.15),others));
- return {A,B,C,J,H:pinned.H??pick(vibrant.filter(c=>![A,B,J].includes(c))),layout:pick(schemeLayouts)};
+ // One colour per joint type, all different where the palette allows.
+ const J:number[]=[];
+ for(let k=0;k<3;k++){
+  if(pinnedJ[k]!==undefined){J.push(pinnedJ[k]!);continue;}
+  const others=vibrant.filter(c=>![A,B,C,...J].includes(c)&&!pinnedJ.includes(c));
+  J.push(pick(either(others.filter(c=>Math.abs(tones[c].l-(tones[A].l+tones[B].l)/2)>=.15),others)));
+ }
+ return {A,B,C,J,H:pinned.H??pick(either(vibrant.filter(c=>![A,B,...J].includes(c)),vibrant.filter(c=>![A,B].includes(c)))),layout:pick(schemeLayouts)};
 }
-/** Colour and two-tone accent of a part under a scheme. Neighbours always differ: limbs A/B, joints J, hands, feet and pelvis C, neck and waist B, head H, torso A. */
+/** Colour and two-tone accent of a part under a scheme. Neighbours always differ: limbs A/B, joints J (by type), hands, feet and pelvis C, neck and waist B, head H, torso A. */
 export function schemeColor(id:string,s:Scheme):[number,number]{
  const [part,side]=id.split('_');
- if(isJoint(id))return [s.J,s.C];
+ if(isJoint(id))return [s.J[jointType(id)],s.C];
  if(['upperarm','forearm','thigh','shin'].includes(part)){
   const upper=part==='upperarm'||part==='thigh',arm=part==='upperarm'||part==='forearm';
   const c=s.layout==='arms-legs'?(arm?s.A:s.B):s.layout==='upper-lower'?(upper?s.A:s.B):s.layout==='alternate'?(upper===arm?s.A:s.B):(side==='L'?s.A:s.B);
@@ -194,16 +207,16 @@ export function schemeColor(id:string,s:Scheme):[number,number]{
 const adjacent=(id:string)=>bones.filter(n=>n.id===boneById(id).parent||n.parent===id).map(n=>n.id);
 /** Colours every part that is not frozen from a fresh scheme that fits around the frozen (locked) parts. */
 function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>number){
- const kept=(id:string)=>frozen.has(id)?parts[id].color:undefined,pinned:Partial<Scheme>={};
+ const kept=(id:string)=>frozen.has(id)?parts[id].color:undefined,pinned:PinnedScheme={};
  for(const id of ['hand_L','foot_L'])pinned.C??=kept(id);
- pinned.J=bones.filter(b=>isJoint(b.id)).map(b=>kept(b.id)).find(c=>c!==undefined);pinned.H=kept('head');
+ pinned.J=['shoulder_L','elbow_L','knee_L'].map(kept);pinned.H=kept('head');
  const clashes=(s:Scheme)=>bones.some(b=>!frozen.has(b.id)&&adjacent(b.id).some(n=>frozen.has(n)&&parts[n].color===schemeColor(b.id,s)[0]));
  // Usually the first scheme fits; with many locks, try a few more before patching single parts.
  let scheme=drawScheme(random,pinned);for(let i=0;i<60&&clashes(scheme);i++)scheme=drawScheme(random,pinned);
  for(const b of bones)if(!frozen.has(b.id))[parts[b.id].color,parts[b.id].accent]=schemeColor(b.id,scheme);
  for(const b of bones){
   if(frozen.has(b.id)||b.kind==='face')continue;
-  const group=isJoint(b.id)?bones.filter(j=>isJoint(j.id)).map(j=>j.id):mirrorsFully(b.id)?linkedIds(b.id):[b.id];
+  const group=mirrorsFully(b.id)?linkedIds(b.id):[b.id];
   const near=group.flatMap(adjacent).filter(id=>!group.includes(id)).map(id=>parts[id].color);
   if(!near.includes(parts[b.id].color))continue;
   const pool=vibrant.filter(c=>!near.includes(c)),c=pool[Math.floor(random()*pool.length)];
@@ -240,8 +253,7 @@ function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<s
 }
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
  const random=rng(label),parts:Record<string,PartChoice>={};
- // Locking a joint locks every joint (they share one colour); rerolling a ball joint row changes only that pair's shape.
- const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(isBallJoint(only)?[only,twinOf(only)!]:linkedIds(only)):undefined;
+  const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(linkedIds(only)):undefined;
  const frozen=new Set(bones.filter(b=>previous&&(lockedLinked.has(b.id)||(onlyLinked&&!onlyLinked.has(b.id)))).map(b=>b.id));
  // Shapes and patterns first; colours come from the scheme below.
  for(const b of bones){
@@ -262,8 +274,6 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
-  // The hip joints are hidden in the body, so their row gives the joints a new colour instead.
-  if(only!.startsWith('hip_')){const joints=[...onlyLinked],near=joints.flatMap(adjacent).filter(id=>!isJoint(id)).map(id=>parts[id].color),pool=vibrant.filter(c=>!near.includes(c)&&c!==parts[only!].color);const c=pool[Math.floor(random()*pool.length)];if(c!==undefined)for(const id of joints)parts[id].color=c;}
  }
  else paint(parts,frozen,random);
  return normalizeSpec({version:1,label,parts,density:previous?.density??3});

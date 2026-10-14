@@ -663,3 +663,10 @@ Anh Nam: vân giấy trông độ phân giải thấp.
 - Trước: tấm vân 256 px cho mỗi 0,6 m, mảng loang phóng to từ ảnh 16 px, mép không liền. Phóng to là nhòe và vỡ khối.
 - Giờ: tấm vân 1024 px cho mỗi mét, liền mép (lặp không thấy đường nối), 4 tầng nhiễu mịn (mảng loang, đốm, gân, gân mịn), hạt từng điểm ảnh, 1000 sợi giấy mảnh sáng/tối; có mipmap và lọc anisotropy 8. Độ đậm nhạt tổng thể giữ gần như cũ.
 - Hoa văn đan vẽ ở 2048 px thay vì 1024 (vẽ vẫn khoảng 6 ms); bộ nhớ đệm giữ 12 tấm thay vì 24 để không tốn RAM.
+
+## 32. Mỗi loại khớp một màu, khớp Ring, không Funnel ở dưới (14/10/2026)
+
+- Anh Nam: các khớp khác nhau có màu khác nhau nhưng vẫn đối xứng (hai vai cùng hình và màu, hai khuỷu cùng hình và màu, vai và khuỷu có thể khác màu). Bộ màu của nhân vật giờ có một màu cho mỗi loại khớp (vai, khuỷu, gối; ba màu khác nhau, mỗi màu sáng hoặc tối hẳn hơn màu thân), nên một nhân vật dùng tối đa 7 màu. Khóa/random theo từng cặp khớp. Thay cho luật "mọi khớp một màu" ở mục 23.
+- Không dùng tam giác cho khớp (với bán kính trong bằng quả cầu nó to gấp đôi). Thay bằng Ring: vòng tròn có lỗ 0,38 r, nhỏ hơn khe giữa hai đầu đoạn tay chân.
+- XMAS chỉ có 6 màu thân: khi hết màu, chọn lại một màu mà không bộ phận kề nào đang có, nên bộ phận kề nhau vẫn luôn khác màu.
+- Anh Nam: Funnel (chữ V) không được làm khối dưới. Khối dưới giờ chỉ là Circle, Block, Bowl, Donut, Diamond. Funnel và A-line không dùng cho Pair. Seed cũ: Dome dưới → Bowl, A-line/Funnel dưới → Block.

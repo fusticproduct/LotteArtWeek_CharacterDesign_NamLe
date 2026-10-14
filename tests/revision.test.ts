@@ -6,7 +6,7 @@ import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,p
 import {bodyLayout,holdsDisc,seamMargin,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointOutline} from '../src/rig';
+import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -22,16 +22,18 @@ it('middle-button dragging pans without changing distance, while wheel still zoo
  expect(camera.position.distanceTo(before)).toBeGreaterThan(.1);expect(controls.target.distanceTo(target)).toBeGreaterThan(.1);expect(camera.position.distanceTo(controls.target)).toBeCloseTo(distance,6);
  element.dispatchEvent(event('wheel',200,200,{deltaY:-100}));expect(camera.position.distanceTo(controls.target)).toBeLessThan(distance);controls.dispose();
 });
-it('gives shoulders, elbows and knees one of five shapes, mirrored left/right, that cover the segment ends, and opens older seeds with spheres',()=>{
+it('gives shoulders, elbows and knees one of five shapes (no triangle), mirrored left/right, that cover the segment ends, and opens older seeds with spheres',()=>{
  const seen=new Set<number>();
  for(let i=0;i<80;i++){const spec=generate(`joint-${i}`);for(const part of ['shoulder','elbow','knee']){expect(spec.parts[`${part}_R`].variant).toBe(spec.parts[`${part}_L`].variant);seen.add(spec.parts[`${part}_L`].variant);}expect(decodeSeed(encodeSeed(spec)).parts.elbow_L.variant).toBe(spec.parts.elbow_L.variant);}
  expect([...seen].sort()).toEqual([0,1,2,3,4]);
  // Every flat shape holds the whole ball, so segment ends seated on the ball stay covered at any bend.
- for(let v=1;v<5;v++)expect(holdsDisc({outline:jointOutline(v,.07)},[0,0],.07*.999),`shape ${v}`).toBe(true);
- // Rerolling the elbow row changes the elbows only, and keeps the shared joint colour; the hip row recolours all joints.
+ for(let v=1;v<5;v++)expect(holdsDisc({outline:jointPiece(v,.07).outline},[0,0],.07*.999),`shape ${v}`).toBe(true);
+ // The Ring's hole stays inside the gap between the two segment ends (they start where they sit flush on the ball).
+ const hole=(r:number)=>Math.max(...jointPiece(4,r).holes![0].map(([x,y])=>Math.hypot(x,y)));
+ expect(hole(elbowRadius)).toBeLessThan(Math.sqrt(elbowRadius**2-.068**2));expect(hole(kneeRadius)).toBeLessThan(Math.sqrt(kneeRadius**2-.08**2));
+ // Rerolling the elbow row changes the elbows only and keeps their colour.
  const before=generate('joint-reroll');let after=before;for(let i=0;i<12&&after.parts.elbow_L.variant===before.parts.elbow_L.variant;i++)after=generate(`jr-${i}`,before,new Set(),'elbow_L');
  expect(after.parts.elbow_L.variant).not.toBe(before.parts.elbow_L.variant);expect(after.parts.knee_L).toEqual(before.parts.knee_L);expect(after.parts.elbow_L.color).toBe(before.parts.elbow_L.color);
- expect(generate('jr-hip',before,new Set(),'hip_L').parts.knee_L.color).not.toBe(before.parts.knee_L.color);
  // A version-3 seed opens with spheres, as it was drawn.
  const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;const v3=encodeSeed(spec).replace('~4','~3');expect(decodeSeed(v3).parts.knee_L.variant).toBe(0);
  for(const id of ['thigh_L','thigh_R','shin_L','shin_R'])expect(bones.find(b=>b.id===id)!.length).toBeCloseTo(.4*1.5);
@@ -78,7 +80,7 @@ it('keeps two-piece bodies joined at the waist at any bend and slider setting, a
  two.applyAngles({spine_lower:.4});expect(two.map.get('spine_lower')!.rotation.z).toBeCloseTo(.4,9);
  one.dispose();two.dispose();
 });
-it('never stretches a circle, donut or half circle, at any slider setting, and never puts a skirt shape below',()=>{
+it('never stretches a circle, donut or half circle, at any slider setting, and never puts a skirt or a V below',()=>{
  const base=generate('round');
  for(const body of everyBody())for(const torsoHeight of [.5,1,1.5])for(const width of [.5,1.5]){
   const layout=bodyLayout(withBody(base,body),{...defaultProportions,torsoHeight,torsoWidth:width,pelvis:width});
@@ -88,9 +90,10 @@ it('never stretches a circle, donut or half circle, at any slider setting, and n
    expect(w/h,`${JSON.stringify(body)} h${torsoHeight} w${width}`).toBeCloseTo(isRound(shape)?1:2,2);
   }
  }
- for(const build of [1,2,3])for(const skirt of [3,5])expect(bottomShapes(build)).not.toContain(skirt);
- // A seed with a skirt below opens with its mirror (Dome → Bowl, A-line → Funnel); a Single half circle becomes a Circle.
+ for(const build of [1,2,3])for(const skirt of [3,4,5])expect(bottomShapes(build)).not.toContain(skirt);
+ // A seed with a skirt or a V below opens with a stand-in (Dome → Bowl, Funnel → Block); a Single half circle becomes a Circle.
  const s=generate('skirt');s.parts.spine_lower.variant=2;s.parts.root.variant=3;s.parts.spine_upper.variant=1;expect(decodeSeed(encodeSeed(s)).parts.root.variant).toBe(2);
+ s.parts.root.variant=4;expect(decodeSeed(encodeSeed(s)).parts.root.variant).toBe(1);
  s.parts.spine_lower.variant=0;s.parts.spine_upper.variant=2;expect(decodeSeed(encodeSeed(s)).parts.spine_upper.variant).toBe(0);
 });
 it('generates every build, pairs equal or mirrored shapes, and keeps the pair through rerolls and locks',()=>{
@@ -237,16 +240,19 @@ it('scales parts from the Proportions tab without changing bone lengths, and kee
  }
  base.dispose();bigHead.dispose();thick.dispose();side.dispose();
 });
-it('gives every joint one colour that differs from all its neighbours, and locks or rerolls the joints as one group',()=>{
- const joints=bones.filter(b=>isJoint(b.id)).map(b=>b.id);expect(linkedIds('elbow_L')).toEqual(joints);
- let s=generate('joints-0');
+it('gives each joint type its own colour, the same on both sides and apart from its neighbours, and locks or rerolls a joint pair together',()=>{
+ expect(linkedIds('elbow_L')).toEqual(['elbow_L','elbow_R']);expect(isJoint('knee_R')).toBe(true);
+ let s=generate('joints-0'),distinct=0;
  for(let i=0;i<120;i++){
   const before=s.parts.knee_L.color;
   s=i%3===0?generate(`j-${i}`,s,new Set(['knee_R'])):i%3===1?generate(`j-${i}`,s,new Set(),'elbow_L'):generate(`j-${i}`);
-  expect(new Set(joints.map(id=>s.parts[id].color)).size,`${i}`).toBe(1);
+  for(const part of ['shoulder','elbow','knee'])expect(s.parts[`${part}_R`],`${i}: ${part}`).toEqual(s.parts[`${part}_L`]);
+  if(new Set(['shoulder_L','elbow_L','knee_L'].map(id=>s.parts[id].color)).size===3)distinct++;
   if(i%3===0)expect(s.parts.knee_L.color).toBe(before);
   for(const b of bones)if(b.parent)expect(s.parts[b.id].color,`${i}: ${b.id}`).not.toBe(s.parts[b.parent].color);
  }
+ // Shoulders, elbows and knees almost always get three different colours.
+ expect(distinct).toBeGreaterThan(100);
 });
 it('plays the recorded Dance as a smooth loop and breathes gently around the presets',()=>{
  const count=atob(danceData.layers).length;expect(count/danceFps).toBeGreaterThan(60);
@@ -258,11 +264,11 @@ it('plays the recorded Dance as a smooth loop and breathes gently around the pre
  for(const id of danceBones)expect(danceFrame(count/danceFps).angles[id]).toBeCloseTo(first.angles[id],9);
  for(const pose of ['idle','reach','stride'] as const){const calm=presetAngles(pose);for(const t of [0,.7,1.9,3.1]){const a=breathe(pose,t);for(const id of Object.keys(calm))expect(Math.abs(a[id]-calm[id])).toBeLessThan(.04);}}
 });
-it('paints each character with its own five-colour scheme, keeps locked colours, and recolours without changing shapes',()=>{
+it('paints each character with its own scheme (up to seven colours), keeps locked colours, and recolours without changing shapes',()=>{
  const roles=(s:ReturnType<typeof generate>)=>new Set(bones.filter(b=>b.kind!=='face').map(b=>s.parts[b.id].color));
  const seen=new Set<string>();
  for(let i=0;i<200;i++){
-  const s=generate(`scheme-${i}`);expect(roles(s).size,`${i}`).toBeLessThanOrEqual(5);
+  const s=generate(`scheme-${i}`);expect(roles(s).size,`${i}`).toBeLessThanOrEqual(7);
   expect(s.parts.hand_L.color).toBe(s.parts.foot_R.color);expect(s.parts.root.color).toBe(s.parts.hand_L.color);
   seen.add([...roles(s)].sort().join('.'));
  }
@@ -272,7 +278,7 @@ it('paints each character with its own five-colour scheme, keeps locked colours,
  const next=generate('scheme-next',base,locked);expect(next.parts.head.color).toBe(base.parts.head.color);expect(next.parts.foot_L.color).toBe(base.parts.hand_L.color);
  const again=recolor(base,new Set(['knee_L']),'salt');
  for(const b of bones){expect(again.parts[b.id].variant).toBe(base.parts[b.id].variant);if(b.parent)expect(again.parts[b.id].color,b.id).not.toBe(again.parts[b.parent].color);}
- expect(again.parts.elbow_R.color).toBe(base.parts.knee_L.color);
+ expect(again.parts.knee_R.color).toBe(base.parts.knee_L.color);
  // Rerolling one part changes only its shape.
  const shape=generate('scheme-shape',base,new Set(),'head');expect(shape.parts.head.color).toBe(base.parts.head.color);
 });
@@ -283,11 +289,11 @@ it('repaints the whole figure from the XMAS and TET sets, keeping neighbours apa
    expect(colorOf(s.parts.face_mark.color)).toBe(look.mark);
    for(const b of bones)if(b.kind!=='face')expect(look.body).toContain(colorOf(s.parts[b.id].color));
    expect(partColors(s,name)(s.parts.head.color),'same character, same repaint').toBe(colorOf(s.parts.head.color));
-   // With more colours in use than the set holds, a repeat is unavoidable; otherwise neighbours never match.
-   if(used.size-1>look.body!.length){crowded++;continue;}
+   if(used.size-1>look.body!.length)crowded++;
+   // Neighbours never match, even when the character uses more colours than the set holds.
    for(const b of bones)if(b.parent&&s.parts[b.id].color!==s.parts[b.parent].color)expect(colorOf(s.parts[b.id].color),`${name} ${i}: ${b.id}`).not.toBe(colorOf(s.parts[b.parent].color));
   }
-  expect(crowded).toBeLessThan(15);
+  if(name==='TET')expect(crowded).toBeLessThan(15);
  }
  expect(partColors(generate('x'),'HFCD')(3)).toBe(palette[3].hex);
 });

@@ -170,11 +170,13 @@ const markOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
  [{outline:box2d(.09,.024)}],
 ];
 /**
- * Flat joint shapes (Square, Diamond, Hexagon, Triangle) with an inner radius r: the segment ends that sit flush on a
- * ball of radius r all lie inside it, so a bent limb never shows a gap at the joint.
+ * Flat joint shapes (Square, Diamond, Hexagon, Ring) with an inner radius r: the segment ends that sit flush on a
+ * ball of radius r all lie inside it, so a bent limb never shows a gap at the joint. The Ring's hole (0.38 r) is
+ * smaller than the gap between the two segment ends, so it shows the stage, not a segment. No triangle: with that
+ * inner radius it is twice the ball's size (Nam, 2026-10-14).
  */
 const regular=(n:number,inner:number,turn:number):Point2[]=>Array.from({length:n},(_,i)=>{const a=turn+i*Math.PI*2/n,outer=inner/Math.cos(Math.PI/n);return [outer*Math.cos(a),outer*Math.sin(a)] as Point2;});
-export const jointOutline=(v:number,r:number):Point2[]=>v===1?regular(4,r,Math.PI/4):v===2?regular(4,r,0):v===3?regular(6,r,Math.PI/2):regular(3,r,Math.PI/2);
+export const jointPiece=(v:number,r:number):{outline:Point2[];holes?:Point2[][]}=>v===1?{outline:regular(4,r,Math.PI/4)}:v===2?{outline:regular(4,r,0)}:v===3?{outline:regular(6,r,Math.PI/2)}:{outline:regular(48,r,0),holes:[ellipse2d(0,0,r*.38,r*.38,0,Math.PI*2,32)]};
 /** Ball joint radii, 85% of the first 2D build so the joints read as dots rather than balls (Nam, 2026-10-11). */
 export const kneeRadius=.105*.85,elbowRadius=.088*.85,shoulderRadius=.09*.85;
 /** Distance from a ball joint's centre at which a segment end of radius `end` sits flush on the ball. */
@@ -240,7 +242,7 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
   // Hip joints are hidden inside the body, so every hip variant is a plain ball that fits there.
   if(hip)g=sphere(r);
-  else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow'))g=v===0?sphere(r):paper([{outline:jointOutline(v,r)}],paperRound*.5);
+  else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow'))g=v===0?sphere(r):paper([jointPiece(v,r)],paperRound*.5);
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
   if(b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
  } else if(b.kind==='leg'){
