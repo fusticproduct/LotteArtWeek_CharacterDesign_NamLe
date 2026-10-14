@@ -14,7 +14,7 @@
   "color": "#ffffff",
   "blend": "Overlay",
   "opacity": 0.75,
-  "size": 0.0075,
+  "size": 0.008,
   "coverage": 0.3,
   "angle": 90,
   "grain": 1,
@@ -22,12 +22,12 @@
  },
  "pixel": {
   "on": true,
-  "size": 0.035,
-  "fps": 0
+  "size": 0.05,
+  "fps": 12
  },
  "spray": {
-  "on": false,
-  "amount": 0.05
+  "on": true,
+  "amount": 0.03
  },
  "rules": {
   "weave": 1,
@@ -40,7 +40,7 @@
    true,
    true
   ],
-  "flow": 4,
+  "flow": 3,
   "flowApart": true,
   "touching": true,
   "pixel": 2,
