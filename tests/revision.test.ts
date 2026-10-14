@@ -357,3 +357,19 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
   rig.dispose();
  }
 });
+
+it('hangs five ragdoll spline fingers from each hand, drawn under it, drooping when the hand is raised',()=>{
+ const rig=createCharacter(generate('fingers'));
+ expect(rig.fingers.meshes.length).toBe(10);
+ for(const finger of rig.fingers.meshes)expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
+ const middle=rig.fingers.chains[2],handUp=new Vector3();
+ // Hands down: the fingers hang below where they leave the hand.
+ rig.applyPose('idle');rig.settleFingers();expect(middle[4].y).toBeLessThan(middle[0].y-.08);
+ // Hands up: a stiff finger would point straight up; this one droops well below that.
+ rig.applyPose('reach');rig.settleFingers();
+ const hand=rig.map.get('hand_L')!;handUp.setFromMatrixColumn(hand.matrixWorld,1).negate().normalize();
+ const stiffTip=middle[0].y+handUp.y*.12;expect(handUp.y).toBeGreaterThan(.5);expect(stiffTip-middle[4].y).toBeGreaterThan(.08);
+ // The physics keeps every segment its length.
+ for(let j=1;j<5;j++)expect(middle[j].distanceTo(middle[j-1])).toBeCloseTo(.03,4);
+ rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
+});

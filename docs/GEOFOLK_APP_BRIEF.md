@@ -726,3 +726,11 @@ Anh Nam: đùi cũng được có hoa văn nhưng chỉ khi hông (khối dướ
 
 - Hai chỗ patchwork chọn ngẫu nhiên trong bắp tay, cẳng tay, ống chân, và đùi (chỉ khi thân 2 khối và khối dưới trơn), không bao giờ là cặp đối xứng. Bắp tay và cẳng tay cùng một tay được, vì có khớp khuỷu ở giữa.
 - Seed: đoạn đang có patchwork giữ nguyên nếu còn hợp lệ; đùi không còn hợp lệ chuyển xuống ống chân cùng bên; thiếu thì lấp theo thứ tự cố định.
+
+## 41. Ngón tay ragdoll (14/10/2026)
+
+Anh Nam: 5 ngón tay "ragdoll" mỗi bàn tay, làm bằng spline.
+
+- 5 ngón xòe từ tâm bàn tay (ngón cái ở phía trong, ngắn và dày hơn), dài 7,5–12 cm, dày 2,8–3,6 cm ở gốc, thon về 2,2 cm với đầu tròn; dải spline Catmull-Rom (centripetal), hình đặc, cùng màu bàn tay, vẽ ngay dưới bàn tay.
+- Vật lý: mỗi ngón 5 điểm verlet, bước cố định 1/60 s, trọng lực 9,8, giữ 90% vận tốc mỗi bước, độ dài đoạn giữ cố định, lực giữ dáng 0,05 (yếu dần về đầu ngón). Đo: buông tay thì đầu ngón ở dưới gốc khoảng 12 cm; giơ tay thì ngón rủ khoảng một nửa so với ngón cứng. Mô phỏng trong không gian của nhân vật nên việc đặt nhân vật xuống sàn không làm ngón rung.
+- Chưa xuất vào FBX/OBJ (chỉ có trong app và ảnh).

@@ -13,6 +13,7 @@ export function renderThumbnail(spec:CharacterSpec,look:ThumbnailLook,width:numb
  const scene=new THREE.Scene();scene.background=new THREE.Color(stageColor(look.weavePalette,look.dark));
  const rig=createCharacter(spec,look.weavePalette,look.layerOrder,look.proportions);rig.setPaper(look.paper);
  if(look.pose==='dance'){const frame=danceFrame(danceTime);rig.applyAngles(frame.angles);rig.setDepth(frame.depth);}else rig.applyPose(look.pose);
+ rig.settleFingers();
  scene.add(rig.group);
  // 3.3 m tall window from just below the floor, wide enough for raised or stretched arms.
  const span=3.3,aspect=width/height,camera=new THREE.OrthographicCamera(-span*aspect/2,span*aspect/2,3.12,3.12-span,.1,50);camera.position.set(0,0,10);

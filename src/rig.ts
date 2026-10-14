@@ -5,6 +5,7 @@ import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDep
 
 import {drawWeave,drawPatchwork,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
+import {createFingers} from './fingers';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -305,12 +306,15 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const material=materialFor(def,choice,spec,weavePalette,colorOf);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
+ // Ragdoll fingers in the hands' colour (fingers.ts); drawn just under their hand.
+ const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].color)})));
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
  const restack=(next:Partial<typeof stacking>)=>{
   stacking={...stacking,...next};const key=JSON.stringify(stacking);if(key===stackKey)return;stackKey=key;
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
+  for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder-.5;
  };
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
@@ -360,7 +364,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose};
+ const dispose=()=>{fingers.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ fingers.settle();
+ /** Ragdoll fingers: `updateFingers(dt)` every frame; `settleFingers()` before a still picture. */
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,updateFingers:fingers.update,settleFingers:fingers.settle};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;
