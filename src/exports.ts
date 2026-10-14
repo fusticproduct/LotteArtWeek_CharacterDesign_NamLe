@@ -18,7 +18,7 @@ export function objBundle(rig:CharacterRig,spec:CharacterSpec,pose:Pose){
   for(let i=0;i<normal.count;i++){const n=new THREE.Vector3().fromBufferAttribute(normal,i).applyMatrix3(normalMatrix).normalize();obj+=`vn ${n.x} ${n.y} ${n.z}\n`;}
   const indices=g.index?Array.from(g.index.array):Array.from({length:positions.count},(_,i)=>i);
   for(let i=0;i<indices.length;i+=3)obj+=`f ${indices.slice(i,i+3).map(j=>`${j+offset}/${j+offset}/${j+offset}`).join(' ')}\n`;
-  const material=mesh.material as THREE.MeshStandardMaterial,rgb=material.map?[1,1,1]:palette[spec.parts[b.id].color].rgb.map(n=>n/255);
+  const material=mesh.material as THREE.MeshStandardMaterial,rgb=material.map?[1,1,1]:material.color.clone().convertLinearToSRGB().toArray();
   mtl+=`\nnewmtl ${b.id}\nKd ${rgb.join(' ')}\nKa 0 0 0\nKs 0.04 0.04 0.04\nNs 8\nd 1\nillum 2\n`;
   if(material.map){const path=`textures/${b.id}.png`,raw=atob((material.map.image as HTMLCanvasElement).toDataURL('image/png').split(',')[1]);files[path]=Uint8Array.from(raw,c=>c.charCodeAt(0));mtl+=`map_Kd ${path}\n`;}
   offset+=positions.count;

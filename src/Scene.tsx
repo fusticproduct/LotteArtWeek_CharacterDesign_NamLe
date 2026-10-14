@@ -5,10 +5,11 @@ import {SkeletonHelper,Color,NoToneMapping,TOUCH,type OrthographicCamera as Orth
 import type {OrbitControls as OrbitControlsImpl} from 'three-stdlib';
 import {panMouseButtons} from './controls';
 import {createCharacter,type CharacterRig,type LayerGroup} from './rig';
-import {theme,restHeight,stageColors,type CharacterSpec,type Pose,type Proportions} from './model';
+import {theme,restHeight,type CharacterSpec,type Pose,type Proportions} from './model';
 import type {PoseClient} from './pose';
 import {breathe,danceFrame} from './motion';
 import type {WeavePaletteName} from './weave';
+import {stageColor} from './themes';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
 interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
@@ -41,7 +42,7 @@ function World(p:Props){
  const helper=useMemo(()=>{const h=new SkeletonHelper(rig.group);(Array.isArray(h.material)?h.material:[h.material]).forEach(m=>m.depthTest=false);const colors=h.geometry.getAttribute('color');const tint=new Color(p.dark?theme.paper:theme.ink);for(let i=0;i<colors.count;i++)colors.setXYZ(i,tint.r,tint.g,tint.b);h.renderOrder=99;return h;},[rig,p.dark]);
  useEffect(()=>()=>{helper.geometry.dispose();(Array.isArray(helper.material)?helper.material:[helper.material]).forEach(m=>m.dispose());},[helper]);
  return <>
-  <color attach="background" args={[p.dark?stageColors.dark:stageColors.light]}/>
+  <color attach="background" args={[stageColor(p.weavePalette,p.dark)]}/>
   <primitive object={rig.group}/>
   {p.showRig&&<primitive object={helper}/>}
   <OrbitControls ref={controls} makeDefault target={[0,centerY,0]} enableRotate={false} enablePan screenSpacePanning mouseButtons={panMouseButtons} touches={{ONE:TOUCH.PAN,TWO:TOUCH.DOLLY_PAN}} minZoom={60} maxZoom={1600}/>

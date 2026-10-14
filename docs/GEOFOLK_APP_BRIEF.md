@@ -610,3 +610,10 @@ Anh Nam: mọi hạt trong dạng Chain phải là hình tròn đều, không b�
 - Trước đây mỗi đoạn Chain luôn có 4 hạt, chiều cao mỗi hạt lấy theo độ dài đoạn, nên hạt bị méo: tay thì dẹt, chân thì dài. Slider Proportions cũng chỉ kéo bề ngang.
 - Giờ mỗi hạt là hình cầu thật (`beads()` trong `rig.ts`). Độ dài đoạn quyết định số hạt: các tâm cách nhau khoảng 1.35 bán kính, ít nhất 2 hạt. Slider Arms/Legs đổi cỡ hạt (và số hạt), không làm méo hạt. Hạt tay đều cỡ (bán kính bằng thân tay), hạt chân vẫn to dần xuống dưới.
 - Seed không đổi.
+## 26. Palette XMAS / TET đổi màu cả nhân vật (14/10/2026)
+
+Anh Nam: ba palette phải đổi màu mọi bộ phận, không chỉ pattern đan. Ảnh tham chiếu: poster XMAS (nền xanh) và TET (nền đỏ).
+
+- Màu lấy mẫu từ hai poster. XMAS: nền `#114DDC`; thân `#04D55D`, `#03924F`, `#FD0848`, `#FEFEFE`, `#49E8FE`, `#FDD52A`; dấu mặt `#0D1A4A`. TET: nền `#C01E2E`; thân `#FEC316`, `#EE1566`, `#FD432A`, `#FF8F2F`, `#FEF6D7`, `#21C9BA`, `#1DD478`, `#F95C7B`, `#1C8861`; dấu mặt `#261D33`.
+- Đổi lúc vẽ, không đổi seed (giống pattern đan): mỗi màu nhân vật đang dùng được gán một màu riêng trong bộ, theo vai trò và quy tắc của `drawScheme`, cố định theo tên nhân vật. Bộ phận kề nhau vẫn khác màu, trừ khi nhân vật dùng nhiều màu hơn số màu của bộ (hiếm, chỉ khi khóa nhiều).
+- Nền đen của sân khấu, lưới ×6 và FBX/OBJ đi theo palette. Nền giấy giữ nguyên. Nhãn trong app đổi từ "Weave palette" thành "Palette".

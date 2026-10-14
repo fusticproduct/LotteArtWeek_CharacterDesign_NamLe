@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,bowl,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,palette,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,weaveDensity,type WeavePaletteName} from './weave';
+import {partColors} from './themes';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -61,14 +62,15 @@ function weaveCanvas(seed:string,palette:WeavePaletteName){
  }
  return canvas;
 }
-function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName) {
- const material=new THREE.MeshBasicMaterial({color:palette[p.color].hex,depthTest:false,depthWrite:false});
+/** `colorOf` gives the hex of a palette index in the chosen palette (see themes.ts). */
+function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string) {
+ const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
  if(p.pattern===twoTone&&!isBeaded(b,p.variant)&&typeof document!=='undefined'){
   // Two colour layers along the segment: V runs along its length on every lathe, box and pill shape.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
   const ctx=canvas.getContext('2d')!,split=[.38,.5,.62][(p.color+p.accent)%3];
-  ctx.fillStyle=palette[p.color].hex;ctx.fillRect(0,0,256,256);
-  ctx.fillStyle=palette[p.accent].hex;ctx.fillRect(0,0,256,Math.round(256*(1-split)));
+  ctx.fillStyle=colorOf(p.color);ctx.fillRect(0,0,256,256);
+  ctx.fillStyle=colorOf(p.accent);ctx.fillRect(0,0,256,Math.round(256*(1-split)));
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
   material.map=texture;material.color.setRGB(1,1,1);
  }
@@ -256,7 +258,7 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
 }
 export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>(),paperAmount={value:1};
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1},colorOf=partColors(spec,weavePalette);
  bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);if(def.id.startsWith('shoulder_'))bone.position.x=Math.sign(def.headPosition[0])*shoulderX(spec.parts.spine_upper.variant,proportions);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
@@ -265,7 +267,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  const material=materialFor(def,choice,spec,weavePalette);addPaper(material,geometry,paperAmount);
+  const material=materialFor(def,choice,spec,weavePalette,colorOf);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:2,proportions};

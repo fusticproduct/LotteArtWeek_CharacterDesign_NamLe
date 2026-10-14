@@ -3,7 +3,7 @@
  * The active pose becomes the exported bind pose, preserving the visible shape.
  */
 import * as THREE from 'three';
-import {bones,palette,type CharacterSpec} from './model';
+import {bones,type CharacterSpec} from './model';
 import type {CharacterRig} from './rig';
 type Property={type:'S'|'I'|'L'|'D'|'C'|'R'|'d'|'i';value:string|number|boolean|number[]|Uint8Array};
 interface Element {name:string;props:Property[];children:Element[];}
@@ -65,7 +65,7 @@ export function exportFBX(rig:CharacterRig,spec:CharacterSpec):Uint8Array {
    N('Layer',[I(0)],[int('Version',100),layerElement('LayerElementNormal'),layerElement('LayerElementUV'),layerElement('LayerElementMaterial')])
   ]));
   objects.push(model(meshId,mesh.name,'Mesh',bone.matrixWorld));connect(meshId,0);connect(geometryId,meshId);poseNodes.push(poseNode(meshId,bone.matrixWorld));
-  const material=mesh.material as THREE.MeshStandardMaterial;const rgb=material.map?[1,1,1]:palette[spec.parts[b.id].color].rgb.map(v=>v/255);
+  const material=mesh.material as THREE.MeshStandardMaterial;const rgb=material.map?[1,1,1]:material.color.clone().convertLinearToSRGB().toArray();
   objects.push(N('Material',[L(matId),S(cname(`${b.id}_material`,'Material')),S('')],[int('Version',102),text('ShadingModel','phong'),int('MultiLayer',0),N('Properties70',[],[vector('DiffuseColor','Color',rgb),property('DiffuseFactor','Number',[D(1)]),vector('SpecularColor','Color',[.04,.04,.04]),property('Shininess','Number',[D(8)]),property('TransparencyFactor','Number',[D(0)]),property('Opacity','Number',[D(1)])])]));connect(matId,meshId);
   if(material.map){const textureId=8000+i,videoId=9000+i,filename=`textures/${b.id}.png`,bytes=pngBytes(material.map.image as HTMLCanvasElement);
    objects.push(N('Video',[L(videoId),S(cname(b.id,'Video')),S('Clip')],[text('Type','Clip'),N('Properties70',[],[property('Path','KString',[S(filename)])]),text('Filename',filename),text('RelativeFilename',filename),N('Content',[{type:'R',value:bytes}])]));

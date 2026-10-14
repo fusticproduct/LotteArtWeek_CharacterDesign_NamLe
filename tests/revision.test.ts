@@ -2,7 +2,8 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette} from '../src/model';
+import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
 import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
@@ -214,3 +215,17 @@ it('paints each character with its own five-colour scheme, keeps locked colours,
  const shape=generate('scheme-shape',base,new Set(),'head');expect(shape.parts.head.color).toBe(base.parts.head.color);
 });
 
+it('repaints the whole figure from the XMAS and TET sets, keeping neighbours apart and the face mark dark',()=>{
+ for(const name of ['XMAS','TET'] as const){const look=paletteLooks[name];let crowded=0;
+  for(let i=0;i<300;i++){const s=generate(`theme-${i}`),colorOf=partColors(s,name),used=new Set(bones.map(b=>s.parts[b.id].color));
+   expect(colorOf(s.parts.face_mark.color)).toBe(look.mark);
+   for(const b of bones)if(b.kind!=='face')expect(look.body).toContain(colorOf(s.parts[b.id].color));
+   expect(partColors(s,name)(s.parts.head.color),'same character, same repaint').toBe(colorOf(s.parts.head.color));
+   // With more colours in use than the set holds, a repeat is unavoidable; otherwise neighbours never match.
+   if(used.size-1>look.body!.length){crowded++;continue;}
+   for(const b of bones)if(b.parent&&s.parts[b.id].color!==s.parts[b.parent].color)expect(colorOf(s.parts[b.id].color),`${name} ${i}: ${b.id}`).not.toBe(colorOf(s.parts[b.parent].color));
+  }
+  expect(crowded).toBeLessThan(15);
+ }
+ expect(partColors(generate('x'),'HFCD')(3)).toBe(palette[3].hex);
+});

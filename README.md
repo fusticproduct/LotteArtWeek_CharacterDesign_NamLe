@@ -67,7 +67,7 @@ Trên macOS, lần đầu dùng webcam phải cấp quyền Camera cho ứng d�
 | Khung nhân vật (trái) | Kéo để di chuyển khung nhìn, cuộn để zoom. Bốn nút bên phải khung: fit về giữa, hiện bộ xương, mở tab Live pose, đổi nền đen/nền giấy (mặc định đen, giống video tham chiếu; PNG export lấy đúng nền đang chọn) |
 | Thanh dưới khung | Bốn tư thế: At ease, Hands up, Step out (ba tư thế này "thở" nhẹ: thân, đầu, tay đung đưa chu kỳ 3.6 s; tắt khi hệ điều hành bật giảm chuyển động) và **Dance** (phát lặp 3 phút nhảy đã ghi từ video mẫu, không cần server hay camera) |
 | Tab **Parts** (phải) | Bộ phận và lớp: danh sách 7 khối lớp (Arms, Head, Torso, Neck, Pelvis, Lower spine, Legs); **khối trên cùng được vẽ phía trước**. Kéo tay nắm ở đầu khối để đổi thứ tự (hoặc chọn tay nắm rồi bấm ↑/↓). Trong khối Arms/Legs, các bộ phận xếp theo thứ tự vẽ cố định (xem mục 7). Mỗi dòng có nút random (đổi **hình** của bộ phận, giữ màu; với dòng khớp thì đổi màu khớp) và nút khóa. "Reset order" trả về thứ tự mặc định |
-| Dưới danh sách | Slider **Pattern scale** (số ô đan, mặc định 6), chọn **Weave palette** (HFCD / XMAS / TET), **Paper texture** On/Off (vân giấy và đậm nhạt nhẹ trên mọi bộ phận; lưu theo trình duyệt; không đi vào file FBX/OBJ), số bộ phận đang khóa |
+| Dưới danh sách | Slider **Pattern scale** (số ô đan, mặc định 6), chọn **Palette** (HFCD / XMAS / TET: đổi màu cả nhân vật, pattern đan và nền đen của sân khấu), **Paper texture** On/Off (vân giấy và đậm nhạt nhẹ trên mọi bộ phận; lưu theo trình duyệt; không đi vào file FBX/OBJ), số bộ phận đang khóa |
 | Tab **Proportions** | 9 slider 50–150% chỉnh cỡ bộ phận cho mọi nhân vật: Head, Torso width, Torso height, Pelvis, Arm thickness, Leg thickness, Hands, Feet, Joints. **Save as default** ghi giá trị hiện tại vào `src/proportions.json` (khi chạy `npm run dev`), thành mặc định chung của dự án cho mọi trình duyệt; bản build tĩnh thì chỉ lưu cho trình duyệt đó. **Reset** trả về mặc định đã lưu; "Set all sliders to 100%" trả về cỡ gốc. Giá trị đang chỉnh lưu theo trình duyệt, không nằm trong seed |
 | Tab **Live pose** | Bật/tắt bắt chuyển động, trạng thái kết nối, chọn Webcam / Demo video (bấm khi đang tắt cũng bật luôn với nguồn đó), slider **Motion smoothing**, ô xem hình camera |
 
@@ -80,6 +80,7 @@ Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn ch�
 - **Đối xứng:** bàn tay, bàn chân và mọi khớp (vai, khuỷu, hông, gối) luôn cùng hình và cùng màu hai bên. Đùi và ống chân cùng hình hai bên, màu tự do. Khóa hoặc random một bên là áp dụng cho cả cặp.
 - **Khớp một màu:** mọi khớp của một nhân vật dùng chung một màu, khác màu mọi bộ phận kề nó; khóa hoặc random một dòng khớp là áp dụng cho tất cả khớp. Khớp nhỏ còn 85% cỡ bản 2D đầu tiên.
 - **Màu:** chỉ dùng 18 màu trong `src/palette.json` (trích từ ảnh tham chiếu `public/reference.png`). Hai bộ phận nối liền nhau không trùng màu. Dấu trên mặt luôn màu tối.
+- **Palette XMAS / TET đổi màu cả nhân vật:** HFCD dùng đúng màu trong seed. XMAS (nền xanh `#114DDC`, thân xanh lá, đỏ, trắng, xanh nhạt, vàng) và TET (nền đỏ `#C01E2E`, thân vàng, hồng, đỏ cam, cam, kem, ngọc, xanh lá) lấy mẫu từ ảnh poster của anh Nam. Khi vẽ, mỗi màu nhân vật đang dùng được đổi sang một màu riêng trong bộ, theo vai trò (thân A, cổ B, tay chân C, khớp J, đầu H) với cùng quy tắc phối màu, nên bộ phận kề nhau vẫn khác màu; dấu mặt dùng màu tối của bộ. Seed không đổi, cùng nhân vật luôn ra cùng màu. Nền giấy (sáng) giữ nguyên. Code: `src/themes.ts`.
 - **Bộ màu riêng từng nhân vật:** mỗi nhân vật rút một bộ 5 màu từ 15 màu tươi: 2 màu thân (A, B), 1 màu nhấn (bàn tay, bàn chân, hông), 1 màu khớp, 1 màu đầu. B cùng tông khác độ sáng, đối nhau trên vòng màu, hoặc tương phản sáng tối với A; màu nhấn xa A và B trên vòng màu; màu khớp sáng hoặc tối hẳn hơn A, B. A và B rải lên tay chân theo 1 trong 4 kiểu (tay/chân, đoạn trên/dưới, xen kẽ, trái/phải). Có 55.536 bộ × 4 kiểu rải. Bộ màu không nằm trong seed (seed lưu màu từng bộ phận). Code: `drawScheme()`, `schemeColor()`, `paint()`, `recolor()` trong `model.ts`.
 - **Pattern:** chỉ thân (torso) và hông (pelvis) có pattern đan. Tay và chân dạng khối liền có thể chia **hai lớp màu** (two-tone). Mọi bộ phận khác một màu.
 - **Không lặp chuỗi hạt:** mỗi tay hoặc chân có tối đa một đoạn dạng hạt (Chain/Stack).
@@ -108,6 +109,7 @@ src/
   pose.ts          client WebSocket + đổi 33 landmark MediaPipe thành góc từng khớp
   motion.ts        thở nhẹ cho tư thế có sẵn, phát tư thế Dance
   dance.ts / dance.json  dữ liệu Dance đã nén (15 khung/giây, góc từng xương + thứ tự lớp)
+  themes.ts        palette HFCD / XMAS / TET: màu bộ phận và màu nền theo palette
   thumbnails.ts    vẽ nhân vật ra ảnh (dùng cho lưới ×6)
   ExploreGrid.tsx  lưới ×6 trên sân khấu
   exports.ts       OBJ (zip), Rig JSON, tải file
@@ -259,7 +261,7 @@ Lưu ý: FBX và OBJ xuất **khối 3D** của nhân vật ở tư thế đang 
 
 ## 11. Test
 
-`npm test` chạy 27 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, hông bao kín khớp hông, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép thân, tư thế chỉ xoay trong mặt phẳng, xuất FBX/OBJ.
+`npm test` chạy 28 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, hông bao kín khớp hông, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép thân, tư thế chỉ xoay trong mặt phẳng, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
 
 Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture và giao diện. Sau khi sửa hình hay giao diện, cần mở app xem bằng mắt.
 
@@ -274,7 +276,7 @@ Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture
 | Đổi điệu Dance | Trích landmark từ video bằng `scripts/extract_landmarks.py`, rồi `npx vite-node scripts/bake-dance.ts <landmarks.json>` ghi lại `src/dance.json` (đi qua đúng bộ giải, làm mượt và xếp lớp của Live pose; bước quay quá 0.9 rad/khung bị chặn vì là MediaPipe đọc nhầm) |
 | Đổi chất giấy | `paperGrain()` và `addPaper()` trong `rig.ts` |
 | Đổi cách bắt chuyển động | `solvePose()` trong `pose.ts` |
-| Đổi màu / bảng màu weave | `palette.json`; `weavePalettes` trong `weave.ts` |
+| Đổi màu / bảng màu weave | `palette.json`; `weavePalettes` trong `weave.ts`; màu thân và nền của XMAS/TET trong `paletteLooks` (`themes.ts`) |
 | Đổi thứ tự lớp mặc định | `defaultLayerOrder` trong `rig.ts` |
 | Giao diện | `App.tsx`, `PartsPanel.tsx`, `PosePanel.tsx`, `styles.css` |
 
