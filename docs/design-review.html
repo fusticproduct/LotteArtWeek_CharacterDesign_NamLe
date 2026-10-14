@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geofolk Design Review</title>
+<style>
+:root{--paper:#eae7e6;--ink:#27234d;--green:#0c8953;--pink:#eb4db2;--line:rgba(39,35,77,.14);--muted:rgba(39,35,77,.64);--card:#f3f1f0;--stage:#000}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 120px}
+.eyebrow{font:600 11px 'Courier New',monospace;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:34px;letter-spacing:-1px;margin:6px 0 8px;line-height:1.1}
+h2{font-size:24px;letter-spacing:-.4px;margin:0 0 6px}
+h3{font-size:17px;margin:0 0 6px}
+p{margin:0 0 10px;max-width:780px}
+.lead{color:var(--muted);font-size:16px}
+section{margin-top:44px}
+.part-title{display:flex;align-items:baseline;gap:12px;border-top:2px solid var(--ink);padding-top:14px;margin-top:56px}
+.part-title span{font:600 12px 'Courier New',monospace;letter-spacing:1px;color:var(--muted)}
+.btn{border:1px solid var(--green);background:var(--green);color:#fff;border-radius:7px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--line)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));gap:10px;margin-top:12px}
+.summary div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.summary b{display:block;font-size:14px;margin-bottom:3px}
+.summary span{font-size:13px;color:var(--muted)}
+.prio{display:inline-block;font:600 10px 'Courier New',monospace;letter-spacing:.5px;padding:2px 6px;border-radius:4px;margin-right:6px;vertical-align:1px}
+.p1{background:#d6efe2;color:#0b6b41}.p2{background:#fff0c9;color:#7a5a00}.p3{background:#ece9f4;color:#4a4470}
+.row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;background:var(--stage);border-radius:12px;padding:8px}
+.row.light{background:#eae7e6;border:1px solid var(--line)}
+.row figure{margin:0}
+.row img{width:100%;height:auto;display:block;border-radius:6px}
+.row figcaption{color:#cfcbd6;font-size:12px;padding:2px 4px 4px;display:flex;align-items:center;gap:6px}
+.row.light figcaption{color:var(--muted)}
+.sw{display:inline-flex}.sw i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:1px}
+.row-label{font:600 11px 'Courier New',monospace;letter-spacing:1px;color:var(--muted);margin:14px 0 6px}
+.card{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:22px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:16px}
+.card .text ul{margin:0 0 10px;padding-left:18px}.card .text li{margin-bottom:5px}
+.k{font:600 11px 'Courier New',monospace;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin:10px 0 2px}
+.pick{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:7px 12px;border:1px solid var(--green);border-radius:7px;font-size:13px;cursor:pointer;background:#fff}
+.pick input{accent-color:var(--green);width:16px;height:16px}
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-self:start}
+.ba figure{margin:0;background:var(--stage);border-radius:10px;padding:6px}
+.ba img{width:100%;display:block;border-radius:6px}
+.ba figcaption{color:#cfcbd6;font:600 11px 'Courier New',monospace;letter-spacing:1px;padding:4px 4px 2px}
+.wide{grid-column:1/-1}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.good{color:#0b6b41}
+/* wireframes, drawn in the app's own tokens */
+.wf{border:1px solid var(--line);border-radius:10px;background:#eae7e6;overflow:hidden;font-size:11px;color:var(--ink)}
+.wf-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.wf-logo{font-weight:800;font-size:15px;letter-spacing:-.5px;margin-right:6px}
+.wf-name{flex:1;font-weight:600}.wf-name small{font-weight:400;color:var(--muted);margin-left:6px}
+.wf-chip{border:1px solid var(--line);border-radius:5px;padding:3px 7px;background:#f3f1f0;white-space:nowrap}
+.wf-gen{background:var(--green);color:#fff;border-radius:5px;padding:4px 10px;font-weight:600}
+.wf-body{display:grid;grid-template-columns:1fr 150px}
+.wf-stage{background:#000;position:relative;min-height:280px;display:flex;align-items:center;justify-content:center}
+.wf-stage img{height:270px}
+.wf-side{border-left:1px solid var(--line);padding:8px}
+.wf-tabs{display:flex;gap:3px;margin-bottom:8px}.wf-tabs span{flex:1;text-align:center;border-radius:4px;padding:3px 0;color:var(--muted)}.wf-tabs span.on{background:var(--ink);color:#fff}
+.wf-line{height:7px;border-radius:3px;background:rgba(39,35,77,.12);margin:7px 0}
+.wf-hist{display:flex;gap:4px;align-items:center;padding:6px 8px;border-top:1px solid var(--line);background:#111;overflow:hidden}
+.wf-hist img{height:58px;border-radius:4px;background:#000;outline:1px solid rgba(255,255,255,.12)}
+.wf-hist img:first-of-type{outline:2px solid var(--green)}
+.wf-hist b{color:#cfcbd6;font:600 9px 'Courier New',monospace;letter-spacing:1px;margin-right:4px;writing-mode:vertical-rl;transform:rotate(180deg)}
+.wf-pop{position:absolute;right:14px;top:18px;width:200px;background:#f3f1f0;border-radius:8px;padding:9px;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.wf-pop .shapes{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:6px 0}
+.wf-pop .shapes span{aspect-ratio:1;border:1px solid var(--line);border-radius:4px;display:grid;place-items:center;background:#fff}
+.wf-pop .shapes span.on{border:2px solid var(--green)}
+.wf-pop .swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
+.wf-pop .swatches i{aspect-ratio:1;border-radius:3px;display:block}
+.wf-sel{position:absolute;border:2px dashed #fff;border-radius:50%;opacity:.85}
+.wf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#000;padding:6px}
+.wf-grid figure{margin:0;position:relative}.wf-grid img{width:100%;display:block;border-radius:4px}
+.wf-grid figure:nth-child(2) img{outline:2px solid var(--green)}
+.wf-grid figcaption{position:absolute;left:6px;bottom:6px;background:rgba(255,255,255,.9);border-radius:4px;padding:1px 6px;font-size:10px}
+.phone{width:230px;border:8px solid #1b1830;border-radius:26px;overflow:hidden;background:#eae7e6;margin:0 auto}
+.phone .wf-top{padding:6px 8px}.phone .wf-stage{min-height:250px}.phone .wf-stage img{height:240px}
+.sheet{padding:8px;border-top:1px solid var(--line)}
+.kbd{font:12px 'Courier New',monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 6px;background:#fff}
+.pill{position:fixed;right:18px;bottom:18px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:99px;box-shadow:0 8px 30px rgba(39,35,77,.18);padding:6px 6px 6px 16px;z-index:5;font-size:13px}
+.pill .btn{border-radius:99px;padding:6px 14px}
+#picks{width:100%;height:150px;border:1px solid var(--line);border-radius:8px;font:13px/1.5 Arial;padding:10px;resize:vertical;background:#fff}
+@media (max-width:860px){.card{grid-template-columns:1fr}.row{grid-template-columns:repeat(3,minmax(0,1fr))}.wf-body{grid-template-columns:1fr}.wf-side{display:none}.pill{right:10px;bottom:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="eyebrow">Geofolk · đánh giá thiết kế · 11/10/2026 · chưa đổi gì trong app</div>
+ <h1>Đánh giá app và hướng cải thiện nhân vật</h1>
+ <p class="lead">Hai góc nhìn: thiết kế trải nghiệm (cách dùng app) và graphic design (hình nhân vật). Mọi hình nhân vật trên trang này được dựng trực tiếp bằng code của app; các đề xuất được áp lên trên để so sánh. Đánh dấu "Chọn" ở những mục anh muốn làm, rồi bấm "Sao chép" ở góc phải dưới và dán vào chat.</p>
+ <div class="bar"><button class="btn" id="reshuffle">Đổi bộ nhân vật mẫu</button><span class="lead" style="font-size:13px">Mỗi lần bấm, cả trang dựng lại với 6 nhân vật ngẫu nhiên mới.</span></div>
+
+ <section style="margin-top:22px">
+  <h2>Tóm tắt: 6 việc đáng làm nhất</h2>
+  <div class="summary">
+   <div><b><span class="prio p1">ƯU TIÊN 1</span>Màu theo bộ</b><span>Mỗi nhân vật 4–5 màu có vai trò rõ, thay vì mỗi bộ phận một màu ngẫu nhiên.</span></div>
+   <div><b><span class="prio p1">ƯU TIÊN 1</span>Hoàn tác và lịch sử</b><span>Generate không làm mất nhân vật vừa thích; có dải lịch sử để quay lại.</span></div>
+   <div><b><span class="prio p1">ƯU TIÊN 1</span>Bấm vào bộ phận để chọn</b><span>Chọn thẳng shape và màu, không phải bấm random nhiều lần.</span></div>
+   <div><b><span class="prio p2">ƯU TIÊN 2</span>Dáng chắc khỏe hơn</b><span>Tay chân dày, bàn chân to, khớp nhỏ lại, đứng vững như ảnh tham chiếu.</span></div>
+   <div><b><span class="prio p2">ƯU TIÊN 2</span>Bố cục gọn, sân khấu lớn</b><span>Gộp 2 hàng tiêu đề, sân khấu cao thêm ~130px; panel chia Parts / Style / Motion.</span></div>
+   <div><b><span class="prio p3">ƯU TIÊN 3</span>Dance demo, chia sẻ</b><span>Nhảy mẫu không cần camera; xuất GIF/MP4, PNG nền trong suốt, link chia sẻ.</span></div>
+  </div>
+ </section>
+
+ <!-- ================= PART A: CHARACTER ================= -->
+ <div class="part-title"><h2>A. Thiết kế nhân vật</h2><span>GÓC NHÌN GRAPHIC DESIGN</span></div>
+ <p>Bộ hình phẳng mới đã đi đúng hướng giấy cắt. Nhân vật hiện "đúng" nhưng chưa "đẹp" vì bốn lý do. (1) Màu ngẫu nhiên từng bộ phận nên nhìn như confetti, không có điểm nhấn. (2) Khớp to, mỗi nhóm một màu, kéo mắt khỏi đầu và thân. (3) Tay chân mảnh, bàn chân nhỏ, nên dáng "khều", thiếu trọng lượng. (4) Hoa văn đan nét mảnh, ô nhỏ, ở cỡ nhân vật nhìn như nhiễu.</p>
+ <div class="row-label">HIỆN TẠI</div>
+ <div class="row" data-render="current"></div>
+ <div class="row-label">ĐỀ XUẤT TỔNG HỢP (A1 + A2 + A3 + A4 + A5)</div>
+ <div class="row" data-render="combined"></div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A1. Màu theo bộ (color scheme)</h3>
+   <div class="k">Vấn đề</div><p>15 màu được rải ngẫu nhiên, luật duy nhất là hai bộ phận kề nhau khác màu. Kết quả là 10–14 màu trên một nhân vật, mắt không biết nhìn vào đâu và nhân vật khó nhớ.</p>
+   <div class="k">Đề xuất</div><ul><li>Mỗi nhân vật lấy một <b>bộ 5 màu</b> soạn sẵn từ bảng 18 màu: 2 màu thân (tay chân xen kẽ), 1 màu nhấn (bàn tay, bàn chân), 1 màu khớp, 1 màu đầu.</li><li>Vẫn giữ luật hai bộ phận kề nhau khác màu, và thêm lựa chọn "Màu tự do" cho ai thích kiểu cũ.</li><li>Khóa và random từng bộ phận vẫn hoạt động; random cả bộ màu bằng một nút.</li></ul>
+   <div class="k">Công sức</div><p>Vừa: thêm danh sách bộ màu và luật gán màu trong <code>model.ts</code>; seed ghi thêm số thứ tự bộ màu.</p>
+   <label class="pick"><input type="checkbox" data-pick="A1 Màu theo bộ (5 màu có vai trò)">Chọn A1</label>
+  </div>
+  <div class="ba"><figure><figcaption>TRƯỚC</figcaption><div data-render="single" data-variant="current" data-index="2" data-pose="stride"></div></figure><figure><figcaption>SAU</figcaption><div data-render="single" data-variant="scheme" data-index="2" data-pose="stride"></div></figure></div>
+  <div class="wide"><div class="row-label">6 BỘ MÀU MẪU (TÊN TẠM)</div><div class="row" data-render="schemes"></div></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A2. Khớp một màu, gọn hơn</h3>
+   <div class="k">Vấn đề</div><p>Vai, khuỷu, gối là những chấm tròn to (bán kính 0.09–0.105) và thường mỗi nhóm một màu, nên nổi hơn cả đầu.</p>
+   <div class="k">Đề xuất</div><ul><li>Mọi khớp cùng một màu khớp của bộ màu (như các chấm hồng trong ảnh tham chiếu).</li><li>Khớp nhỏ còn 85% (đúng slider Joints vừa làm).</li></ul>
+   <div class="k">Công sức</div><p>Nhỏ, nhất là khi làm cùng A1.</p>
+   <label class="pick"><input type="checkbox" data-pick="A2 Khớp một màu, nhỏ 85%">Chọn A2</label>
+  </div>
+  <div class="ba"><figure><figcaption>TRƯỚC</figcaption><div data-render="single" data-variant="current" data-index="3" data-pose="reach"></div></figure><figure><figcaption>SAU</figcaption><div data-render="single" data-variant="joints" data-index="3" data-pose="reach"></div></figure></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A3. Dáng chắc khỏe</h3>
+   <div class="k">Vấn đề</div><p>Tay chân dày 0.13–0.16 trên nhân vật cao 2.4, bàn tay bàn chân nhỏ. Nhân vật trông mảnh và "khều" hơn hẳn ảnh tham chiếu (chân to, bàn chân loe, đứng vững).</p>
+   <div class="k">Đề xuất</div><ul><li>Đặt mặc định mới bằng slider Proportions + Save as default: tay 135%, chân 145%, bàn tay/chân 130%, khớp 85%.</li><li>Tùy chọn: thêm 3 dáng có sẵn (Chắc khỏe / Thanh mảnh / Đầu to) để random theo nhân vật.</li></ul>
+   <div class="k">Công sức</div><p>Rất nhỏ nếu chỉ đổi mặc định (anh tự làm được bằng tab Proportions). Vừa nếu muốn random dáng theo seed.</p>
+   <label class="pick"><input type="checkbox" data-pick="A3 Dáng chắc khỏe làm mặc định">Chọn mặc định chắc khỏe</label><br>
+   <label class="pick"><input type="checkbox" data-pick="A3b Random 3 dáng có sẵn theo seed">Chọn random 3 dáng</label>
+  </div>
+  <div class="wide"><div class="row-label">CÙNG MỘT NHÂN VẬT, BỐN DÁNG</div><div class="row" data-render="presets" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A4. Hoa văn đan ô to</h3>
+   <div class="k">Vấn đề</div><p>Pattern scale mặc định 12 ô, nét đan mảnh, nên ở cỡ nhân vật trên sân khấu nhìn như sọc nhiễu. Ảnh tham chiếu dùng ô vuông to, rõ.</p>
+   <div class="k">Đề xuất</div><ul><li>Mặc định 6 ô thay vì 12.</li><li>Về sau: lấy màu sợi đan từ bộ màu của nhân vật (A1) thay vì 3 bảng HFCD/XMAS/TET cố định, để thân hòa với tay chân.</li></ul>
+   <div class="k">Công sức</div><p>Nhỏ (đổi mặc định). Vừa cho phần màu sợi theo bộ màu.</p>
+   <label class="pick"><input type="checkbox" data-pick="A4 Hoa văn mặc định 6 ô">Chọn ô to</label><br>
+   <label class="pick"><input type="checkbox" data-pick="A4b Màu sợi đan theo bộ màu nhân vật">Chọn màu sợi theo bộ màu</label>
+  </div>
+  <div class="ba"><figure><figcaption>12 Ô (HIỆN TẠI)</figcaption><div data-render="single" data-variant="current" data-index="4"></div></figure><figure><figcaption>6 Ô</figcaption><div data-render="single" data-variant="pattern" data-index="4"></div></figure></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A5. Chất giấy</h3>
+   <div class="k">Vấn đề</div><p>Màu phẳng tuyệt đối nên nhân vật trông như vector trong phần mềm. Ảnh tham chiếu có vân giấy và màu loang nhẹ, tạo cảm giác thủ công.</p>
+   <div class="k">Đề xuất</div><ul><li>Lớp vân giấy rất nhẹ trên mọi bộ phận, và màu đậm dần nhẹ từ trên xuống.</li><li>Có nút bật/tắt (export kỹ thuật có thể cần màu phẳng).</li></ul>
+   <div class="k">Công sức</div><p>Vừa: một texture vân giấy dùng chung trong vật liệu. Ảnh bên cạnh chỉ là mô phỏng gần đúng.</p>
+   <label class="pick"><input type="checkbox" data-pick="A5 Chất giấy (vân + màu loang nhẹ)">Chọn A5</label>
+  </div>
+  <div class="ba"><figure><figcaption>PHẲNG</figcaption><div data-render="single" data-variant="current" data-index="5" data-w="300" data-h="400"></div></figure><figure><figcaption>CHẤT GIẤY</figcaption><div data-render="single" data-variant="paper" data-index="5" data-w="300" data-h="400"></div></figure></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>A6. Tư thế sống động</h3>
+   <div class="k">Vấn đề</div><p>Ngoài Live pose, nhân vật chỉ có 3 tư thế đứng thẳng và đứng im hoàn toàn. Trên màn hình triển lãm, sân khấu sẽ trông "chết".</p>
+   <div class="k">Đề xuất</div><ul><li><b>Thở/đung đưa nhẹ</b> khi đứng yên.</li><li>Thêm tư thế <b>Dance</b>: phát lại chuyển động đã ghi từ video mẫu ngay trong trình duyệt, không cần Python hay camera. Hợp để demo và làm màn hình chờ.</li></ul>
+   <div class="k">Công sức</div><p>Vừa: dữ liệu đã có sẵn (đã trích 5523 khung khi kiểm tra motion).</p>
+   <label class="pick"><input type="checkbox" data-pick="A6 Thở nhẹ khi đứng yên">Chọn thở nhẹ</label><br>
+   <label class="pick"><input type="checkbox" data-pick="A6b Tư thế Dance phát lại chuyển động đã ghi">Chọn Dance</label>
+  </div>
+  <div class="wide"><div class="row-label">MỘT NHÂN VẬT (ĐỀ XUẤT TỔNG HỢP) TRONG 6 KHUNG CỦA VIDEO MẪU</div><div class="row" data-render="dance"></div></div>
+ </div>
+
+ <div class="card">
+  <div class="text wide">
+   <h3>A7. Để sau: tay chân phẳng đồng bộ</h3>
+   <p>Đầu và thân giờ là hình phẳng sắc cạnh, còn tay chân, hông, bàn tay, bàn chân vẫn là khối tiện 3D (ví dụ tay "Chain" trông như lò xo). Khi anh muốn, bước tiếp theo là vẽ lại các bộ phận này bằng hình phẳng, như bản đề xuất shape trước (ống bo tròn, côn, chuông, nêm, loa kèn…), để cả nhân vật dùng chung một ngôn ngữ hình.</p>
+   <label class="pick"><input type="checkbox" data-pick="A7 Làm phẳng tay chân, hông, bàn tay, bàn chân">Chọn A7 (đợt sau)</label>
+  </div>
+ </div>
+
+ <!-- ================= PART B: EXPERIENCE ================= -->
+ <div class="part-title"><h2>B. Trải nghiệm tương tác</h2><span>GÓC NHÌN UX</span></div>
+ <h3>Đang tốt, nên giữ</h3>
+ <p class="good">Nút Generate nổi bật và rõ ràng. Khóa/random từng bộ phận dễ hiểu. Bên trái/phải tự đối xứng. Live pose tự bật server. Nền đen hợp với tham chiếu. Thứ tự lớp giờ đã logic.</p>
+ <h3 style="margin-top:18px">Vấn đề tìm thấy</h3>
+ <table>
+  <tr><th>#</th><th>Vấn đề</th><th>Ảnh hưởng</th><th>Đề xuất</th></tr>
+  <tr><td>1</td><td>Bấm Generate là mất nhân vật trước; không có Undo hay lịch sử.</td><td>Người dùng ngại thử, hoặc phải copy seed bằng tay.</td><td>B1</td></tr>
+  <tr><td>2</td><td>Chỉ random được. Muốn đổi đầu sang Tam giác phải bấm random may rủi; màu cũng vậy.</td><td>Mất kiểm soát sáng tạo, tốn thời gian.</td><td>B2</td></tr>
+  <tr><td>3</td><td>Hai hàng tiêu đề chiếm ~330px chiều cao; tiêu đề "Character studio" bị lặp.</td><td>Sân khấu chỉ còn ~570px trên màn 900px.</td><td>B3</td></tr>
+  <tr><td>4</td><td>Tab Parts trộn 3 việc: đổi bộ phận, xếp lớp (việc nâng cao) và style (Pattern scale, Weave palette).</td><td>Danh sách dài 26 dòng, khó tìm.</td><td>B4</td></tr>
+  <tr><td>5</td><td>Không có phím tắt (chỉ có Enter ở ô seed).</td><td>Khám phá chậm.</td><td>B5</td></tr>
+  <tr><td>6</td><td>Tên nhân vật hiển thị "578" (mảnh cuối của nhãn); seed dài đặt ở vị trí chính.</td><td>Khó nhớ, khó chia sẻ.</td><td>B3, B6</td></tr>
+  <tr><td>7</td><td>4 nút trên sân khấu chỉ có icon. Nút Live pose vừa báo trạng thái vừa mở tab.</td><td>Phải đoán chức năng.</td><td>B3</td></tr>
+  <tr><td>8</td><td>39 chỗ dùng chữ cỡ 8–10px; chữ xám nhạt tương phản thấp.</td><td>Khó đọc, nhất là ở triển lãm.</td><td>B7</td></tr>
+  <tr><td>9</td><td>Mobile: tiêu đề + thanh công cụ ~170px; gợi ý vẫn là "Scroll to zoom"; danh sách bộ phận nằm xa dưới sân khấu.</td><td>Dùng trên điện thoại vất vả.</td><td>B7</td></tr>
+  <tr><td>10</td><td>Live pose cần Python và camera; PNG chỉ chụp đúng khung nhìn, không có nền trong suốt, không có video.</td><td>Khó demo và khó chia sẻ lên mạng.</td><td>A6, B6</td></tr>
+ </table>
+
+ <div class="card">
+  <div class="text">
+   <h3>B1. Hoàn tác và dải lịch sử</h3>
+   <ul><li><span class="kbd">⌘Z</span> / <span class="kbd">⇧⌘Z</span> và nút Undo/Redo trên thanh trên.</li><li>Dải lịch sử dưới sân khấu: 20 nhân vật gần nhất dạng ảnh nhỏ, bấm để quay lại.</li><li>Gắn sao để giữ lại thành bộ sưu tập.</li></ul>
+   <div class="k">Công sức</div><p>Vừa. Lịch sử lưu theo seed nên rất nhẹ.</p>
+   <label class="pick"><input type="checkbox" data-pick="B1 Undo/Redo và dải lịch sử">Chọn B1</label>
+  </div>
+  <div class="wf">
+   <div class="wf-top"><span class="wf-logo">geofolk</span><span class="wf-name">good-company-578<small>✎</small></span><span class="wf-chip">↶</span><span class="wf-chip">↷</span><span class="wf-chip">Share</span><span class="wf-chip">Export</span><span class="wf-gen">Generate</span></div>
+   <div class="wf-body"><div class="wf-stage" data-render="single" data-variant="combined" data-index="0" data-w="200" data-h="270"></div><div class="wf-side"><div class="wf-tabs"><span class="on">Parts</span><span>Style</span><span>Motion</span></div><div class="wf-line"></div><div class="wf-line" style="width:70%"></div><div class="wf-line"></div><div class="wf-line" style="width:60%"></div><div class="wf-line"></div></div></div>
+   <div class="wf-hist"><b>LỊCH SỬ</b><span data-render="strip" style="display:contents"></span></div>
+  </div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>B2. Bấm vào bộ phận để chọn</h3>
+   <ul><li>Rê chuột lên nhân vật: bộ phận được viền sáng. Bấm vào: hiện bảng nhỏ với hình thu nhỏ của các shape và ô màu, cùng nút khóa và random.</li><li>Danh sách Parts bên phải cũng mở đúng bảng đó.</li><li>Random vẫn còn; đây là thêm cách chọn có chủ đích.</li></ul>
+   <div class="k">Công sức</div><p>Lớn nhất trong các đề xuất UX (bấm trúng bộ phận trên canvas, bảng chọn, hình thu nhỏ của shape). Đáng làm nhất về giá trị.</p>
+   <label class="pick"><input type="checkbox" data-pick="B2 Bấm vào bộ phận để chọn shape và màu">Chọn B2</label>
+  </div>
+  <div class="wf"><div class="wf-stage" style="min-height:320px"><div data-render="single" data-variant="combined" data-index="1" data-w="230" data-h="310" style="transform:translateX(-60px)"></div><span class="wf-sel" style="left:calc(50% - 90px);top:60px;width:62px;height:62px"></span>
+   <div class="wf-pop"><b>Head</b> · Circle<div class="shapes"><span class="on"><svg width="16" height="16"><circle cx="8" cy="8" r="7" fill="#7c3eee"/></svg></span><span><svg width="16" height="16"><path d="M1 15 L15 15 L8 1Z" fill="#7c3eee"/></svg></span><span><svg width="16" height="16"><path d="M8 1 L14 4.5 L14 11.5 L8 15 L2 11.5 L2 4.5Z" fill="#7c3eee"/></svg></span><span><svg width="16" height="16"><path d="M1 1 L15 1 L8 15Z" fill="#7c3eee"/></svg></span><span><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" fill="#7c3eee"/></svg></span><span><svg width="16" height="16"><path d="M1 15 A7 14 0 0 1 15 15Z" fill="#7c3eee"/></svg></span></div>
+   <div class="swatches"><i style="background:#f55d59"></i><i style="background:#f49058"></i><i style="background:#facc67"></i><i style="background:#b0a04d"></i><i style="background:#0c8953"></i><i style="background:#38ae79"></i><i style="background:#3ba6ac"></i><i style="background:#0c52e9"></i><i style="background:#1c6cec"></i><i style="background:#579ef0"></i><i style="background:#7c3eee;outline:2px solid #27234d"></i><i style="background:#aa77e7"></i><i style="background:#eb4db2"></i><i style="background:#fab1dd"></i><i style="background:#f594cf"></i></div>
+   <div style="display:flex;gap:6px;margin-top:8px"><span class="wf-chip">🔒 Lock</span><span class="wf-chip">↻ Random</span></div></div></div></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>B3. Bố cục gọn, sân khấu lớn</h3>
+   <ul><li>Gộp logo và thanh công cụ thành <b>một hàng</b> (xem khung ở B1): sân khấu cao thêm khoảng 130px.</li><li>Hiện <b>tên đầy đủ</b> của nhân vật, bấm để đổi tên; seed chuyển vào nút <b>Share</b> (copy seed, copy link).</li><li>Nút trên sân khấu có nhãn khi rê chuột; tách "trạng thái Live" khỏi nút mở tab.</li></ul>
+   <label class="pick"><input type="checkbox" data-pick="B3 Bố cục một hàng, tên nhân vật, nút Share">Chọn B3</label>
+  </div>
+  <div class="text">
+   <h3>B4. Panel chia 3 tab rõ việc</h3>
+   <ul><li><b>Parts</b>: chỉ bộ phận (đổi, khóa, random). Xếp lớp chuyển thành chế độ "Edit layers" bật khi cần.</li><li><b>Style</b>: bộ màu, Pattern scale, Weave palette, nền đen/giấy, Proportions.</li><li><b>Motion</b>: 3 tư thế, Dance, Live pose.</li></ul>
+   <label class="pick"><input type="checkbox" data-pick="B4 Panel Parts / Style / Motion">Chọn B4</label>
+  </div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>B5. Khám phá nhiều phương án một lúc</h3>
+   <ul><li>Nút <b>Generate ×6</b>: sân khấu chia lưới 6 nhân vật (vẫn giữ các bộ phận đã khóa). Bấm một con để chọn, các con còn lại vào lịch sử.</li><li>Phím tắt: <span class="kbd">Space</span> Generate · <span class="kbd">G</span> lưới ×6 · <span class="kbd">⌘Z</span> hoàn tác · <span class="kbd">1</span>–<span class="kbd">3</span> tư thế · <span class="kbd">B</span> đổi nền · <span class="kbd">L</span> khóa bộ phận đang chọn · <span class="kbd">?</span> xem phím tắt.</li></ul>
+   <div class="k">Công sức</div><p>Vừa (lưới 6 sân khấu) + nhỏ (phím tắt).</p>
+   <label class="pick"><input type="checkbox" data-pick="B5 Generate x6 dạng lưới">Chọn lưới ×6</label><br>
+   <label class="pick"><input type="checkbox" data-pick="B5b Phím tắt">Chọn phím tắt</label>
+  </div>
+  <div class="wf"><div class="wf-top"><span class="wf-name">Chọn 1 trong 6<small>giữ: Head, Torso (đã khóa)</small></span><span class="wf-gen">Generate ×6</span></div><div class="wf-grid" data-render="combined"></div></div>
+ </div>
+
+ <div class="card">
+  <div class="text">
+   <h3>B6. Chia sẻ và xuất bản</h3>
+   <ul><li><b>Link chia sẻ</b> chứa seed: mở link là ra đúng nhân vật.</li><li>PNG: chọn nền trong suốt / đen / giấy, độ phân giải 2× hoặc 4×.</li><li><b>GIF/MP4</b> vài giây nhân vật nhảy (từ Dance ở A6), để đăng mạng xã hội.</li></ul>
+   <label class="pick"><input type="checkbox" data-pick="B6 Link chia sẻ + PNG trong suốt/4x">Chọn link + PNG</label><br>
+   <label class="pick"><input type="checkbox" data-pick="B6b Xuất GIF/MP4 nhảy">Chọn GIF/MP4</label>
+  </div>
+  <div class="text">
+   <h3>B7. Dễ đọc và mobile</h3>
+   <ul><li>Cỡ chữ tối thiểu 11px, chữ xám đậm hơn (đạt tương phản 4.5:1).</li><li>Mobile: một hàng tiêu đề gọn, sân khấu chiếm trọn chiều rộng, bảng điều khiển dạng ngăn kéo vuốt lên; gợi ý "Pinch to zoom".</li></ul>
+   <label class="pick"><input type="checkbox" data-pick="B7 Cỡ chữ/tương phản + mobile">Chọn B7</label>
+   <div class="phone" style="margin-top:12px"><div class="wf-top"><span class="wf-logo">geofolk</span><span class="wf-name"></span><span class="wf-gen">↻</span></div><div class="wf-stage" data-render="single" data-variant="combined" data-index="2" data-w="180" data-h="240"></div><div class="sheet"><div class="wf-tabs"><span class="on">Parts</span><span>Style</span><span>Motion</span></div><div class="wf-line"></div><div class="wf-line" style="width:70%"></div></div></div>
+  </div>
+ </div>
+
+ <section>
+  <h2>Lộ trình gợi ý</h2>
+  <table>
+   <tr><th>Đợt</th><th>Nội dung</th><th>Vì sao</th></tr>
+   <tr><td><span class="prio p1">ĐỢT 1</span></td><td>A1 Màu theo bộ · A2 Khớp · A3 Dáng mặc định · A4 Ô đan to · B1 Hoàn tác/lịch sử · B5b Phím tắt</td><td>Nhân vật đẹp lên rõ rệt, khám phá an toàn; công sức nhỏ–vừa.</td></tr>
+   <tr><td><span class="prio p2">ĐỢT 2</span></td><td>B2 Bấm để chọn · B3 Bố cục · B4 Panel 3 tab · A6 Thở + Dance</td><td>Trải nghiệm chỉnh sửa có chủ đích; sân khấu sống động cho triển lãm.</td></tr>
+   <tr><td><span class="prio p3">ĐỢT 3</span></td><td>A5 Chất giấy · B5 Lưới ×6 · B6 Chia sẻ/GIF · B7 Mobile · A7 Tay chân phẳng</td><td>Hoàn thiện và lan tỏa.</td></tr>
+  </table>
+ </section>
+
+ <section>
+  <h2>Lựa chọn của anh</h2>
+  <p>Danh sách tự cập nhật theo các ô "Chọn". Bấm "Sao chép" (nút tròn ở góc phải dưới) rồi dán vào chat với Claude.</p>
+  <textarea id="picks" readonly placeholder="Chưa chọn mục nào."></textarea>
+ </section>
+</div>
+
+<div class="pill"><span>Đã chọn <b id="pick-count">0</b> mục</span><button class="btn" id="copy-picks">Sao chép</button></div>
+<script type="module" src="./design-review.js"></script>
+</body>
+</html>

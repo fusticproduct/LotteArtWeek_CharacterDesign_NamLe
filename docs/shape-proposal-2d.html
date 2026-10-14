@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geofolk 2D Shapes</title>
+<style>
+:root{--paper:#eae7e6;--ink:#27234d;--green:#0c8953;--line:rgba(39,35,77,.14);--muted:rgba(39,35,77,.62);--card:#f3f1f0;--stage:#eae7e6}
+:root[data-stage="dark"]{--stage:#0b0b0d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+.eyebrow{font:600 11px 'Courier New',monospace;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:34px;letter-spacing:-1px;margin:6px 0 8px;line-height:1.1}
+h2{font-size:22px;letter-spacing:-.4px;margin:0 0 4px}
+h3{font-size:15px;margin:0}
+p{margin:0 0 10px;max-width:760px}
+.lead{color:var(--muted);font-size:16px}
+section{margin-top:40px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:14px 0 14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:7px 12px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg-label{font-size:12px;color:var(--muted);margin-right:6px}
+.btn{border:1px solid var(--green);background:var(--green);color:#fff;border-radius:7px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--line)}
+.cast{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--stage);border-radius:12px;padding:10px;transition:background .2s}
+.cast figure{margin:0;display:flex;flex-direction:column}
+.cast svg{width:100%;height:auto;aspect-ratio:2.6/3.3;display:block}
+.cast figcaption{font-size:11px;line-height:1.35;color:var(--muted);padding:0 4px 4px;min-height:30px}
+:root[data-stage="dark"] .cast figcaption{color:#9a97ad}
+.pins{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.pin{display:inline-flex;gap:6px;align-items:center;background:var(--ink);color:var(--paper);border-radius:99px;padding:3px 6px 3px 11px;font-size:12px}
+.pin button{border:0;background:rgba(255,255,255,.18);color:inherit;border-radius:99px;width:18px;height:18px;line-height:18px;padding:0;cursor:pointer;font-size:12px}
+.part{margin-top:26px}
+.part-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.part-head span{font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.card{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px 8px 7px;cursor:pointer;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:4px;transition:border-color .15s,box-shadow .15s}
+.card:hover{border-color:rgba(39,35,77,.4)}
+.card[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 2px var(--green) inset}
+.card svg{width:100%;height:92px;display:block}
+.card b{font-size:13px}
+.card i{font-style:normal;font-size:11px;color:var(--muted)}
+.tag{align-self:flex-start;font:600 10px 'Courier New',monospace;letter-spacing:.5px;padding:1px 5px;border-radius:4px;background:rgba(39,35,77,.08)}
+.tag.new{background:#d6efe2;color:#0c6b42}
+.tag.rule{background:#fde3f1;color:#a3216f}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:12px}
+.box{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--card)}
+.box h3{margin-bottom:8px}
+.box ul,.box ol{margin:0;padding-left:20px}
+.box li{margin:0 0 7px}
+.box li:last-child{margin:0}
+code{font:12px 'Courier New',monospace;background:rgba(39,35,77,.08);padding:1px 4px;border-radius:3px}
+@media (max-width:820px){.cast{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="eyebrow">Geofolk · Lotte Art Week · bản đề xuất, chưa đổi app</div>
+ <h1>Bộ shape 2D cho nhân vật</h1>
+ <p class="lead">Shape hiện tại là khối tiện 3D (ly, nấm, martini…). Nhìn thẳng ở bản 2D, chúng chỉ còn là những hình thang hay bán nguyệt kém rõ. Bản này vẽ lại từ đầu bằng hình phẳng kiểu giấy cắt, lấy cảm hứng từ ảnh tham chiếu nhưng không chép. Xương, chuyển động, bảng 18 màu và thứ tự lớp giữ nguyên.</p>
+
+ <section id="cast-section" style="margin-top:26px">
+  <h2>Nhân vật mẫu</h2>
+  <p>Ghép ngẫu nhiên từ bộ shape bên dưới, theo đúng các luật hiện có (đối xứng, màu kề nhau không trùng, mỗi tay/chân tối đa một đoạn chuỗi hạt). Tư thế "Nhảy" lấy từ video mẫu của Live pose.</p>
+  <div class="bar">
+   <button class="btn" id="shuffle">Đổi nhân vật</button>
+   <span><span class="seg-label">Tư thế</span><span class="seg" id="pose-mode"><button data-v="dance" aria-pressed="true">Nhảy (dừng)</button><button data-v="move">Nhảy (chuyển động)</button><button data-v="stand">Đứng</button></span></span>
+   <span><span class="seg-label">Nền</span><span class="seg" id="stage"><button data-v="light" aria-pressed="true">Sáng</button><button data-v="dark">Tối</button></span></span>
+   <span><span class="seg-label">Tay chân</span><span class="seg" id="bands"><button data-v="two" aria-pressed="true">1–2 màu (luật hiện tại)</button><button data-v="multi">Sọc 3–4 màu</button></span></span>
+  </div>
+  <div class="pins" id="pins"></div>
+  <div class="cast" id="cast"></div>
+ </section>
+
+ <section>
+  <h2>Bộ shape theo bộ phận</h2>
+  <p>Bấm một thẻ để <b>ghim</b> shape đó lên cả 8 nhân vật mẫu; bấm lần nữa để bỏ ghim. Có thể ghim nhiều bộ phận cùng lúc. <span class="tag">từ bản cũ</span> là shape cũ vẽ lại cho 2D, <span class="tag new">mới</span> là shape mới, <span class="tag rule">đổi luật</span> là shape cần nới một luật thiết kế.</p>
+  <div id="catalog"></div>
+ </section>
+
+ <section>
+  <h2>Thay đổi đi kèm và việc anh cần quyết</h2>
+  <div class="cols">
+   <div class="box">
+    <h3>Giữ nguyên</h3>
+    <ul>
+     <li>Bộ xương 26 bone, chiều cao 2.4, chiều dài xương, motion và thứ tự lớp vừa sửa.</li>
+     <li>Bảng 18 màu, dấu mặt màu tối, hai bộ phận kề nhau không trùng màu.</li>
+     <li>Bàn tay, bàn chân và các khớp cùng hình, cùng màu hai bên. Đùi và ống chân cùng hình hai bên.</li>
+     <li>Khớp vai, khuỷu, gối là chấm tròn riêng, màu tương phản.</li>
+     <li>Pattern đan chỉ ở thân và hông, vẫn chạy theo seed.</li>
+    </ul>
+   </div>
+   <div class="box">
+    <h3>Thay đổi</h3>
+    <ul>
+     <li><b>Bỏ hiển thị lower spine.</b> Thân kéo dài xuống phủ eo, hông nằm ngay dưới thân. Bone vẫn giữ để người còn cúi, ưỡn được.</li>
+     <li><b>Hình phẳng thật</b> thay cho khối 3D nhìn thẳng: cạnh sắc như giấy cắt, nhẹ hơn khi vẽ.</li>
+     <li><b>Khớp hông ẩn hẳn</b> sau phần hông.</li>
+     <li><b>Hông chủ yếu một màu</b> (đan ~30% thay vì ~65%), vì hai mảng đan đặt sát nhau nhìn rối.</li>
+     <li><b>Tay chân dày hơn</b> một chút cho gần ảnh tham chiếu; ô đan to hơn (vẫn chỉnh bằng Pattern scale).</li>
+     <li><b>Export FBX/OBJ</b> sẽ ra các mảnh phẳng, mỏng thay vì khối tròn. PNG không đổi.</li>
+    </ul>
+   </div>
+   <div class="box">
+    <h3>Cần anh quyết</h3>
+    <ol>
+     <li><b>Giữ hoặc bỏ shape nào.</b> Mỗi bộ phận nên còn 6–8 shape để random đủ đa dạng mà vẫn đẹp.</li>
+     <li><b>Sọc 3–4 màu cho tay chân</b> (nút "Tay chân" ở trên), giống ảnh tham chiếu. Luật hiện tại chỉ cho tối đa 2 màu.</li>
+     <li><b>Thân có mảng màu riêng</b> ngoài phần đan: Vòng, Vuông chéo, Đồng hồ cát, Người tuyết, Quạt. Luật hiện tại: thân chỉ có đan.</li>
+     <li><b>Tay "Cong"</b> đẹp khi đứng yên, nhưng khi nhảy có thể trông như tay bị gãy. Anh xem ở chế độ chuyển động.</li>
+     <li><b>Seed cũ.</b> Danh mục shape đổi nên seed cũ sẽ ra nhân vật khác. Tôi đề xuất đọc seed cũ theo bảng quy đổi sang shape gần nhất (ví dụ Sphere → Tròn), để seed cũ vẫn mở được.</li>
+    </ol>
+   </div>
+  </div>
+ </section>
+</div>
+
+<script>
+// ---------- Data -------------------------------------------------------------------------------
+const PALETTE=['#eae7e6','#27234d','#1a4e56','#f55d59','#f49058','#facc67','#b0a04d','#0c8953','#38ae79','#3ba6ac','#0c52e9','#1c6cec','#579ef0','#7c3eee','#aa77e7','#eb4db2','#fab1dd','#f594cf'];
+const VIBRANT=PALETTE.map((_,i)=>i).filter(i=>i>2);
+const DARK=PALETTE[1];
+const WEAVE=['#0564F8','#0A8AF8','#F83EB8','#F779C1','#19B98E','#00A062','#F94A53','#F97A42','#F7C85C','#8C45F5','#B67AF6','#B5E4F2','#F7DDEB','#F8AFDE','#6ADAA5'];
+// Local angles per bone, sampled from the Live pose demo video (src/pose.ts → toLocal).
+const DANCE=[{"root":0.025,"spine_lower":0.05,"head":-0.471,"upperarm_L":0.643,"forearm_L":2.29,"hand_L":0.167,"upperarm_R":-0.127,"forearm_R":1.496,"hand_R":0.305,"thigh_R":0.422,"shin_R":-0.648},{"root":0.147,"spine_lower":-0.032,"head":-0.6,"upperarm_R":0.742,"forearm_R":0.922,"hand_R":0.148,"thigh_L":0.695,"shin_L":-1.192,"thigh_R":0.401,"shin_R":-0.802,"upperarm_L":0.3,"forearm_L":1.2},{"root":0.107,"spine_lower":0.104,"head":-0.031,"upperarm_L":0.27,"forearm_L":-0.131,"hand_L":0.187,"upperarm_R":-2.057,"forearm_R":-3.062,"hand_R":-0.245,"thigh_L":0.001,"shin_L":-0.174,"thigh_R":-0.044,"shin_R":-0.006},{"root":-0.001,"spine_lower":0.014,"head":0.209,"upperarm_L":0.39,"forearm_L":-3.119,"hand_L":0.06,"upperarm_R":-0.293,"forearm_R":0.788,"hand_R":0.089,"thigh_L":0.072,"shin_L":-0.033,"thigh_R":-0.125,"shin_R":0.238},{"root":-0.012,"spine_lower":0.04,"head":0.219,"upperarm_L":2.614,"forearm_L":1.377,"hand_L":-0.019,"upperarm_R":-2.325,"forearm_R":-1.195,"hand_R":-0.056,"thigh_L":0.035,"shin_L":0.032,"thigh_R":-0.193,"shin_R":0.305},{"root":-0.023,"spine_lower":-0.015,"head":0.15,"upperarm_L":2.908,"forearm_L":1.286,"hand_L":0.331,"upperarm_R":-2.02,"forearm_R":-1.5,"hand_R":-0.333,"thigh_L":0.173,"shin_L":-0.139,"thigh_R":-0.249,"shin_R":0.208},{"root":-0.223,"spine_lower":0.259,"head":-0.181,"upperarm_L":-0.467,"forearm_L":-3.056,"hand_L":-0.127,"upperarm_R":-0.504,"forearm_R":-3.1,"hand_R":0.083,"thigh_L":0.419,"shin_L":-0.016,"thigh_R":0.185,"shin_R":0.106},{"root":0.112,"spine_lower":0.102,"head":-0.324,"upperarm_L":0.546,"forearm_L":-0.846,"hand_L":-0.215,"upperarm_R":-1.231,"forearm_R":-2.214,"hand_R":0.07,"thigh_L":0.402,"shin_L":-0.657,"thigh_R":-0.021,"shin_R":-0.244},{"root":-0.001,"spine_lower":0.04,"head":0.162,"upperarm_L":2.495,"forearm_L":1.828,"hand_L":0.008,"upperarm_R":-1.99,"forearm_R":-1.799,"hand_R":-0.249,"thigh_L":0.004,"shin_L":0.087,"thigh_R":0,"shin_R":0.112},{"root":0.119,"spine_lower":0.014,"head":-0.552,"upperarm_L":1.03,"forearm_L":2.62,"hand_L":0.045,"upperarm_R":-3.124,"forearm_R":-1.268,"hand_R":0.131,"thigh_L":0.097,"shin_L":-0.097,"thigh_R":0.022,"shin_R":-0.078},{"root":0.215,"spine_lower":0.024,"head":0.211,"upperarm_L":1.599,"forearm_L":-1.661,"hand_L":-0.338,"upperarm_R":-0.671,"forearm_R":-2.459,"hand_R":-0.158,"thigh_L":-0.638,"shin_L":0.769,"thigh_R":-0.203,"shin_R":0.275},{"root":-0.06,"spine_lower":-0.053,"head":0.191,"upperarm_L":0.356,"forearm_L":-0.243,"hand_L":-0.261,"upperarm_R":-0.064,"forearm_R":-0.05,"hand_R":0.157,"thigh_L":0.155,"shin_L":-0.048,"thigh_R":-0.178,"shin_R":0.021},{"root":0.095,"spine_lower":0.061,"head":-0.343,"upperarm_L":0.669,"forearm_L":0.094,"hand_L":-0.102,"upperarm_R":-0.811,"forearm_R":-2.495,"hand_R":-0.354,"thigh_L":0.284,"shin_L":-0.276,"thigh_R":-0.195,"shin_R":0.556},{"root":0.131,"spine_lower":0.231,"head":-0.6,"upperarm_L":0.128,"forearm_L":-0.264,"hand_L":-0.276,"upperarm_R":0.165,"forearm_R":1.698,"hand_R":0.146,"thigh_L":0.35,"shin_L":-0.781,"thigh_R":-0.09,"shin_R":-0.182},{"root":0.155,"spine_lower":0.171,"head":-0.469,"upperarm_L":0.421,"forearm_L":-0.171,"hand_L":0.087,"upperarm_R":-0.475,"forearm_R":1.825,"hand_R":-0.217,"thigh_L":0.726,"shin_L":-1.133,"thigh_R":-0.103,"shin_R":0.017},{"root":0.039,"spine_lower":0.016,"head":0.134,"upperarm_L":0.371,"forearm_L":-0.655,"hand_L":-0.218,"upperarm_R":-2.446,"forearm_R":3.136,"hand_R":-0.041,"thigh_L":0.124,"shin_L":-0.018,"thigh_R":0.101,"shin_R":0.056},{"root":0.106,"spine_lower":0.247,"head":0.142,"upperarm_L":0.901,"forearm_L":-2.628,"hand_L":-0.074,"upperarm_R":-0.255,"forearm_R":-3.073,"hand_R":-0.158,"thigh_L":0.192,"shin_L":-0.209,"thigh_R":-0.42,"shin_R":0.386},{"root":0.03,"spine_lower":-0.032,"head":-0.157,"upperarm_L":0.379,"forearm_L":-0.364,"hand_L":-0.094,"upperarm_R":-0.399,"forearm_R":1.567,"hand_R":0.131,"thigh_L":0.257,"shin_L":-0.396,"thigh_R":-0.22,"shin_R":0.145}];
+// The app's preset poses (src/model.ts poseRotation), left side; the right side mirrors the sign.
+const PRESETS=[
+ {upperarm:[.17,.17],forearm:[.12,.12],thigh:[.085,.085]},
+ {upperarm:[2.45,2.45],forearm:[.3,.3],thigh:[.085,.085],head:-.08},
+ {upperarm:[1.25,.5],forearm:[.9,-.75],thigh:[.42,.1],shin:[-.5,0],spine_lower:-.06,head:.1},
+];
+const presetAngles=p=>{const a={head:p.head??0,spine_lower:p.spine_lower??0};for(const k of ['upperarm','forearm','thigh','shin'])if(p[k]){a[`${k}_L`]=p[k][0];a[`${k}_R`]=-p[k][1];}return a;};
+
+// ---------- Geometry helpers (metres, y up; limbs hang along -y from their joint) ----------------
+const TAU=Math.PI*2;
+const arc=(cx,cy,rx,ry,a0,a1,n=36)=>Array.from({length:n+1},(_,i)=>{const a=a0+(a1-a0)*i/n;return [cx+rx*Math.cos(a),cy+ry*Math.sin(a)];});
+const circle=(cx,cy,r,n=48)=>arc(cx,cy,r,r,0,TAU,n).slice(0,-1);
+const rect=(x0,y0,x1,y1)=>[[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
+const rrect=(x0,y0,x1,y1,r)=>[...arc(x1-r,y1-r,r,r,0,Math.PI/2,6),...arc(x0+r,y1-r,r,r,Math.PI/2,Math.PI,6),...arc(x0+r,y0+r,r,r,Math.PI,1.5*Math.PI,6),...arc(x1-r,y0+r,r,r,1.5*Math.PI,TAU,6)];
+const regular=(cx,cy,r,n,rot=0)=>Array.from({length:n},(_,i)=>{const a=rot+TAU*i/n;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];});
+/** Segment from y=0 to y=-L whose half-width follows w(t), t = 0 at the joint, 1 at the far end. */
+const profile=(L,w,bow=0,n=24)=>{const left=[],right=[];for(let i=0;i<=n;i++){const t=i/n,x=bow*Math.sin(Math.PI*t),y=-L*t;right.push([x+w(t),y]);left.push([x-w(t),y]);}return [...right,...left.reverse()];};
+/** Tube with round ends centred on both joints. */
+const capsule=(L,r)=>[...arc(0,0,r,r,0,Math.PI,12),...arc(0,-L,r,r,Math.PI,TAU,12)];
+const piece=(ring,role='main',extra={})=>({rings:[ring],role,...extra});
+const holed=(outer,inner,role='main')=>({rings:[outer,inner],role});
+
+// ---------- Catalogue --------------------------------------------------------------------------
+// Each shape returns pieces in its bone's local space; `role` picks the fill: main, accent, weave, dark.
+const L_UP=.30,L_FORE=.28,L_THIGH=.6,L_SHIN=.6;
+const CAT={
+ head:{label:'Đầu',note:'cao ~0.31 m, dấu mặt luôn màu tối',items:[
+  {vi:'Tròn',en:'Circle',tag:'old',make:()=>({pieces:[piece(circle(0,.16,.155))],mark:[0,.16]})},
+  {vi:'Tam giác ngược',en:'Down triangle',tag:'new',make:()=>({pieces:[piece([[-.2,.33],[.2,.33],[0,-.02]])],mark:[0,.22]})},
+  {vi:'Tam giác',en:'Triangle',tag:'old',make:()=>({pieces:[piece([[-.22,.02],[.22,.02],[0,.37]])],mark:[0,.12]})},
+  {vi:'Lục giác',en:'Hexagon',tag:'old',make:()=>({pieces:[piece(regular(0,.16,.165,6,Math.PI/2))],mark:[0,.16]})},
+  {vi:'Vuông',en:'Square',tag:'old',make:()=>({pieces:[piece(rrect(-.145,.015,.145,.305,.02))],mark:[0,.16]})},
+  {vi:'Khung vuông',en:'Frame',tag:'new',make:()=>({pieces:[holed(rect(-.15,.01,.15,.31),rect(-.07,.09,.07,.23))],mark:[0,.16],markShape:'square'})},
+  {vi:'Mái vòm',en:'Dome',tag:'old',make:()=>({pieces:[piece(arc(0,.02,.19,.29,0,Math.PI,32))],mark:[0,.13]})},
+  {vi:'Viên nang',en:'Pill',tag:'old',make:()=>({pieces:[piece([...arc(0,.21,.11,.11,0,Math.PI,14),...arc(0,.1,.11,.11,Math.PI,TAU,14)])],mark:[0,.16]})},
+ ]},
+ mark:{label:'Dấu mặt',note:'giữ như bản cũ, thêm gạch ngang',items:[
+  {vi:'Gạch đứng',en:'Dash',tag:'old',make:()=>[rrect(-.013,-.045,.013,.045,.008)]},
+  {vi:'Chấm',en:'Dot',tag:'old',make:()=>[circle(0,0,.03)]},
+  {vi:'Tam giác',en:'Triangle',tag:'old',make:()=>[[[-.04,.025],[.04,.025],[0,-.04]]]},
+  {vi:'Hai chấm',en:'Twin dots',tag:'old',make:()=>[circle(-.04,0,.022),circle(.04,0,.022)]},
+  {vi:'Vòng',en:'Ring',tag:'old',make:()=>[circle(0,0,.035),circle(0,0,.017)],holed:true},
+  {vi:'Gạch ngang',en:'Bar',tag:'new',make:()=>[rrect(-.045,-.012,.045,.012,.008)]},
+ ]},
+ torso:{label:'Thân',note:'đan theo seed; vai luôn chạm mép thân (x = ±0.33)',items:[
+  {vi:'Cột',en:'Column',tag:'new',make:()=>[piece(rrect(-.27,-.14,.27,.43,.02),'weave')]},
+  {vi:'Phễu',en:'Funnel',tag:'old',make:()=>[piece([[-.38,.43],[.38,.43],[.13,-.14],[-.13,-.14]],'weave')]},
+  {vi:'Váy chữ A',en:'A-line',tag:'new',make:()=>[piece([[-.21,.43],[.21,.43],[.38,-.14],[-.38,-.14]],'weave')]},
+  {vi:'Bát',en:'Bowl',tag:'old',make:()=>[piece(arc(0,.43,.38,.57,Math.PI,TAU,40),'weave')]},
+  {vi:'Quạt',en:'Fan',tag:'rule',make:()=>{const rays=9,out=[];for(let i=0;i<rays;i++)out.push(piece([[0,-.14],...arc(0,-.14,.44,.6,Math.PI*i/rays,Math.PI*(i+1)/rays,6)],i%2?'accent':'weave'));return out;}},
+  {vi:'Tròn',en:'Orb',tag:'old',make:()=>[piece(circle(0,.15,.31),'weave')]},
+  {vi:'Vòng',en:'Donut',tag:'rule',make:()=>{const half=(a,role)=>piece([...arc(0,.15,.32,.32,a,a+Math.PI,24),...arc(0,.15,.12,.12,a+Math.PI,a,12)],role);return [half(Math.PI/2,'weave'),half(-Math.PI/2,'accent')];}},
+  {vi:'Đồng hồ cát',en:'Hourglass',tag:'rule',make:()=>[piece([[0,.17],[.29,-.14],[-.29,-.14]],'accent'),piece([[-.39,.43],[.39,.43],[0,.06]],'weave')]},
+  {vi:'Thoi',en:'Diamond',tag:'old',make:()=>[piece([[0,.5],[.38,.29],[0,-.17],[-.38,.29]],'weave')]},
+  {vi:'Vuông chéo',en:'Split square',tag:'rule',make:()=>[piece([[-.29,.43],[.29,.43],[-.29,-.14]],'weave'),piece([[.29,.43],[.29,-.14],[-.29,-.14]],'accent')]},
+  {vi:'Người tuyết',en:'Snowman',tag:'rule',make:()=>[piece(circle(0,-.05,.17),'accent'),piece(circle(0,.23,.265),'weave')]},
+  {vi:'Khiên',en:'Shield',tag:'new',make:()=>[piece([[-.33,.43],[.33,.43],[.33,.13],[0,-.18],[-.33,.13]],'weave')]},
+ ]},
+ pelvis:{label:'Hông',note:'nằm dưới thân, che khớp hông; đan hoặc một màu',items:[
+  {vi:'Đai',en:'Belt',tag:'old',make:()=>[piece(rrect(-.25,-.13,.25,.12,.04))]},
+  {vi:'Bán nguyệt',en:'Half disc',tag:'old',make:()=>[piece(arc(0,.12,.27,.34,Math.PI,TAU,32))]},
+  {vi:'Váy thang',en:'Skirt',tag:'new',make:()=>[piece([[-.2,.12],[.2,.12],[.34,-.27],[-.34,-.27]])]},
+  {vi:'Tròn',en:'Orb',tag:'old',make:()=>[piece(circle(0,-.03,.21))]},
+  {vi:'Tam giác ngược',en:'Brief',tag:'old',make:()=>[piece([[-.28,.12],[.28,.12],[0,-.28]])]},
+  {vi:'Hai hạt',en:'Twin balls',tag:'new',make:()=>[piece(circle(-.105,-.03,.125)),piece(circle(.105,-.03,.125))]},
+ ]},
+ neck:{label:'Cổ',note:'đoạn ngắn giữa thân và đầu',items:[
+  {vi:'Que',en:'Stick',tag:'old',make:()=>[piece(rect(-.028,-.03,.028,.1))]},
+  {vi:'Hạt',en:'Bead',tag:'old',make:()=>[piece(circle(0,.035,.055))]},
+  {vi:'Khối',en:'Block',tag:'old',make:()=>[piece(rect(-.075,-.03,.075,.085))]},
+  {vi:'Ẩn',en:'None',tag:'new',make:()=>[]},
+ ]},
+ arm:{label:'Tay (bắp tay, cẳng tay)',note:'mỗi đoạn chọn riêng; tối đa một đoạn chuỗi hạt mỗi tay',items:[
+  {vi:'Ống',en:'Tube',tag:'old',make:(L)=>[piece(capsule(L,.074),'limb')]},
+  {vi:'Côn',en:'Taper',tag:'old',make:(L,upper)=>[piece(profile(L,t=>upper?.09-.03*t:.06+.04*t),'limb')]},
+  {vi:'Que',en:'Stick',tag:'new',make:(L)=>[piece(rect(-.032,-L,.032,0),'limb')]},
+  {vi:'Dải giấy',en:'Strip',tag:'old',make:(L)=>[piece(rect(-.078,-L,.078,0),'limb')]},
+  {vi:'Chuỗi hạt',en:'Beads',tag:'old',beaded:true,make:(L)=>[0,1,2].map(i=>piece(circle(0,-L*(i+.5)/3,.078),'limb'))},
+  {vi:'Cong',en:'Arc',tag:'new',make:(L)=>[piece(profile(L,()=>.07,.075),'limb')]},
+ ]},
+ hand:{label:'Bàn tay',note:'cùng hình, cùng màu hai bên',items:[
+  {vi:'Tròn',en:'Ball',tag:'old',make:()=>[piece(circle(0,-.075,.088))]},
+  {vi:'Loa kèn',en:'Trumpet',tag:'new',make:()=>[piece([[-.045,.01],[.045,.01],[.12,-.2],[-.12,-.2]])]},
+  {vi:'Tam giác',en:'Triangle',tag:'old',make:()=>[piece([[0,.03],[.125,-.2],[-.125,-.2]])]},
+  {vi:'Vuông',en:'Square',tag:'old',make:()=>[piece(rect(-.08,-.165,.08,-.005))]},
+  {vi:'Quạt',en:'Fan',tag:'new',make:()=>[piece([[0,.01],...arc(0,.01,.19,.19,-Math.PI*.78,-Math.PI*.22,16)])]},
+  {vi:'Giọt nước',en:'Drop',tag:'new',make:()=>[piece([[0,.03],...arc(0,-.1,.085,.085,.15*Math.PI,-1.15*Math.PI,24)])]},
+ ]},
+ leg:{label:'Chân (đùi, ống chân)',note:'đùi mảnh, càng xuống càng to; cùng hình hai bên',items:[
+  {vi:'Côn',en:'Taper',tag:'old',make:(L,upper)=>[piece(profile(L,t=>upper?.07+.022*t:.09+.05*t),'limb')]},
+  {vi:'Chuông',en:'Bell',tag:'old',make:(L,upper)=>[piece(profile(L,t=>upper?.068+.03*t**2:.085+.095*t**2.4),'limb')]},
+  {vi:'Cột',en:'Column',tag:'old',make:(L,upper)=>[piece(rect(upper?-.078:-.092,-L,upper?.078:.092,0),'limb')]},
+  {vi:'Chuỗi hạt',en:'Beads',tag:'old',beaded:true,make:(L,upper)=>[0,1,2,3].map(i=>piece(circle(0,-L*(i+.5)/4,(upper?.074:.088)+.012*i),'limb'))},
+  {vi:'Que',en:'Stick',tag:'new',make:(L)=>[piece(rect(-.038,-L,.038,0),'limb')]},
+  {vi:'Nêm',en:'Wedge',tag:'new',make:(L,upper)=>[piece(profile(L,t=>upper?.05+.065*t:.03+.15*t),'limb')]},
+ ]},
+ foot:{label:'Bàn chân',note:'luôn nằm ngang, cùng hình hai bên',items:[
+  {vi:'Thang loe',en:'Flare',tag:'old',make:()=>[piece([[-.11,.01],[.11,.01],[.23,-.16],[-.23,-.16]])]},
+  {vi:'Bán nguyệt',en:'Dome',tag:'old',make:()=>[piece(arc(0,-.16,.23,.2,0,Math.PI,28))]},
+  {vi:'Khối',en:'Block',tag:'old',make:()=>[piece(rect(-.18,-.16,.18,-.01))]},
+  {vi:'Tam giác',en:'Triangle',tag:'new',make:()=>[piece([[0,.04],[.23,-.16],[-.23,-.16]])]},
+  {vi:'Ủng',en:'Boot',tag:'new',make:()=>[piece([[-.085,.01],[.085,.01],[.085,-.07],[.28,-.09],[.28,-.16],[-.085,-.16]])]},
+  {vi:'Chuông',en:'Bell',tag:'old',make:()=>[piece(profile(.17,t=>.09+.14*t**2.2).map(([x,y])=>[x,y+.01]))]},
+ ]},
+};
+const TAGS={old:['từ bản cũ',''],new:['mới','new'],rule:['đổi luật','rule']};
+
+// ---------- Random characters (same rules as src/model.ts generate) -----------------------------
+function rng(seed){let h=2166136261;for(let i=0;i<seed.length;i++)h=Math.imul(h^seed.charCodeAt(i),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+let pins={};
+function makeSpec(seed){
+ const r=rng(seed),pick=a=>a[Math.floor(r()*a.length)],idx=part=>pins[part]??Math.floor(r()*CAT[part].items.length);
+ const col=(...avoid)=>pick(VIBRANT.filter(c=>!avoid.flat().includes(c)));
+ const s={seed,head:idx('head'),mark:idx('mark'),neck:idx('neck'),torso:idx('torso'),pelvis:idx('pelvis'),hand:idx('hand'),foot:idx('foot'),leg:{upper:idx('leg'),lower:idx('leg')},weavePelvis:r()<.3,c:{},band:{},bandSplit:{}};
+ const beaded=(part,i)=>!!CAT[part].items[i].beaded;
+ if(beaded('leg',s.leg.upper)&&beaded('leg',s.leg.lower)&&pins.leg===undefined)s.leg.lower=0;
+ s.arm={};for(const side of 'LR'){let u=idx('arm'),f=idx('arm');if(beaded('arm',u)&&beaded('arm',f))f=0;s.arm[side]={upper:u,lower:f};}
+ const c=s.c;
+ c.torso=col();c.pelvis=col(c.torso);c.neck=col(c.torso);c.head=col(c.neck);
+ c.shoulder=col(c.torso);c.knee=col(c.pelvis);
+ for(const side of 'LR'){c['upperarm_'+side]=col(c.shoulder);c['thigh_'+side]=col(c.pelvis,c.knee);}
+ c.elbow=col(c.upperarm_L,c.upperarm_R);c.hand=col(c.elbow);
+ for(const side of 'LR'){c['forearm_'+side]=col(c.elbow,c.hand,c['upperarm_'+side]);c['shin_'+side]=col(c.knee,c['thigh_'+side]);}
+ c.foot=col(c.shin_L,c.shin_R);
+ for(const id of ['upperarm_L','upperarm_R','forearm_L','forearm_R','thigh_L','thigh_R','shin_L','shin_R']){c[id+'_a']=col(c[id]);c[id+'_b']=col(c[id],c[id+'_a']);s.band[id]=r()<.55;s.bandSplit[id]=pick([.38,.5,.62]);}
+ s.weave=Array.from({length:6},()=>pick(WEAVE));s.weave2=Array.from({length:6},()=>pick(WEAVE));
+ return s;
+}
+
+// ---------- Rig: 2D version of the 26-bone skeleton in src/model.ts -----------------------------
+const BONES=[['root',null,0,1.39],['spine_lower','root',0,.07],['spine_upper','spine_lower',0,.14],['neck','spine_upper',0,.42],['head','neck',0,.07]];
+for(const [s,x] of [['L',1],['R',-1]])BONES.push([`shoulder_${s}`,'spine_upper',.33*x,.325],[`upperarm_${s}`,`shoulder_${s}`,.02*x,0],[`elbow_${s}`,`upperarm_${s}`,0,-.3],[`forearm_${s}`,`elbow_${s}`,0,0],[`hand_${s}`,`forearm_${s}`,0,-.28],[`hip_${s}`,'root',.105*x,-.03],[`thigh_${s}`,`hip_${s}`,0,0],[`knee_${s}`,`thigh_${s}`,0,-.6],[`shin_${s}`,`knee_${s}`,0,0],[`foot_${s}`,`shin_${s}`,0,-.6]);
+const mul=(m,n)=>[m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],m[0]*n[2]+m[2]*n[3],m[1]*n[2]+m[3]*n[3],m[0]*n[4]+m[2]*n[5]+m[4],m[1]*n[4]+m[3]*n[5]+m[5]];
+const T=(x,y)=>[1,0,0,1,x,y],R=a=>[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0],MIRROR=[-1,0,0,1,0,0];
+const apply=(m,[x,y])=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
+function pose(angles){
+ const world={},turn={};
+ for(const [id,parent,x,y] of BONES){
+  let a=angles[id]??0;
+  if(id.startsWith('foot_'))a=-turn[parent]; // soles stay level, as in live pose
+  turn[id]=(parent?turn[parent]:0)+a;
+  world[id]=mul(parent?world[parent]:[1,0,0,1,0,0],mul(T(x,y),R(a)));
+ }
+ return world;
+}
+/** Back-to-front draw order (src/rig.ts drawOrder, default layer order, left arm/leg in front). */
+const ORDER=[...['thigh','shin','knee','foot'].map(p=>p+'_R'),...['thigh','shin','knee','foot'].map(p=>p+'_L'),'root','neck','spine_upper','head','face_mark',...['upperarm','shoulder','forearm','elbow','hand'].map(p=>p+'_R'),...['upperarm','shoulder','forearm','elbow','hand'].map(p=>p+'_L')];
+
+// ---------- Drawing ----------------------------------------------------------------------------
+const f3=n=>Math.round(n*1000)/1000;
+const pathOf=rings=>rings.map(r=>'M'+r.map(([x,y])=>`${f3(x)} ${f3(y)}`).join('L')+'Z').join('');
+const matrix=m=>`matrix(${m.map(f3).join(' ')})`;
+function weaveDefs(id,colors){
+ // A 4×4 basket-weave tile: warp and weft threads alternate over/under, with thin dark gaps.
+ const n=4,t=.3,c=t/n,g=.009;let cells='';
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++){const over=(i+j)%2===0,fill=over?colors[i%3]:colors[3+j%3];cells+=over?`<rect x="${f3(i*c+g)}" y="${f3(j*c)}" width="${f3(c-2*g)}" height="${f3(c)}" fill="${fill}"/>`:`<rect x="${f3(i*c)}" y="${f3(j*c+g)}" width="${f3(c)}" height="${f3(c-2*g)}" fill="${fill}"/>`;}
+ return `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${t}" height="${t}"><rect width="${t}" height="${t}" fill="#221d3a"/>${cells}</pattern>`;
+}
+let uid=0;
+/** SVG for one part: pieces drawn under `m`, limbs with optional colour bands clipped to their outline. */
+function partSVG(pieces,m,fills,bands){
+ if(!pieces.length)return '';
+ let out=`<g transform="${matrix(m)}">`;
+ for(const p of pieces){
+  const d=pathOf(p.rings),fill=fills[p.role]??fills.main;
+  out+=`<path d="${d}" fill="${fill}" fill-rule="evenodd"/>`;
+ }
+ if(bands&&pieces.some(p=>p.role==='limb')){
+  const id=`clip${uid++}`,d=pieces.filter(p=>p.role==='limb').map(p=>pathOf(p.rings)).join('');
+  out+=`<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">`;
+  for(const [y0,y1,fill] of bands)out+=`<rect x="-.5" y="${f3(y1)}" width="1" height="${f3(y0-y1)}" fill="${fill}"/>`;
+  out+='</g>';
+ }
+ return out+'</g>';
+}
+/** Colour bands along a limb segment of length L (from y=0 down to -L, caps included). */
+function bandsFor(spec,id,L,mode){
+ if(!spec.band[id])return null;
+ const a=PALETTE[spec.c[id+'_a']],b=PALETTE[spec.c[id+'_b']],m=PALETTE[spec.c[id]];
+ if(mode==='multi'){const n=3+(id.length%2),ext=.12,step=(L+2*ext)/n;return Array.from({length:n},(_,i)=>[ext-i*step,ext-(i+1)*step,[m,a,b,a][i%4]]);}
+ const split=-L*(1-spec.bandSplit[id]);return [[.2,split,a]];
+}
+function figureSVG(spec,angles,mode,key){
+ const world=pose(angles),parts=[];
+ const W=n=>`url(#${key}-${n})`;
+ const add=(id,pieces,fills,bands)=>{if(!pieces.length)return;const side=id.endsWith('_R'),m=side?mul(world[id],MIRROR):world[id];parts.push({id,pieces,m,fills,bands});};
+ const head=CAT.head.items[spec.head].make();
+ add('head',head.pieces,{main:PALETTE[spec.c.head]});
+ const markItem=CAT.mark.items[spec.mark];
+ const markRings=head.markShape==='square'?[rect(-.035,-.035,.035,.035)]:markItem.make();
+ parts.push({id:'face_mark',pieces:[{rings:markRings,role:'main'}],m:mul(world.head,T(...head.mark)),fills:{main:DARK}});
+ add('neck',CAT.neck.items[spec.neck].make(),{main:PALETTE[spec.c.neck]});
+ add('spine_upper',CAT.torso.items[spec.torso].make(),{weave:W('w'),accent:PALETTE[spec.c.torso]});
+ add('root',CAT.pelvis.items[spec.pelvis].make(),{main:spec.weavePelvis?W('p'):PALETTE[spec.c.pelvis]});
+ for(const s of 'LR'){
+  add(`shoulder_${s}`,[piece(circle(0,0,.095))],{main:PALETTE[spec.c.shoulder]});
+  add(`elbow_${s}`,[piece(circle(0,0,.08))],{main:PALETTE[spec.c.elbow]});
+  add(`knee_${s}`,[piece(circle(0,0,.1))],{main:PALETTE[spec.c.knee]});
+  add(`upperarm_${s}`,CAT.arm.items[spec.arm[s].upper].make(L_UP,true),{limb:PALETTE[spec.c['upperarm_'+s]]},bandsFor(spec,'upperarm_'+s,L_UP,mode));
+  add(`forearm_${s}`,CAT.arm.items[spec.arm[s].lower].make(L_FORE,false),{limb:PALETTE[spec.c['forearm_'+s]]},bandsFor(spec,'forearm_'+s,L_FORE,mode));
+  add(`hand_${s}`,CAT.hand.items[spec.hand].make(),{main:PALETTE[spec.c.hand]});
+  add(`thigh_${s}`,CAT.leg.items[spec.leg.upper].make(L_THIGH,true),{limb:PALETTE[spec.c['thigh_'+s]]},bandsFor(spec,'thigh_'+s,L_THIGH,mode));
+  add(`shin_${s}`,CAT.leg.items[spec.leg.lower].make(L_SHIN,false),{limb:PALETTE[spec.c['shin_'+s]]},bandsFor(spec,'shin_'+s,L_SHIN,mode));
+  add(`foot_${s}`,CAT.foot.items[spec.foot].make(),{main:PALETTE[spec.c.foot]});
+ }
+ // Beaded segments never carry bands (same rule as the app).
+ for(const p of parts)if(p.pieces.length>1&&p.pieces.every(x=>x.role==='limb'))p.bands=null;
+ // Stand on the floor: lowest point at y = 0.
+ let minY=Infinity;for(const p of parts)for(const pc of p.pieces)for(const r of pc.rings)for(const pt of r)minY=Math.min(minY,apply(p.m,pt)[1]);
+ parts.sort((a,b)=>ORDER.indexOf(a.id)-ORDER.indexOf(b.id));
+ const defs=`<defs>${weaveDefs(key+'-w',spec.weave)}${weaveDefs(key+'-p',spec.weave2)}</defs>`;
+ return `${defs}<g transform="scale(1 -1) translate(0 ${f3(-minY)})">${parts.map(p=>partSVG(p.pieces,p.m,p.fills,p.bands)).join('')}</g>`;
+}
+
+// ---------- Catalogue thumbnails ---------------------------------------------------------------
+const DEMO={head:13,neck:5,torso:15,pelvis:11,arm:11,joint:15,hand:5,leg:9,foot:10};
+function thumb(part,i){
+ const item=CAT[part].items[i];let pieces=[],fills={main:PALETTE[DEMO[part]]};
+ const defs=weaveDefs(`t-${part}-${i}`,['#F83EB8','#F7C85C','#0A8AF8','#19B98E','#F97A42','#8C45F5']);
+ let body='';
+ if(part==='head'){const h=item.make();body=partSVG(h.pieces,[1,0,0,1,0,0],fills)+partSVG([{rings:h.markShape==='square'?[rect(-.035,-.035,.035,.035)]:CAT.mark.items[0].make(),role:'main'}],T(...h.mark),{main:DARK});pieces=h.pieces;}
+ else if(part==='mark'){const rings=item.make();pieces=[{rings:[rect(-.1,-.1,.1,.1)]}];body=partSVG([{rings,role:'main'}],[1,0,0,1,0,0],{main:DARK});}
+ else if(part==='torso'||part==='pelvis'){pieces=item.make();body=partSVG(pieces,[1,0,0,1,0,0],{weave:`url(#t-${part}-${i})`,accent:PALETTE[3],main:part==='pelvis'?`url(#t-${part}-${i})`:PALETTE[3]});if(part==='pelvis')pieces=[...pieces,{rings:[rect(-.3,-.3,.3,.15)]}];}
+ else if(part==='arm'||part==='leg'){
+  const up=part==='arm'?L_UP:L_THIGH,lo=part==='arm'?L_FORE:L_SHIN,r=part==='arm'?.072:.088;
+  const a=item.make(up,true),b=item.make(lo,false).map(p=>({...p,rings:p.rings.map(rg=>rg.map(([x,y])=>[x,y-up]))}));
+  pieces=[...a,...b,{rings:[circle(0,0,r)]}];
+  body=partSVG(a,[1,0,0,1,0,0],{limb:PALETTE[DEMO[part]]})+partSVG(b,[1,0,0,1,0,0],{limb:PALETTE[part==='arm'?12:16]})+partSVG([piece(circle(0,-up,r))],[1,0,0,1,0,0],{main:PALETTE[DEMO.joint]});
+ }
+ else{pieces=item.make();body=partSVG(pieces,[1,0,0,1,0,0],fills);}
+ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+ for(const p of pieces)for(const r of p.rings)for(const [x,y] of r){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+ if(!isFinite(x0)){x0=-.1;x1=.1;y0=-.1;y1=.1;}
+ const pad=Math.max(x1-x0,y1-y0)*.12+.02;
+ return `<svg viewBox="${f3(x0-pad)} ${f3(-y1-pad)} ${f3(x1-x0+2*pad)} ${f3(y1-y0+2*pad)}" aria-hidden="true"><defs>${defs}</defs><g transform="scale(1 -1)">${body}</g></svg>`;
+}
+function renderCatalog(){
+ const order=['head','mark','neck','torso','pelvis','arm','hand','leg','foot'];
+ document.getElementById('catalog').innerHTML=order.map(part=>{const c=CAT[part];
+  return `<div class="part"><div class="part-head"><h3>${c.label}</h3><span>${c.items.length} shape · ${c.note}</span></div><div class="cards">${c.items.map((it,i)=>{const [t,cls]=TAGS[it.tag];return `<button class="card" data-part="${part}" data-i="${i}" aria-pressed="${pins[part]===i}">${thumb(part,i)}<b>${it.vi}</b><i>${it.en}</i><span class="tag ${cls}">${t}</span></button>`;}).join('')}</div></div>`;}).join('');
+}
+
+// ---------- Cast -------------------------------------------------------------------------------
+let seeds=[],mode='dance',bandMode='two',t0=performance.now(),lastDraw=0;
+const newSeeds=()=>{seeds=Array.from({length:8},(_,i)=>`lotte-${Math.random().toString(36).slice(2,7)}-${i}`);};
+const lerpAngles=(a,b,t)=>{const out={};for(const k of new Set([...Object.keys(a),...Object.keys(b)])){const x=a[k]??0,y=b[k]??0,d=Math.atan2(Math.sin(y-x),Math.cos(y-x));out[k]=x+d*t;}return out;};
+const ease=t=>t<.5?2*t*t:1-2*(1-t)**2;
+let specs=[];
+function renderCast(){
+ specs=seeds.map(makeSpec);
+ const cast=document.getElementById('cast');
+ cast.innerHTML=specs.map((s,i)=>`<figure><svg viewBox="-1.35 -3.25 2.7 3.36" role="img" aria-label="Nhân vật mẫu ${i+1}" id="fig${i}"></svg><figcaption>Đầu ${CAT.head.items[s.head].vi} · Thân ${CAT.torso.items[s.torso].vi} · Hông ${CAT.pelvis.items[s.pelvis].vi}<br>Tay ${CAT.arm.items[s.arm.L.upper].vi}/${CAT.arm.items[s.arm.L.lower].vi} · Chân ${CAT.leg.items[s.leg.upper].vi}/${CAT.leg.items[s.leg.lower].vi} · Bàn tay ${CAT.hand.items[s.hand].vi}</figcaption></figure>`).join('');
+ drawFrames(performance.now());
+ document.getElementById('pins').innerHTML=Object.entries(pins).map(([p,i])=>`<span class="pin">${CAT[p].label}: ${CAT[p].items[i].vi}<button data-unpin="${p}" aria-label="Bỏ ghim">×</button></span>`).join('')+(Object.keys(pins).length?'':'<span style="font-size:12px;color:var(--muted)">Chưa ghim shape nào. Bấm một thẻ ở phần dưới để xem nó trên cả 8 nhân vật.</span>');
+}
+function anglesFor(i,now){
+ if(mode==='stand')return presetAngles(PRESETS[i%3]);
+ if(mode==='dance')return DANCE[(i*5+2)%DANCE.length];
+ const beat=(now-t0)/700+i*2.3,k=Math.floor(beat),f=ease(Math.min(1,(beat-k)*1.6));
+ return lerpAngles(DANCE[k%DANCE.length],DANCE[(k+1)%DANCE.length],f);
+}
+function drawFrames(now){uid=0;specs.forEach((s,i)=>{const el=document.getElementById('fig'+i);if(el)el.innerHTML=figureSVG(s,anglesFor(i,now),bandMode,'c'+i);});}
+let raf=0;
+// ~15 redraws a second is smooth enough here; rebuilding 8 SVGs on every frame loads the whole browser.
+function loop(now){if(now-lastDraw>66){lastDraw=now;drawFrames(now);}raf=mode==='move'?requestAnimationFrame(loop):0;}
+function setMode(v){mode=v;cancelAnimationFrame(raf);if(mode==='move')raf=requestAnimationFrame(loop);else drawFrames(performance.now());}
+
+// ---------- Wiring -----------------------------------------------------------------------------
+function segment(id,cb){const el=document.getElementById(id);el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));cb(b.dataset.v);});}
+segment('pose-mode',setMode);
+segment('stage',v=>{document.documentElement.dataset.stage=v;});
+segment('bands',v=>{bandMode=v;drawFrames(performance.now());});
+document.getElementById('shuffle').addEventListener('click',()=>{newSeeds();renderCast();});
+document.getElementById('catalog').addEventListener('click',e=>{const card=e.target.closest('.card');if(!card)return;const {part,i}=card.dataset;if(pins[part]===Number(i))delete pins[part];else pins[part]=Number(i);renderCatalog();renderCast();});
+document.getElementById('pins').addEventListener('click',e=>{const p=e.target.dataset?.unpin;if(p){delete pins[p];renderCatalog();renderCast();}});
+newSeeds();renderCatalog();renderCast();setMode('dance');
+</script>
+</body>
+</html>

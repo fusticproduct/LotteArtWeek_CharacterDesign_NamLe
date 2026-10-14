@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geofolk Color Schemes</title>
+<style>
+:root{--paper:#eae7e6;--ink:#27234d;--green:#0c8953;--line:rgba(39,35,77,.14);--muted:rgba(39,35,77,.64);--card:#f3f1f0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+.eyebrow{font:600 11px 'Courier New',monospace;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:32px;letter-spacing:-1px;margin:6px 0 8px;line-height:1.1}
+h2{font-size:21px;margin:34px 0 6px}
+p{margin:0 0 10px;max-width:800px}
+.lead{color:var(--muted);font-size:16px}
+.btn{border:1px solid var(--green);background:var(--green);color:#fff;border-radius:7px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;background:#000;border-radius:12px;padding:8px}
+.grid figure{margin:0}.grid img{width:100%;display:block;border-radius:6px}
+.grid figcaption{display:flex;gap:2px;padding:3px 4px 2px}.grid figcaption i{flex:1;height:7px;border-radius:2px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:10px;margin:12px 0}
+.stats div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stats b{display:block;font-size:24px;letter-spacing:-.5px}
+.stats span{font-size:13px;color:var(--muted)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-top:12px}
+.box ol,.box ul{margin:0;padding-left:20px}.box li{margin-bottom:6px}
+code{font:12px 'Courier New',monospace;background:rgba(39,35,77,.08);padding:1px 4px;border-radius:3px}
+@media (max-width:760px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="eyebrow">Geofolk · A1 bản 2 · bộ màu sinh tự động · chưa đổi app</div>
+ <h1>Mỗi nhân vật một bộ màu riêng</h1>
+ <p class="lead">6 bộ màu cố định thì không đủ: mỗi bộ sẽ lặp lại ở khoảng 1/6 số nhân vật. Bản này để máy tự ghép 5 màu cho từng nhân vật, theo quy tắc phối màu, từ bảng 18 màu sẵn có. Kết quả: mỗi nhân vật vẫn hài hòa, mà hầu như không có hai nhân vật trùng màu. Nhân vật trên trang dựng bằng code thật của app.</p>
+ <p><button class="btn" id="again">Đổi bộ nhân vật</button></p>
+
+ <div class="stats" id="stats"></div>
+
+ <h2>Hiện tại: màu ngẫu nhiên từng bộ phận</h2>
+ <div class="grid" data-row="current"></div>
+ <h2>Đề xuất: bộ màu sinh tự động (18 nhân vật)</h2>
+ <p>Thanh màu dưới mỗi nhân vật là 5 màu của nó: thân A, thân B, nhấn, khớp, đầu.</p>
+ <div class="grid" data-row="generated"></div>
+ <h2>Cùng một bộ hình, 6 bộ màu</h2>
+ <p>Chỉ cần đổi màu, một nhân vật đã thành 6 nhân vật khác hẳn nhau.</p>
+ <div class="grid" data-row="same"></div>
+
+ <h2>Cách máy ghép bộ màu</h2>
+ <div class="box"><ol>
+  <li><b>Màu thân A:</b> chọn ngẫu nhiên 1 trong 15 màu tươi.</li>
+  <li><b>Màu thân B</b> theo một trong ba kiểu phối: <b>gần nhau</b> (cùng tông, khác độ sáng, ví dụ xanh dương + xanh nhạt), <b>đối nhau</b> (bên kia vòng màu, ví dụ tím + vàng), hoặc <b>tương phản sáng tối</b>.</li>
+  <li><b>Màu nhấn</b> (bàn tay, bàn chân, hông) xa cả A lẫn B trên vòng màu, để nổi bật.</li>
+  <li><b>Màu khớp</b> sáng hơn hẳn hoặc tối hơn hẳn A và B, để khớp đọc rõ mà không lấn át.</li>
+  <li><b>Màu đầu:</b> bất kỳ màu còn lại, không trùng thân và khớp.</li>
+  <li><b>Cách rải màu</b>, 1 trong 4 kiểu: tay A / chân B; đoạn trên A / đoạn dưới B; xen kẽ; bên trái A / bên phải B. Hai nhân vật cùng 5 màu vẫn trông khác nhau.</li>
+ </ol>
+ <p style="margin-top:10px">Vẫn giữ: hai bộ phận kề nhau không trùng màu, dấu mặt màu tối, đối xứng bàn tay/chân/khớp, khóa và random từng bộ phận. Thêm nút "random bộ màu" để giữ hình, chỉ đổi màu.</p></div>
+
+ <h2>Nếu muốn đa dạng hơn nữa</h2>
+ <div class="box"><ul>
+  <li><b>Mở rộng bảng màu</b> từ 18 lên khoảng 24–30 màu (lấy thêm từ ảnh tham chiếu, ví dụ xanh navy, tím than, cam đất, hồng đào). Số bộ màu tăng gấp 2–3 lần.</li>
+  <li><b>Màu sợi đan theo bộ màu</b> (A4b): thân cũng mang màu riêng của nhân vật, thay vì 3 bảng HFCD/XMAS/TET dùng chung.</li>
+  <li><b>Bộ màu nằm trong seed</b>: seed vẫn tái tạo đúng nhân vật như bây giờ.</li>
+ </ul></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {createCharacter} from '/src/rig.ts';
+import {generate,palette,studioProportions} from '/src/model.ts';
+
+const vibrant=palette.map((c,i)=>i).filter(i=>!['neutral','dark'].includes(palette[i].family));
+const hsl=Object.fromEntries(vibrant.map(i=>{const o={};new THREE.Color(palette[i].hex).getHSL(o);return [i,o];}));
+const hueGap=(a,b)=>{const d=Math.abs(hsl[a].h-hsl[b].h)%1;return Math.min(d,1-d)*360;};
+const lightGap=(a,b)=>Math.abs(hsl[a].l-hsl[b].l);
+const modes={analog:(a,b)=>hueGap(a,b)<=70&&lightGap(a,b)>=.08,complement:(a,b)=>hueGap(a,b)>=120,contrast:(a,b)=>lightGap(a,b)>=.2};
+const layouts=['arms-legs','upper-lower','alternate','sides'];
+const accentOk=(c,A,B)=>hueGap(c,A)>=60&&hueGap(c,B)>=60;
+const jointOk=(c,A,B)=>Math.abs(hsl[c].l-(hsl[A].l+hsl[B].l)/2)>=.15;
+/** A five-colour scheme (A, B, accent, joint, head) plus a layout, drawn with the rules above. */
+function scheme(rand){
+ const pick=a=>a[Math.floor(rand()*a.length)],not=(...x)=>vibrant.filter(c=>!x.includes(c));
+ const A=pick(vibrant),mode=pick(Object.keys(modes));
+ const partners=not(A).filter(c=>modes[mode](A,c)),B=pick(partners.length?partners:not(A));
+ const accents=not(A,B).filter(c=>accentOk(c,A,B)),C=pick(accents.length?accents:not(A,B));
+ const joints=not(A,B,C).filter(c=>jointOk(c,A,B)),J=pick(joints.length?joints:not(A,B,C));
+ return {A,B,C,J,H:pick(not(A,B,J)),layout:pick(layouts)};
+}
+/** Every scheme the rules allow (used for the counts). */
+function countSchemes(){
+ const seen=new Set();
+ for(const A of vibrant)for(const B of vibrant){if(B===A||!Object.values(modes).some(m=>m(A,B)))continue;
+  const acc=vibrant.filter(c=>c!==A&&c!==B&&accentOk(c,A,B));for(const C of acc.length?acc:vibrant.filter(c=>c!==A&&c!==B)){
+   const jo=vibrant.filter(c=>![A,B,C].includes(c)&&jointOk(c,A,B));for(const J of jo.length?jo:vibrant.filter(c=>![A,B,C].includes(c)))for(const H of vibrant)if(![A,B,J].includes(H))seen.add(`${A}.${B}.${C}.${J}.${H}`);}}
+ return seen.size;
+}
+/** Colours a spec by role; neighbours always differ (A/B limbs, J joints, C hands/feet/pelvis, H head, B neck). */
+function apply(spec,s){
+ const out=structuredClone(spec);
+ for(const [id,p] of Object.entries(out.parts)){
+  const [part,side]=id.split('_'),set=(c,a)=>{p.color=c;if(a!==undefined)p.accent=a;};
+  const limb=(upper,arm)=>s.layout==='arms-legs'?(arm?s.A:s.B):s.layout==='upper-lower'?(upper?s.A:s.B):s.layout==='alternate'?(upper===arm?s.A:s.B):(side==='L'?s.A:s.B);
+  if(['shoulder','elbow','knee','hip'].includes(part))set(s.J);
+  else if(['upperarm','forearm','thigh','shin'].includes(part)){const c=limb(part==='upperarm'||part==='thigh',part==='upperarm'||part==='forearm');set(c,c===s.A?s.B:s.A);}
+  else if(part==='hand'||part==='foot')set(s.C);
+  else if(id==='head')set(s.H);else if(id==='neck'||id==='spine_lower')set(s.B);
+  else if(id==='root')set(s.C,s.A);else if(id==='spine_upper')set(s.A,s.C);
+ }
+ return out;
+}
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));renderer.toneMapping=THREE.NoToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;
+function shot(spec,pose){const w=200,h=270;renderer.setSize(w,h,false);const scene=new THREE.Scene();scene.background=new THREE.Color('#000');const rig=createCharacter({...spec,density:3},'HFCD',undefined,studioProportions);rig.applyPose(pose);scene.add(rig.group);const span=3.4,cam=new THREE.OrthographicCamera(-span*w/h/2,span*w/h/2,3.2,3.2-span,.1,50);cam.position.set(0,0,10);renderer.render(scene,cam);const url=renderer.domElement.toDataURL();rig.dispose();return url;}
+const bar=s=>`<figcaption>${[s.A,s.B,s.C,s.J,s.H].map(c=>`<i style="background:${palette[c].hex}"></i>`).join('')}</figcaption>`;
+const poses=['idle','reach','stride'];
+function rng(seed){let h=2166136261;for(const c of seed)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function render(){
+ const tag=Math.random().toString(36).slice(2,7);
+ document.querySelector('[data-row="current"]').innerHTML=Array.from({length:6},(_,i)=>`<figure><img src="${shot(generate(`c-${tag}-${i}`),poses[i%3])}" alt=""></figure>`).join('');
+ document.querySelector('[data-row="generated"]').innerHTML=Array.from({length:18},(_,i)=>{const label=`g-${tag}-${i}`,s=scheme(rng(label));return `<figure><img src="${shot(apply(generate(label),s),poses[i%3])}" alt="">${bar(s)}</figure>`;}).join('');
+ const base=generate(`s-${tag}`);
+ document.querySelector('[data-row="same"]').innerHTML=Array.from({length:6},(_,i)=>{const s=scheme(rng(`s-${tag}-${i}`));return `<figure><img src="${shot(apply(base,s),'stride')}" alt="">${bar(s)}</figure>`;}).join('');
+}
+const total=countSchemes(),withLayouts=total*layouts.length,crowd=50;
+// Chance that a crowd of 50 has at least one pair with the same 5 colours and layout (birthday problem).
+const repeat=1-Array.from({length:crowd},(_,k)=>1-k/withLayouts).reduce((a,b)=>a*b,1);
+const pairCount=vibrant.length*(vibrant.length-1);
+document.getElementById('stats').innerHTML=`<div><b>${total.toLocaleString('vi-VN')}</b><span>bộ 5 màu khác nhau mà quy tắc cho phép, chỉ từ bảng 18 màu hiện có</span></div><div><b>${withLayouts.toLocaleString('vi-VN')}</b><span>cách tô khác nhau khi tính cả 4 kiểu rải màu</span></div><div><b>${(repeat*100).toFixed(1)}%</b><span>khả năng có 2 nhân vật trùng hệt màu trong một đám đông ${crowd} nhân vật</span></div><div><b>${pairCount}</b><span>cặp màu thân (A, B) khác nhau: màu "chữ ký" của nhân vật</span></div>`;
+document.getElementById('again').addEventListener('click',render);
+render();
+</script>
+</body>
+</html>

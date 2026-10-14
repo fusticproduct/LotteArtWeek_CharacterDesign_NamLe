@@ -1,7 +1,10 @@
 import paletteData from './palette.json';
+import savedProportions from './proportions.json';
 export const palette = paletteData.colors;
 export const color = (id: string) => palette.find(c => c.id === id)!.hex;
 export const theme = {paper:color('neutral_1'),ink:color('dark_1'),green:color('green_1'),blue:color('blue_1'),pink:color('pink_2')};
+/** Stage background: black like the reference video, or the studio paper. */
+export const stageColors={dark:'#000000',light:theme.paper};
 export type Vec3 = [number, number, number];
 export type SlotKind = 'pelvis'|'connector'|'torso'|'head'|'face'|'limb'|'leg'|'hand'|'foot';
 export interface BoneDefinition {id:string;parent:string|null;headPosition:Vec3;length:number;kind:SlotKind;label:string;section:string;}
@@ -15,6 +18,7 @@ export const bones: BoneDefinition[] = [
  ...(['L','R'] as const).flatMap(side => {
   const x=side==='L'?1:-1, section=side==='L'?'Left arm':'Right arm';
   return [
+   // x is nominal: the rig moves each shoulder to the edge of the chosen torso (rig.ts shoulderX).
    {id:`shoulder_${side}`,parent:'spine_upper',headPosition:[x*.33,.325,0] as Vec3,length:.055,kind:'connector' as const,label:'Shoulder',section},
    {id:`upperarm_${side}`,parent:`shoulder_${side}`,headPosition:[x*.02,0,0] as Vec3,length:.30,kind:'limb' as const,label:'Upper arm',section},
    // Elbow ball joint sits at the upper-arm end; arm lengths are unchanged.
@@ -36,24 +40,40 @@ export const bones: BoneDefinition[] = [
  }),
 ];
 export const variants:Record<SlotKind,string[]>={
- head:['Sphere','Cone','Octagon','Capsule','Cube','Hemisphere'],
- torso:['Bowl','Goblet','Mushroom','Hourglass','Martini','Cup','Diamond','Stack','Orb','Donut','Vase'],
+ // Head, torso and face mark are flat 2D shapes (catalogue 2, seed version 2); the other parts are still turned 3D shapes.
+ head:['Circle','Triangle','Hexagon','Down triangle','Square','Dome'],
+ torso:['Column','Funnel','A-line','Bowl','Fan','Orb','Donut'],
  pelvis:['Orb','Tire','Bowl','Dome','Puck','Diamond'],
  connector:['Sphere','Bead','Cylinder','Capsule'],
  limb:['Cylinder','Cone','Capsule','Box','Chain','Octagon'],
  leg:['Taper','Bell','Stack','Chain','Octagon','Pill'],
  hand:['Sphere','Cube','Ring','Cone','Octagon','Capsule'],
  foot:['Flare','Dome','Wedge','Puck','Bell','Octagon'],
- face:['Dot','Dash','Triangle','Twin dots','Ring','Cross'],
+ face:['Dot','Dash','Triangle','Twin dots','Ring','Bar'],
 };
 export const restHeight=2.4;
+/**
+ * Global look proportions (Proportions tab): 1 = the studio default. Kept per browser like the weave palette,
+ * not in the seed. Bone lengths never change; only the parts' size, and the shoulders follow the torso edge.
+ */
+export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints'] as const;
+export type Proportions=Record<typeof proportionKeys[number],number>;
+export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1};
+export const proportionRange={min:.5,max:1.5};
+export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]);return [k,Number.isFinite(v)?Math.min(proportionRange.max,Math.max(proportionRange.min,v)):1];})) as Proportions;
+/** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */
+export const studioProportions=normalizeProportions(savedProportions);
 export const variantNames=(bone:BoneDefinition)=>/^(shoulder|elbow|knee)_/.test(bone.id)?['Sphere']:variants[bone.kind];
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone'] as const;
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
 export interface PartChoice {variant:number;color:number;accent:number;pattern:number;}
 export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;}
-export type Pose = 'idle'|'reach'|'stride';
+/** Preset poses; 'dance' plays the recorded motion in src/dance.ts and rests in the idle pose for exports. */
+export type Pose = 'idle'|'reach'|'stride'|'dance';
+/** Live stacking from camera depth: which arm and leg are drawn in front, and which arms tuck behind the body. */
+export interface LayerDepth {frontArm:'L'|'R';frontLeg:'L'|'R';behind:{L:boolean;R:boolean};}
+export const defaultDepth:LayerDepth={frontArm:'L',frontLeg:'L',behind:{L:false,R:false}};
 export function rng(seed:string) {let h=2166136261; for(let i=0;i<seed.length;i++)h=Math.imul(h^seed.charCodeAt(i),16777619); return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
 const vibrant=palette.map((_,i)=>i).filter(i=>!['neutral','dark'].includes(palette[i].family));
 /** Only the torso and the pelvis (hip area) carry texture patterns; every other part is a solid colour. */
@@ -70,8 +90,10 @@ const upperSegment:Record<string,string>={forearm:'upperarm',shin:'thigh'};
 export const pairedSegment=(id:string)=>{const [part,side]=id.split('_');const other=lowerSegment[part]??upperSegment[part];return other?`${other}_${side}`:undefined;};
 const boneById=(id:string)=>bones.find(b=>b.id===id)!;
 export const twinOf=(id:string)=>/_[LR]$/.test(id)?id.slice(0,-1)+(id.endsWith('L')?'R':'L'):undefined;
+/** Ball joints. They share one colour per character (Nam, 2026-10-11), so they lock and reroll as one group. */
+export const isJoint=(id:string)=>/^(shoulder|elbow|knee|hip)_[LR]$/.test(id);
 /** Bones that are locked/rerolled together with `id`. */
-export const linkedIds=(id:string)=>{const twin=twinOf(id);return twin&&(mirrorsFully(id)||mirrorsShape(id))?[id,twin]:[id];};
+export const linkedIds=(id:string)=>{if(isJoint(id))return bones.filter(b=>isJoint(b.id)).map(b=>b.id);const twin=twinOf(id);return twin&&(mirrorsFully(id)||mirrorsShape(id))?[id,twin]:[id];};
 const kindOf=(id:string)=>bones.find(b=>b.id===id)!.kind;
 /** Applies the design rules to any spec, including specs decoded from older seeds. */
 export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
@@ -89,37 +111,104 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  }
  return {...spec,parts};
 }
+/**
+ * A character's colour scheme (A1): two body colours spread over the limbs by `layout`, an accent for hands, feet
+ * and pelvis, one joint colour and a head colour. Every character draws its own (55,536 schemes × 4 layouts from
+ * the 15 vibrant colours), so a crowd rarely repeats while each figure stays to five colours. Not stored in the
+ * seed: the seed keeps each part's colour.
+ */
+export const schemeLayouts=['arms-legs','upper-lower','alternate','sides'] as const;
+export interface Scheme {A:number;B:number;C:number;J:number;H:number;layout:typeof schemeLayouts[number];}
+const dark=palette.findIndex(c=>c.id==='dark_1');
+/** Hue and lightness (0–1) of each palette colour. */
+const tones=palette.map(c=>{const n=parseInt(c.hex.slice(1),16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+ return {h:d?(max===r?(g-b)/d+(g<b?6:0):max===g?(b-r)/d+2:(r-g)/d+4)/6:0,l:(max+min)/2};});
+const hueGap=(a:number,b:number)=>{const d=Math.abs(tones[a].h-tones[b].h)%1;return Math.min(d,1-d)*360;};
+const lightGap=(a:number,b:number)=>Math.abs(tones[a].l-tones[b].l);
+/** How body colour B relates to A: same family but lighter or darker, across the colour wheel, or light against dark. */
+const pairings=[(a:number,b:number)=>hueGap(a,b)<=70&&lightGap(a,b)>=.08,(a:number,b:number)=>hueGap(a,b)>=120,(a:number,b:number)=>lightGap(a,b)>=.2];
+/** Draws a scheme. Roles pinned by locked parts (hands/feet → accent, joints, head) keep their colour. */
+export function drawScheme(random:()=>number,pinned:Partial<Scheme>={}):Scheme{
+ const pick=<T,>(a:readonly T[])=>a[Math.floor(random()*a.length)],either=(rule:number[],fallback:number[])=>rule.length?rule:fallback;
+ const taken=[pinned.C,pinned.J,pinned.H].filter((c):c is number=>c!==undefined),free=(...used:number[])=>vibrant.filter(c=>!used.includes(c)&&!taken.includes(c));
+ const A=pick(free()),pairing=pick(pairings),B=pick(either(free(A).filter(c=>pairing(A,c)),free(A)));
+ // The accent sits away from both body colours; the joints are clearly lighter or darker than them.
+ const C=pinned.C??pick(either(free(A,B).filter(c=>hueGap(c,A)>=60&&hueGap(c,B)>=60),free(A,B)));
+ const others=vibrant.filter(c=>![A,B,C].includes(c)),J=pinned.J??pick(either(others.filter(c=>Math.abs(tones[c].l-(tones[A].l+tones[B].l)/2)>=.15),others));
+ return {A,B,C,J,H:pinned.H??pick(vibrant.filter(c=>![A,B,J].includes(c))),layout:pick(schemeLayouts)};
+}
+/** Colour and two-tone accent of a part under a scheme. Neighbours always differ: limbs A/B, joints J, hands, feet and pelvis C, neck and waist B, head H, torso A. */
+export function schemeColor(id:string,s:Scheme):[number,number]{
+ const [part,side]=id.split('_');
+ if(isJoint(id))return [s.J,s.C];
+ if(['upperarm','forearm','thigh','shin'].includes(part)){
+  const upper=part==='upperarm'||part==='thigh',arm=part==='upperarm'||part==='forearm';
+  const c=s.layout==='arms-legs'?(arm?s.A:s.B):s.layout==='upper-lower'?(upper?s.A:s.B):s.layout==='alternate'?(upper===arm?s.A:s.B):(side==='L'?s.A:s.B);
+  return [c,c===s.A?s.B:s.A];
+ }
+ if(part==='hand'||part==='foot'||id==='root')return [s.C,s.A];
+ if(id==='head')return [s.H,s.A];
+ if(id==='neck'||id==='spine_lower')return [s.B,s.A];
+ if(id==='spine_upper')return [s.A,s.C];
+ return [dark,s.H];
+}
+const adjacent=(id:string)=>bones.filter(n=>n.id===boneById(id).parent||n.parent===id).map(n=>n.id);
+/** Colours every part that is not frozen from a fresh scheme that fits around the frozen (locked) parts. */
+function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>number){
+ const kept=(id:string)=>frozen.has(id)?parts[id].color:undefined,pinned:Partial<Scheme>={};
+ for(const id of ['hand_L','foot_L'])pinned.C??=kept(id);
+ pinned.J=bones.filter(b=>isJoint(b.id)).map(b=>kept(b.id)).find(c=>c!==undefined);pinned.H=kept('head');
+ const clashes=(s:Scheme)=>bones.some(b=>!frozen.has(b.id)&&adjacent(b.id).some(n=>frozen.has(n)&&parts[n].color===schemeColor(b.id,s)[0]));
+ // Usually the first scheme fits; with many locks, try a few more before patching single parts.
+ let scheme=drawScheme(random,pinned);for(let i=0;i<60&&clashes(scheme);i++)scheme=drawScheme(random,pinned);
+ for(const b of bones)if(!frozen.has(b.id))[parts[b.id].color,parts[b.id].accent]=schemeColor(b.id,scheme);
+ for(const b of bones){
+  if(frozen.has(b.id)||b.kind==='face')continue;
+  const group=isJoint(b.id)?bones.filter(j=>isJoint(j.id)).map(j=>j.id):mirrorsFully(b.id)?linkedIds(b.id):[b.id];
+  const near=group.flatMap(adjacent).filter(id=>!group.includes(id)).map(id=>parts[id].color);
+  if(!near.includes(parts[b.id].color))continue;
+  const pool=vibrant.filter(c=>!near.includes(c)),c=pool[Math.floor(random()*pool.length)];
+  for(const id of group)parts[id].color=c;
+ }
+}
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
  const random=rng(label),parts:Record<string,PartChoice>={};
  const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(linkedIds(only)):undefined;
- const frozen=new Set(bones.filter(b=>lockedLinked.has(b.id)||(onlyLinked&&!onlyLinked.has(b.id))).map(b=>b.id));
- const colorOf=(id:string)=>{
-  if(parts[id])return parts[id].color;
-  const twin=twinOf(id);if(twin&&mirrorsFully(id)&&parts[twin])return parts[twin].color;
-  return frozen.has(id)?previous?.parts[id].color:undefined;
- };
- const adjacent=(id:string)=>bones.filter(n=>n.id===bones.find(b=>b.id===id)!.parent||n.parent===id).map(n=>n.id);
+ const frozen=new Set(bones.filter(b=>previous&&(lockedLinked.has(b.id)||(onlyLinked&&!onlyLinked.has(b.id)))).map(b=>b.id));
+ // Shapes and patterns first; colours come from the scheme below.
  for(const b of bones){
   if(previous&&frozen.has(b.id)){parts[b.id]={...previous.parts[b.id]};continue;}
   const twin=twinOf(b.id);
   if(b.id.endsWith('_R')&&mirrorsFully(b.id)&&parts[twin!]){parts[b.id]={...parts[twin!]};continue;}
-  // A mirrored part must also differ from the neighbours of its twin.
-  const around=mirrorsFully(b.id)&&twin?[...adjacent(b.id),...adjacent(twin)]:adjacent(b.id);
-  const neighbors=around.filter(id=>id!==twin).map(colorOf);
-  const pool=vibrant.filter(c=>!neighbors.includes(c));
-  const c= b.kind==='face'?palette.findIndex(c=>c.id==='dark_1'):pool[Math.floor(random()*pool.length)];
-  const accents=vibrant.filter(v=>v!==c);
   const pattern=b.kind==='torso'?1+Math.floor(random()*4):b.kind==='pelvis'&&random()>=.35?1+Math.floor(random()*4):(b.kind==='limb'||b.kind==='leg')&&random()<.55?twoTone:0;
   // Never pair two beaded segments on the same limb.
   const pair=pairedSegment(b.id),pairChoice=pair?(parts[pair]??(frozen.has(pair)?previous?.parts[pair]:undefined)):undefined;
   const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant)));
   let variant=options[Math.floor(random()*options.length)];
   if(b.id.endsWith('_R')&&mirrorsShape(b.id)&&parts[twin!])variant=parts[twin!].variant;
-  parts[b.id]={variant,color:c,accent:accents[Math.floor(random()*accents.length)],pattern};
+  parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
- return normalizeSpec({version:1,label,parts,density:previous?.density??6});
+ if(previous&&onlyLinked){
+  // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
+  for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
+  if(isJoint(only!)){const joints=[...onlyLinked],near=joints.flatMap(adjacent).filter(id=>!isJoint(id)).map(id=>parts[id].color),pool=vibrant.filter(c=>!near.includes(c)&&c!==parts[only!].color);const c=pool[Math.floor(random()*pool.length)];if(c!==undefined)for(const id of joints)parts[id].color=c;}
+ }
+ else paint(parts,frozen,random);
+ return normalizeSpec({version:1,label,parts,density:previous?.density??3});
 }
-export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~1${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+/** New colours, same shapes: a fresh scheme for every part that is not locked. `salt` varies the draw. */
+export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:string=randomLabel()):CharacterSpec{
+ const lockedLinked=new Set([...locked].flatMap(linkedIds)),parts=structuredClone(spec.parts);
+ paint(parts,new Set(bones.filter(b=>lockedLinked.has(b.id)).map(b=>b.id)),rng(`${spec.label}|colours|${salt}`));
+ return normalizeSpec({...spec,parts});
+}
+export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~2${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+/**
+ * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark.
+ * A version-1 torso maps to the nearest flat one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
+ * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index.
+ */
+const legacyTorso=[3,1,4,0,1,1,5,0,5,6,1];
 /** Slot orders of older seeds: before elbows (24 slots) and before knees and elbows (22 slots). */
 const legacyOrders=[bones.filter(b=>!b.id.startsWith('elbow_')),bones.filter(b=>!b.id.startsWith('elbow_')&&!b.id.startsWith('knee_'))];
 export function decodeSeed(input:string):CharacterSpec {
@@ -127,11 +216,12 @@ export function decodeSeed(input:string):CharacterSpec {
  if(!seed.includes('~'))return generate(seed);
  const [label,packed,...rest]=seed.split('~');
  const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2);
- if(rest.length||!label||!order||packed[0]!=='1'||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ const version=packed?.[0];
+ if(rest.length||!label||!order||(version!=='1'&&version!=='2')||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
  const density=parseInt(packed[1],36);if(density<2||density>12)throw new Error('Invalid pattern scale in seed.');
  // Joints missing from older seeds are derived from the label so they stay deterministic.
  const fallback=generate(label),parts:Record<string,PartChoice>=Object.fromEntries(bones.filter(b=>!order.includes(b)).map(b=>[b.id,fallback.parts[b.id]]));
- order.forEach((b,i)=>{const [variant,c,accent,pattern]=packed.slice(2+i*4,6+i*4).split('').map(x=>parseInt(x,36));if(variant>=variants[b.kind].length||c>=palette.length||accent>=palette.length||pattern>=patterns.length)throw new Error('This seed contains an unknown part.');parts[b.id]={variant,color:c,accent,pattern};});
+ order.forEach((b,i)=>{let [variant,c,accent,pattern]=packed.slice(2+i*4,6+i*4).split('').map(x=>parseInt(x,36));const old=version==='1'&&b.kind==='torso';if(variant>=(old?legacyTorso:variants[b.kind]).length||c>=palette.length||accent>=palette.length||pattern>=patterns.length)throw new Error('This seed contains an unknown part.');if(old)variant=legacyTorso[variant];parts[b.id]={variant,color:c,accent,pattern};});
  return normalizeSpec({version:1,label,parts,density});
 }
 export function randomLabel(){const values=new Uint32Array(2);crypto.getRandomValues(values);return `folk-${values[0].toString(36)}${values[1].toString(36).slice(0,3)}`;}

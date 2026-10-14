@@ -535,3 +535,70 @@ Bản 3D trước khi chuyển hướng được lưu nguyên ở `geofolk_3D_v1
 - **Pose 2D:** mọi preset chỉ xoay quanh trục Z.
 - **Pattern thân/hông:** thay bằng Basket Weave (`src/weave.ts`, port từ "Dynamic Basket Weave Generator v5", random theo seed nhân vật). UV chiếu phẳng theo mét nên pattern không méo. Slider **Pattern scale** (`density` trong seed, 2–12 → 4–24 ô ngang một tile) và chọn bảng màu HFCD / XMAS / TET (lưu theo trình duyệt).
 - **Live pose (MediaPipe):** `mediapipe/server.py` copy nguyên từ `lotte-visual-haidoan-main`; chạy `npm run pose` (webcam) hoặc `npm run pose:video` (video demo) — dùng `uv` với Python 3.11 vì server cần Python ≥ 3.10. Tab **Live pose** kết nối `ws://localhost:8080`, `src/pose.ts` làm mượt và đổi 33 landmark thành góc Z cho từng bone.
+
+## 17. Live pose tự bật server (11/10/2026)
+
+- **Vấn đề:** bấm "Demo video" khi chưa chạy `npm run pose:video` thì không có gì xảy ra; nút chỉ gửi lệnh đổi nguồn cho một server không tồn tại.
+- **Cách sửa:** `mediapipe/vite-plugin.js` thêm route `/__pose/start|stop|status` vào dev/preview server của Vite. Khi kết nối thất bại, `src/pose.ts` gọi `start` với nguồn đang chọn rồi thử nối lại mỗi 2 giây (trạng thái "Starting pose server…"). Bấm **Stop live pose** thì tắt server do app bật (server do người khác bật thì không đụng tới). Tắt `npm run dev` cũng tắt server.
+- Nút **Webcam / Demo video** bấm được cả khi đang tắt: bật live pose với đúng nguồn đó. Nguồn đã chọn được gửi lại mỗi lần nối được server.
+- `server.py` giữ nguyên bản chép từ `lotte-visual-haidoan`. Bản build tĩnh vẫn phải tự chạy `npm run pose` / `pose:video`.
+- Phương án đã cân nhắc nhưng chưa làm: chạy MediaPipe ngay trong trình duyệt (`@mediapipe/tasks-vision`). Cách này bỏ được Python, nhưng phải tải model và WASM, và không còn dùng chung server với dự án haidoan.
+
+## 18. Motion, thứ tự lớp và đề xuất shape 2D (11/10/2026)
+
+- **Kiểm tra motion bằng số liệu:** chạy MediaPipe trên cả 5523 khung của video mẫu rồi đưa qua bộ giải. Phát hiện: (1) làm mượt góc cục bộ làm bắp tay bám chậm kéo lệch cẳng tay, bàn chân hơi nghiêng; (2) cẳng tay lệch lớn chỉ khi chĩa vào camera (ngắn dưới 15% thân), đây là giới hạn của hình 2D; (3) ~33% khung có bàn tay gần vai của chính nó, và thứ tự lớp cũ vẽ bàn tay dưới quả cầu vai (lỗi trong ảnh anh Nam gửi).
+- **Sửa motion:** làm mượt theo hướng trên màn hình của từng bone (`smoothPose`), rồi mới đổi sang góc cục bộ (`toLocal`). Số lần giật lớn trong một khung giảm từ 706 xuống 474; bàn chân luôn nằm ngang.
+- **Thứ tự lớp mới:** 7 khối kéo được (Arms, Head, Torso, Neck, Pelvis, Lower spine, Legs). Mỗi tay/chân là một khối liền với thứ tự trong cố định: bắp tay › vai › cẳng tay › khuỷu › bàn tay; đùi › ống chân › gối › bàn chân. Tay/chân gần camera hơn (z của MediaPipe) vẽ trước; tay ra sau lưng thì vẽ dưới thân; có vùng chết và giữ 5 khung để không nhấp nháy.
+- **Đề xuất shape 2D:** `docs/shape-proposal-2d.html` (mở qua `npm run dev` tại `/docs/shape-proposal-2d.html`). Bộ hình phẳng kiểu giấy cắt cho đầu, thân, hông, cổ, tay, bàn tay, chân, bàn chân; bỏ hiển thị lower spine. Chưa áp dụng vào app; đang chờ anh Nam chọn shape và quyết các điểm đổi luật (sọc 3–4 màu cho tay chân, thân có mảng màu riêng, tay cong, cách đọc seed cũ).
+
+## 19. Áp dụng shape phẳng đã chọn (11/10/2026)
+
+Anh Nam chọn từ `docs/shape-proposal-2d.html`:
+
+- **Đầu (6):** Circle, Triangle, Hexagon, Down triangle, Square, Dome. Bỏ Khung vuông và Viên nang.
+- **Dấu mặt (6):** Dot, Dash, Triangle, Twin dots, Ring, Bar. Bar thay cho Cross (Cross không có trong bản đề xuất).
+- **Thân (7):** Column, Funnel, A-line, Bowl, Fan, Orb, Donut. Thân kéo xuống tới eo nên che lower spine; Fan thu nhỏ còn 0.8 × 0.58 m để mỗi bộ phận vẫn dưới 1 m.
+- **Giữ nguyên:** mọi bộ phận khác (cổ, hông, tay, bàn tay, chân, bàn chân, khớp vẫn là khối 3D) và luật pattern (thân luôn đan, hông đan ~65%, tay chân 1–2 màu). Vì vậy Fan và Donut là đan toàn bộ, không có mảng màu riêng như bản đề xuất.
+- **Bo góc:** mọi góc nhọn của hình mới bo bán kính 0.022 m (dấu mặt 0.007 m); đường cong giữ nguyên.
+- **Seed:** phiên bản 2. Seed phiên bản 1 vẫn mở được; thân cũ quy đổi sang thân gần nhất (`legacyTorso`), đầu và dấu mặt giữ số thứ tự.
+
+## 20. Tỉ lệ thân và slider Proportions (11/10/2026)
+
+- Anh Nam: thân đang to quá, các hình kiểu bát hơi to; thân Orb (rộng 0.62) là tỉ lệ đẹp. Các thân khác thu về cùng tầm cỡ: Column rộng 0.52; Funnel 0.64 → 0.22; A-line 0.40 → 0.64; Bowl rộng 0.64, cao 0.55; Fan rộng 0.66, cao 0.56. Orb và Donut giữ nguyên.
+- **Vai bám mép thân:** tâm quả cầu vai cách mép thân 0.07 ở độ cao vai (`shoulderX` trong `rig.ts`), nên vị trí vai đổi theo kiểu thân (khoảng ±0.27 đến ±0.38). Chiều dài xương không đổi. Rig JSON và FBX ghi vị trí vai thật.
+- **Tab Proportions:** 9 slider 50–150% (Head, Torso width, Torso height, Pelvis, Arm thickness, Leg thickness, Hands, Feet, Joints), mặc định 100%. Áp cho mọi nhân vật, lưu theo trình duyệt như bảng màu weave, chưa nằm trong seed. Thân co giãn từ cổ xuống nên đầu luôn dính cổ; đầu to/nhỏ làm đổi chiều cao tổng.
+
+## 21. Save as default và nền đen (11/10/2026)
+
+- **Save as default** (tab Proportions): ghi giá trị vào `src/proportions.json` qua route dev `/__defaults/proportions` (`scripts/vite-defaults.js`), nên mặc định đi theo code và áp cho mọi trình duyệt. Bản build tĩnh không ghi được file thì lưu cho riêng trình duyệt đó. Reset trả về mặc định đã lưu; có nút đưa mọi slider về 100%.
+- Hai route dev (`/__pose`, `/__defaults`) chỉ nhận request có header `X-Geofolk: 1`, nên trang web khác không gọi được (không bật được camera, không ghi được file).
+- **Nền đen:** khung nhân vật mặc định nền đen như video tham chiếu, chữ và nút trên khung tự đổi tông sáng. Nút mặt trời/mặt trăng ở cột nút bên phải chuyển về nền giấy. Lưu theo trình duyệt. PNG export lấy đúng nền đang chọn.
+
+## 22. Đánh giá thiết kế (11/10/2026), chờ anh Nam chọn
+
+`docs/design-review.html` (mở qua `npm run dev` tại `/docs/design-review.html`) đánh giá app dưới hai góc nhìn và đề xuất, chưa đổi gì trong app. Nhân vật trên trang được dựng bằng chính `src/rig.ts`, rồi áp đề xuất lên trên (`docs/design-review.js`).
+
+- **Nhân vật:** A1 màu theo bộ (5 màu có vai trò), A2 khớp một màu và nhỏ 85%, A3 dáng chắc khỏe (tay 135%, chân 145%, bàn tay/chân 130%), A4 ô đan to (6 ô) và màu sợi theo bộ màu, A5 chất giấy, A6 thở nhẹ + tư thế Dance phát lại chuyển động đã ghi, A7 (để sau) làm phẳng tay chân.
+- **Trải nghiệm:** B1 hoàn tác + dải lịch sử, B2 bấm vào bộ phận để chọn shape/màu, B3 bố cục một hàng + tên nhân vật + nút Share, B4 panel Parts/Style/Motion, B5 Generate ×6 + phím tắt, B6 link chia sẻ + PNG trong suốt + GIF/MP4, B7 cỡ chữ/tương phản + mobile.
+
+## 23. Làm theo lựa chọn từ bản đánh giá (11/10/2026)
+
+Anh Nam chọn A2, A4, A5, A6, A6b, B5:
+
+- **A2 Khớp một màu:** mọi khớp chung một màu (rút trước, các bộ phận kề né màu đó), khóa/random theo nhóm (`isJoint`, `linkedIds`). Bán kính khớp còn 85%; vai đặt cách mép thân 3/4 bán kính khớp.
+- **A4:** nhân vật mới có Pattern scale 6 ô (density 3).
+- **A5 Chất giấy:** vân giấy (texture nhiễu + sợi) lấy theo không gian riêng của từng bộ phận, cộng đậm nhạt nhẹ từ trên xuống dưới mỗi bộ phận, chèn vào shader của `MeshBasicMaterial`. Có nút On/Off, mặc định bật. Không xuất ra FBX/OBJ.
+- **A6:** ba tư thế có sẵn thở nhẹ (chu kỳ 3.6 s); tắt khi hệ điều hành bật giảm chuyển động. Export dùng tư thế sạch.
+- **A6b Dance:** 184 giây nhảy từ video mẫu, nén ở 15 khung/giây (`src/dance.json`, ~114 KB), làm bằng đúng bộ giải + làm mượt + xếp lớp của Live pose. Các bước quay quá 0.9 rad/khung (MediaPipe đọc nhầm) bị chặn khi nén.
+- **B5 Generate ×6:** nút ×6 cạnh Generate mở lưới 6 ứng viên trên sân khấu (giữ bộ phận đã khóa), bấm một con để chọn, Shuffle để ra 6 con khác, Esc để đóng. Ảnh dựng bằng renderer phụ (`thumbnails.ts`).
+- **A1:** đang tư vấn. Anh Nam muốn mỗi nhân vật một màu riêng và đa dạng vô hạn, nên 6 bộ màu cố định không đủ. Đề xuất mới: bộ 5 màu sinh tự động theo quy tắc phối màu, có 55.536 bộ × 4 kiểu rải màu (`docs/color-proposal.html`). Chờ duyệt.
+
+## 24. A1 bộ màu sinh tự động (11/10/2026)
+
+Anh Nam duyệt bản `docs/color-proposal.html`.
+
+- Mỗi nhân vật rút một bộ 5 màu theo quy tắc phối màu (`drawScheme`) và tô theo vai trò (`schemeColor`). Mọi bộ phận kề nhau luôn khác màu theo cách dựng; một nhân vật dùng tối đa 5 màu, cộng dấu mặt tối. Test: 200 nhân vật thì hơn 180 bộ màu khác nhau.
+- Bộ phận khóa giữ màu. Bàn tay/bàn chân, khớp, đầu đang khóa thì ghim luôn vai trò màu đó; bộ màu được rút lại tối đa 60 lần cho khớp với các bộ phận khóa, sau đó mới sửa lẻ từng bộ phận.
+- Nút random từng bộ phận giờ chỉ đổi hình (giữ màu); dòng khớp đổi màu khớp. Nút **Colors** trên thanh trên rút bộ màu mới, giữ hình và tên.
+- Seed không đổi định dạng (vẫn lưu màu từng bộ phận); seed cũ mở ra đúng màu cũ.
+

@@ -1,16 +1,18 @@
 import {useState} from 'react';
 import {GripVertical,Lock,Unlock,RotateCcw} from 'lucide-react';
-import {bones,variantNames,mirrorsFully,mirrorsShape,type BoneDefinition,type CharacterSpec} from './model';
-import {layerGroups,defaultLayerOrder,groupOf,type LayerGroup} from './rig';
+import {bones,variantNames,mirrorsFully,mirrorsShape,isJoint,type BoneDefinition,type CharacterSpec} from './model';
+import {layerGroups,defaultLayerOrder,groupOf,limbStack,type LayerGroup} from './rig';
 interface Props {spec:CharacterSpec;locked:Set<string>;order:LayerGroup[];onOrder:(order:LayerGroup[])=>void;onReroll:(id:string)=>void;onToggleLock:(id:string)=>void;}
 /** One editable row: a single bone, or a left/right pair that is rerolled and locked together. */
 interface Unit {bone:BoneDefinition;label:string;}
+const plural:Record<string,string>={shoulder:'Shoulders',elbow:'Elbows',hand:'Hands',hip:'Hip joints',thigh:'Thighs',knee:'Knees',shin:'Shins',foot:'Feet'};
+/** Rows of a layer block, front first; arms and legs list their parts in their fixed stacking order. */
 function unitsOf(group:LayerGroup):Unit[]{
- const members=bones.filter(b=>groupOf(b.id)===group);
+ const parts=group==='arms'?[...limbStack.arm].reverse():group==='legs'?[...limbStack.leg].reverse():null;
+ const members=parts?parts.flatMap(part=>bones.filter(b=>b.id.startsWith(`${part}_`))):bones.filter(b=>groupOf(b.id)===group);
  return members.filter(b=>!(b.id.endsWith('_R')&&(mirrorsFully(b.id)||mirrorsShape(b.id)))).map(b=>{
-  const paired=mirrorsFully(b.id)||mirrorsShape(b.id),sided=/_[LR]$/.test(b.id);
-  // Pairs take the layer's own name; a hidden joint or an unpaired side says which one it is.
-  return {bone:b,label:members.length===1||(paired&&b.kind!=='connector')||(paired&&members.length===2)?layerGroups[group]:paired?`${b.label} joints`:sided?(b.id.endsWith('_L')?'Left':'Right'):b.label};
+  const paired=mirrorsFully(b.id)||mirrorsShape(b.id);
+  return {bone:b,label:members.length===1?layerGroups[group]:paired?plural[b.id.split('_')[0]]:/_[LR]$/.test(b.id)?`${b.id.endsWith('_L')?'Left':'Right'} ${b.label.toLowerCase()}`:b.label};
  });
 }
 /**
@@ -25,7 +27,7 @@ export default function PartsPanel({spec,locked,order,onOrder,onReroll,onToggleL
   return <div className={`part-row ${isLocked?'locked':''} ${nested?'nested':''}`} key={b.id}>
    {handle}
    <div className="part-label"><strong>{unit.label}</strong><span>{names[spec.parts[b.id].variant]??names[0]}</span></div>
-   <button className="part-button reroll" disabled={isLocked} onClick={()=>onReroll(b.id)} title={`Reroll ${unit.label}`} aria-label={`Reroll ${b.id}`}><RotateCcw size={15}/></button>
+   <button className="part-button reroll" disabled={isLocked} onClick={()=>onReroll(b.id)} title={isJoint(b.id)?'New joint colour':`New shape: ${unit.label}`} aria-label={`Reroll ${b.id}`}><RotateCcw size={15}/></button>
    <button className="part-button" onClick={()=>onToggleLock(b.id)} title={`${isLocked?'Unlock':'Lock'} ${unit.label}`} aria-label={`${isLocked?'Unlock':'Lock'} ${b.id}`} aria-pressed={isLocked}>{isLocked?<Lock size={15}/>:<Unlock size={15}/>}</button>
   </div>;
  };

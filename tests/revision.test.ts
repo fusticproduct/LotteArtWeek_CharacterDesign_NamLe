@@ -2,9 +2,12 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation} from '../src/model';
-import {solveAngles} from '../src/pose';
-import {createCharacter} from '../src/rig';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds} from '../src/model';
+import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
+import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius} from '../src/rig';
+import {breathe,danceFrame,presetAngles} from '../src/motion';
+import {danceBones,danceFps} from '../src/dance';
+import danceData from '../src/dance.json';
 import {beveledCylinder,frustum,dome} from '../src/geometry';
 it('middle-button dragging pans without changing distance, while wheel still zooms',()=>{
  const ownerDocument=new EventTarget();
@@ -115,3 +118,99 @@ it('solves in-plane bone angles from MediaPipe landmarks',()=>{
 it('keeps every preset pose in the picture plane',()=>{
  for(const pose of ['idle','reach','stride'] as const)for(const b of bones){const [x,y]=poseRotation(b.id,pose);expect(x).toBe(0);expect(y).toBe(0);}
 });
+it('stacks each limb as one piece: joints over segment ends, hand over its own shoulder, front limb over back limb',()=>{
+ const rank=(order:string[])=>(id:string)=>order.indexOf(id);
+ const at=rank(drawOrder(defaultLayerOrder));
+ expect(drawOrder(defaultLayerOrder)).toHaveLength(bones.length);
+ for(const s of ['L','R'])for(const [a,b] of [['upperarm','shoulder'],['shoulder','forearm'],['forearm','elbow'],['elbow','hand'],['thigh','shin'],['shin','knee'],['knee','foot']])expect(at(`${a}_${s}`)).toBeLessThan(at(`${b}_${s}`));
+ // Limbs never interleave; the front arm/leg is drawn whole after the back one.
+ const right=rank(drawOrder(defaultLayerOrder,{frontArm:'R',frontLeg:'R',behind:{L:false,R:false}}));
+ expect(right('upperarm_R')).toBeGreaterThan(right('hand_L'));expect(right('thigh_R')).toBeGreaterThan(right('foot_L'));
+ // An arm behind the body tucks under the torso; with the arms block below the torso nothing moves.
+ const tucked=rank(drawOrder(defaultLayerOrder,{frontArm:'L',frontLeg:'L',behind:{L:true,R:false}}));
+ expect(tucked('hand_L')).toBeLessThan(tucked('spine_upper'));expect(tucked('upperarm_R')).toBeGreaterThan(tucked('head'));
+ // Orders stored by the old 14-row list keep their meaning.
+ expect(normalizeLayerOrder(['shoulder','elbow','hand','forearm','upperarm','head','torso','neck','pelvis','spine','knee','foot','shin','thigh'])).toEqual(defaultLayerOrder);
+});
+it('smooths screen directions, so a slow upper arm does not drag its forearm and the feet stay level',()=>{
+ const first=smoothPose(null,{world:{root:0,spine_lower:0,upperarm_L:0,forearm_L:0,thigh_L:0,shin_L:0,foot_L:0},confidence:{},depth:{}},.35);
+ // The upper arm swings out but is barely trusted (foreshortened); the forearm is clearly seen pointing sideways.
+ const next=smoothPose(first,{world:{root:.3,spine_lower:0,upperarm_L:1,forearm_L:Math.PI/2,thigh_L:.4,shin_L:-.2,foot_L:0},confidence:{root:1,spine_lower:1,upperarm_L:.03,forearm_L:1,thigh_L:.5,shin_L:.2,foot_L:1},depth:{}},0);
+ const local=toLocal(next),sum=(...ids:string[])=>ids.reduce((a,id)=>a+(local[id]??0),0);
+ expect(sum('root','spine_lower','upperarm_L','forearm_L')).toBeCloseTo(Math.PI/2,6);
+ expect(sum('root','thigh_L','shin_L','foot_L')).toBeCloseTo(0,6);
+});
+it('restacks limbs from camera depth only after the cue holds for a few frames',()=>{
+ let state=initialLayerState();
+ const nearRight={arm:.4,leg:0,behindL:0,behindR:0};
+ for(let i=0;i<4;i++){state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('L');}
+ state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
+ // A one-frame blip the other way does not flip it back.
+ state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
+});
+it('reads version-1 seeds onto the flat torso catalogue and writes version 2',()=>{
+ const spec=generate('legacy-torso'),packed=encodeSeed(spec).split('~')[1],i=bones.findIndex(b=>b.id==='spine_upper');
+ expect(packed[0]).toBe('2');
+ // Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; an index past the old 11 torsos is still rejected.
+ for(const [old,now] of [[0,3],[7,0],[9,6],[10,1]]){const v1='1'+packed.slice(1,2+i*4)+old.toString(36)+packed.slice(3+i*4);expect(decodeSeed(`legacy-torso~${v1}`).parts.spine_upper.variant).toBe(now);}
+ expect(()=>decodeSeed(`legacy-torso~1${packed.slice(1,2+i*4)}b${packed.slice(3+i*4)}`)).toThrow();
+});
+it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder on its torso edge',()=>{
+ const extent=(rig:ReturnType<typeof createCharacter>,id?:string)=>{let lo=Infinity,hi=-Infinity;for(const b of bones){if(id&&b.id!==id)continue;const mesh=rig.group.getObjectByName(`${b.id}_mesh`) as SkinnedMesh,p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const y=new Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).y;lo=Math.min(lo,y);hi=Math.max(hi,y);}}return hi-lo;};
+ const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions'),base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
+ expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
+ expect(bigHead.map.get('elbow_L')!.position.toArray()).toEqual(base.map.get('elbow_L')!.position.toArray());
+ const width=(rig:ReturnType<typeof createCharacter>,id:string)=>{const g=(rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.x-g.boundingBox!.min.x;};
+ // A straight (cylinder) forearm, whose width is exactly its thickness.
+ const tube={...spec,parts:{...spec.parts,forearm_L:{...spec.parts.forearm_L,variant:0}}},thick=createCharacter(tube,'HFCD',undefined,{...defaultProportions,arms:1.4}),plain=createCharacter(tube);expect(width(thick,'forearm_L')/width(plain,'forearm_L')).toBeCloseTo(1.4,5);plain.dispose();
+ for(let v=0;v<variants.torso.length;v++)for(const torsoWidth of [.5,1,1.5]){
+  spec.parts.spine_upper.variant=v;const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,torsoWidth});
+  // Torso edge at shoulder height, found by a ray coming in from the side (torso space = spine_upper space).
+  const torso=new Mesh((rig.group.getObjectByName('spine_upper_mesh') as SkinnedMesh).geometry,side);torso.updateMatrixWorld(true);
+  const edge=new Raycaster(new Vector3(2,.325,0),new Vector3(-1,0,0)).intersectObject(torso)[0].point.x;
+  // The shoulder ball is centred just outside the edge, so it always overlaps the torso.
+  const x=rig.map.get('shoulder_L')!.position.x;expect(x-edge,`torso ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`torso ${v} at ${torsoWidth}`).toBeLessThan(shoulderRadius);
+  expect(rig.map.get('shoulder_R')!.position.x).toBeCloseTo(-x,9);rig.dispose();
+ }
+ base.dispose();bigHead.dispose();thick.dispose();side.dispose();
+});
+it('gives every joint one colour that differs from all its neighbours, and locks or rerolls the joints as one group',()=>{
+ const joints=bones.filter(b=>isJoint(b.id)).map(b=>b.id);expect(linkedIds('elbow_L')).toEqual(joints);
+ let s=generate('joints-0');
+ for(let i=0;i<120;i++){
+  const before=s.parts.knee_L.color;
+  s=i%3===0?generate(`j-${i}`,s,new Set(['knee_R'])):i%3===1?generate(`j-${i}`,s,new Set(),'elbow_L'):generate(`j-${i}`);
+  expect(new Set(joints.map(id=>s.parts[id].color)).size,`${i}`).toBe(1);
+  if(i%3===0)expect(s.parts.knee_L.color).toBe(before);
+  for(const b of bones)if(b.parent)expect(s.parts[b.id].color,`${i}: ${b.id}`).not.toBe(s.parts[b.parent].color);
+ }
+});
+it('plays the recorded Dance as a smooth loop and breathes gently around the presets',()=>{
+ const count=atob(danceData.layers).length;expect(count/danceFps).toBeGreaterThan(60);
+ const first=danceFrame(0);expect(Object.keys(first.angles)).toEqual(danceBones);
+ let worst=0,previous=first.angles;
+ for(let i=1;i<count;i++){const {angles}=danceFrame(i/danceFps);for(const id of danceBones){expect(Number.isFinite(angles[id])).toBe(true);worst=Math.max(worst,Math.abs(Math.atan2(Math.sin(angles[id]-previous[id]),Math.cos(angles[id]-previous[id]))));}previous=angles;}
+ // Baked through the Live pose smoothing with misreads capped, so no bone jumps more than 0.9 rad between frames.
+ expect(worst).toBeLessThan(.91);
+ for(const id of danceBones)expect(danceFrame(count/danceFps).angles[id]).toBeCloseTo(first.angles[id],9);
+ for(const pose of ['idle','reach','stride'] as const){const calm=presetAngles(pose);for(const t of [0,.7,1.9,3.1]){const a=breathe(pose,t);for(const id of Object.keys(calm))expect(Math.abs(a[id]-calm[id])).toBeLessThan(.04);}}
+});
+it('paints each character with its own five-colour scheme, keeps locked colours, and recolours without changing shapes',()=>{
+ const roles=(s:ReturnType<typeof generate>)=>new Set(bones.filter(b=>b.kind!=='face').map(b=>s.parts[b.id].color));
+ const seen=new Set<string>();
+ for(let i=0;i<200;i++){
+  const s=generate(`scheme-${i}`);expect(roles(s).size,`${i}`).toBeLessThanOrEqual(5);
+  expect(s.parts.hand_L.color).toBe(s.parts.foot_R.color);expect(s.parts.root.color).toBe(s.parts.hand_L.color);
+  seen.add([...roles(s)].sort().join('.'));
+ }
+ // 200 characters, almost all with a different set of colours.
+ expect(seen.size).toBeGreaterThan(180);
+ const base=generate('scheme-base'),locked=new Set(['head','hand_L']);
+ const next=generate('scheme-next',base,locked);expect(next.parts.head.color).toBe(base.parts.head.color);expect(next.parts.foot_L.color).toBe(base.parts.hand_L.color);
+ const again=recolor(base,new Set(['knee_L']),'salt');
+ for(const b of bones){expect(again.parts[b.id].variant).toBe(base.parts[b.id].variant);if(b.parent)expect(again.parts[b.id].color,b.id).not.toBe(again.parts[b.parent].color);}
+ expect(again.parts.elbow_R.color).toBe(base.parts.knee_L.color);
+ // Rerolling one part changes only its shape.
+ const shape=generate('scheme-shape',base,new Set(),'head');expect(shape.parts.head.color).toBe(base.parts.head.color);
+});
+

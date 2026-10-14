@@ -5,38 +5,43 @@ import {SkeletonHelper,Color,NoToneMapping,TOUCH,type OrthographicCamera as Orth
 import type {OrbitControls as OrbitControlsImpl} from 'three-stdlib';
 import {panMouseButtons} from './controls';
 import {createCharacter,type CharacterRig,type LayerGroup} from './rig';
-import {theme,restHeight,type CharacterSpec,type Pose} from './model';
+import {theme,restHeight,stageColors,type CharacterSpec,type Pose,type Proportions} from './model';
 import type {PoseClient} from './pose';
+import {breathe,danceFrame} from './motion';
 import type {WeavePaletteName} from './weave';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
-interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
+interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
 const viewHeight=restHeight*1.5,centerY=restHeight*.56;
 function World(p:Props){
- const rig=useMemo(()=>createCharacter(p.spec,p.weavePalette),[p.spec,p.weavePalette]);
+ const rig=useMemo(()=>createCharacter(p.spec,p.weavePalette,undefined,p.proportions),[p.spec,p.weavePalette,p.proportions]);
  const {gl,scene,camera,size}=useThree();
  const controls=useRef<OrbitControlsImpl>(null),posed=useRef(false);
  useEffect(()=>{rig.applyPose(p.pose);posed.current=true;p.onReady({rig,renderer:gl,scene,camera});},[rig,p.pose,gl,scene,camera,p.onReady]);
  useEffect(()=>rig.setLayerOrder(p.layerOrder),[rig,p.layerOrder]);
+ useEffect(()=>rig.setPaper(p.paper),[rig,p.paper]);
  useEffect(()=>()=>rig.dispose(),[rig]);
  // Fit the figure to the viewport; re-fit when the canvas is resized, the camera is swapped in or the view is reset.
  const fitted=useRef('');
- // Live pose drives the bones every frame; when it stops, the chosen preset pose comes back.
- useFrame(()=>{
+ // Live pose drives the bones every frame; otherwise the Dance pose plays, or the preset pose breathes gently.
+ const calm=useMemo(()=>typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,[]);
+ useFrame(({clock})=>{
   const fitKey=`${camera.uuid}|${size.width}|${size.height}|${p.resetView}`;
   if(fitted.current!==fitKey&&(camera as OrthographicCameraImpl).isOrthographicCamera){
    fitted.current=fitKey;const ortho=camera as OrthographicCameraImpl;
    ortho.position.set(0,centerY,10);ortho.zoom=Math.min(size.height/viewHeight,size.width/(restHeight*1.05));ortho.updateProjectionMatrix();
    controls.current?.target.set(0,centerY,0);controls.current?.update();
   }
-  const angles=p.live?.angles;
-  if(angles){rig.applyAngles(angles);posed.current=false;}
-  else if(!posed.current){rig.applyPose(p.pose);posed.current=true;}
+  const live=p.live?.angles,t=clock.getElapsedTime();
+  if(live){rig.applyAngles(live);rig.setDepth(p.live!.layers);posed.current=false;}
+  else if(p.pose==='dance'){const frame=danceFrame(t);rig.applyAngles(frame.angles);rig.setDepth(frame.depth);posed.current=false;}
+  else if(!calm){rig.applyAngles(breathe(p.pose,t));rig.setDepth(null);posed.current=false;}
+  else if(!posed.current){rig.applyPose(p.pose);rig.setDepth(null);posed.current=true;}
  });
- const helper=useMemo(()=>{const h=new SkeletonHelper(rig.group);(Array.isArray(h.material)?h.material:[h.material]).forEach(m=>m.depthTest=false);const colors=h.geometry.getAttribute('color');const tint=new Color(theme.ink);for(let i=0;i<colors.count;i++)colors.setXYZ(i,tint.r,tint.g,tint.b);h.renderOrder=99;return h;},[rig]);
+ const helper=useMemo(()=>{const h=new SkeletonHelper(rig.group);(Array.isArray(h.material)?h.material:[h.material]).forEach(m=>m.depthTest=false);const colors=h.geometry.getAttribute('color');const tint=new Color(p.dark?theme.paper:theme.ink);for(let i=0;i<colors.count;i++)colors.setXYZ(i,tint.r,tint.g,tint.b);h.renderOrder=99;return h;},[rig,p.dark]);
  useEffect(()=>()=>{helper.geometry.dispose();(Array.isArray(helper.material)?helper.material:[helper.material]).forEach(m=>m.dispose());},[helper]);
  return <>
-  <color attach="background" args={[theme.paper]}/>
+  <color attach="background" args={[p.dark?stageColors.dark:stageColors.light]}/>
   <primitive object={rig.group}/>
   {p.showRig&&<primitive object={helper}/>}
   <OrbitControls ref={controls} makeDefault target={[0,centerY,0]} enableRotate={false} enablePan screenSpacePanning mouseButtons={panMouseButtons} touches={{ONE:TOUCH.PAN,TWO:TOUCH.DOLLY_PAN}} minZoom={60} maxZoom={1600}/>

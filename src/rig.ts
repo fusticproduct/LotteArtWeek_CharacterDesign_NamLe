@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import {beveledCylinder,bowl,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,lathe,type ProfilePoint} from './geometry';
-import {bones,palette,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose} from './model';
+import {beveledCylinder,bowl,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
+import {bones,palette,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,weaveDensity,type WeavePaletteName} from './weave';
 
@@ -9,24 +9,47 @@ import {drawWeave,weaveDensity,type WeavePaletteName} from './weave';
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
  * like cut paper. The meshes are still the 3D shapes, seen straight on by an orthographic camera.
  */
-export const layerGroups={head:'Head',neck:'Neck',torso:'Torso',spine:'Lower spine',pelvis:'Pelvis',shoulder:'Shoulders',upperarm:'Upper arms',elbow:'Elbows',forearm:'Forearms',hand:'Hands',thigh:'Thighs',knee:'Knees',shin:'Shins',foot:'Feet'} as const;
+export const layerGroups={arms:'Arms',head:'Head',neck:'Neck',torso:'Torso',spine:'Lower spine',pelvis:'Pelvis',legs:'Legs'} as const;
 export type LayerGroup = keyof typeof layerGroups;
-/** Default stacking, top first: joints over limbs, arms over the body, legs at the back. */
-export const defaultLayerOrder:LayerGroup[]=['shoulder','elbow','hand','forearm','upperarm','head','torso','neck','pelvis','spine','knee','foot','shin','thigh'];
+/** Default stacking, top first: arms over the body, legs at the back. */
+export const defaultLayerOrder:LayerGroup[]=['arms','head','torso','neck','pelvis','spine','legs'];
+/** Groups of the older 14-row layer list, so a stored order keeps its meaning. */
+const legacyGroups:Record<string,LayerGroup>={shoulder:'arms',upperarm:'arms',elbow:'arms',forearm:'arms',hand:'arms',thigh:'legs',knee:'legs',shin:'legs',foot:'legs'};
 /** Keeps a stored order usable after groups are added or renamed. */
-export const normalizeLayerOrder=(order:unknown):LayerGroup[]=>{const valid=Array.isArray(order)?order.filter((g,i)=>g in layerGroups&&order.indexOf(g)===i) as LayerGroup[]:[];return [...valid,...defaultLayerOrder.filter(g=>!valid.includes(g))];};
+export const normalizeLayerOrder=(order:unknown):LayerGroup[]=>{
+ const mapped=Array.isArray(order)?order.map(g=>legacyGroups[g]??g):[];
+ const valid=mapped.filter((g,i)=>g in layerGroups&&mapped.indexOf(g)===i) as LayerGroup[];
+ return [...valid,...defaultLayerOrder.filter(g=>!valid.includes(g))];
+};
 export const groupOf=(id:string):LayerGroup=>{
  if(id==='root'||id.startsWith('hip_'))return 'pelvis';
  if(id==='spine_upper')return 'torso';
  if(id==='spine_lower')return 'spine';
- if(id==='face_mark')return 'head';
- return id.split('_')[0] as LayerGroup;
+ if(id==='head'||id==='face_mark')return 'head';
+ if(id==='neck')return 'neck';
+ return /^(shoulder|upperarm|elbow|forearm|hand)_/.test(id)?'arms':'legs';
 };
-/** Draw order of a part: later = on top. The face mark rides just above its head, hip joints just under the pelvis. */
-const layerOf=(id:string,order:LayerGroup[])=>{
- const rank=order.length-1-order.indexOf(groupOf(id));
- return rank*2+(id==='face_mark'?1:id.startsWith('hip_')?-1:0);
-};
+/**
+ * Inside a limb the stack is fixed, back to front, so the limb never looks broken: each ball joint
+ * covers the two segment ends it joins, and the outer piece lies over the inner one (a hand raised
+ * to the shoulder stays in front of it).
+ */
+export const limbStack={arm:['upperarm','shoulder','forearm','elbow','hand'],leg:['thigh','shin','knee','foot']} as const;
+/** Bottom-to-top draw order of every bone, for a layer order and the current depth cues. */
+export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):string[]{
+ const limb=(parts:readonly string[],side:'L'|'R')=>parts.map(p=>`${p}_${side}`);
+ const other=(side:'L'|'R')=>side==='L'?'R':'L';
+ // An arm that reaches behind the body tucks under the torso (only matters while the arms are drawn over it).
+ const tucked=order.indexOf('arms')<order.indexOf('torso')?(['L','R'] as const).filter(s=>depth.behind[s]):[];
+ const pair=(parts:readonly string[],front:'L'|'R',skip:readonly string[]=[])=>[other(front),front].filter(s=>!skip.includes(s)).flatMap(s=>limb(parts,s as 'L'|'R'));
+ const blocks:Record<LayerGroup,string[]>={
+  arms:pair(limbStack.arm,depth.frontArm,tucked),
+  legs:pair(limbStack.leg,depth.frontLeg),
+  torso:[...pair(limbStack.arm,depth.frontArm,(['L','R'] as const).filter(s=>!tucked.includes(s))),'spine_upper'],
+  head:['head','face_mark'],neck:['neck'],spine:['spine_lower'],pelvis:['hip_L','hip_R','root'],
+ };
+ return [...order].reverse().flatMap(g=>blocks[g]);
+}
 /** World size (m) of one weave tile for a pattern-scale value: higher scale = more, smaller cells. */
 export const weaveTileSize=(density:number)=>weaveDensity/(density*2)*.64;
 const weaveCache=new Map<string,HTMLCanvasElement>();
@@ -58,6 +81,39 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
  }
  return material;
 }
+/**
+ * Paper grain (A5): a tiling noise texture with a few fibres, shared by every character. Made on first use
+ * because it needs a canvas (not available in the Node tests, which never render).
+ */
+let grainTexture:THREE.CanvasTexture|null=null;
+function paperGrain(){
+ if(grainTexture)return grainTexture;
+ const size=256,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d')!;
+ // Coarse blotches (a small noise image scaled up smoothly) under fine per-pixel grain.
+ const coarse=document.createElement('canvas');coarse.width=coarse.height=16;const cctx=coarse.getContext('2d')!,blot=cctx.createImageData(16,16);
+ for(let i=0;i<blot.data.length;i+=4){const v=128+(Math.random()-.5)*70;blot.data[i]=blot.data[i+1]=blot.data[i+2]=v;blot.data[i+3]=255;}
+ cctx.putImageData(blot,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(coarse,0,0,size,size);
+ const img=ctx.getImageData(0,0,size,size);for(let i=0;i<img.data.length;i+=4){const n=(Math.random()-.5)*60;for(let j=0;j<3;j++)img.data[i+j]=Math.max(0,Math.min(255,img.data[i+j]+n));}
+ ctx.putImageData(img,0,0);
+ ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=1;for(let i=0;i<40;i++){const x=Math.random()*size,y=Math.random()*size,a=Math.random()*Math.PI;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*18,y+Math.sin(a)*18);ctx.stroke();}
+ grainTexture=new THREE.CanvasTexture(canvas);grainTexture.wrapS=grainTexture.wrapT=THREE.RepeatWrapping;
+ return grainTexture;
+}
+/**
+ * Paper look on a flat material: grain sampled in the part's own space (so it moves with the part) and a soft
+ * light-to-dark shift from the top to the bottom of the part, like ink pooling. `amount` 0 turns it off.
+ */
+function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry,amount:{value:number}){
+ if(typeof document==='undefined')return;
+ geometry.computeBoundingBox();const span=new THREE.Vector2(geometry.boundingBox!.min.y,geometry.boundingBox!.max.y);
+ material.customProgramCacheKey=()=>'geofolk-paper';
+ material.onBeforeCompile=shader=>{
+  Object.assign(shader.uniforms,{paperGrain:{value:paperGrain()},paperAmount:amount,paperSpan:{value:span}});
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vPaper;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPaper=position;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D paperGrain;uniform float paperAmount;uniform vec2 paperSpan;varying vec3 vPaper;')
+   .replace('#include <map_fragment>','#include <map_fragment>\nfloat paperNoise=texture2D(paperGrain,vPaper.xy*1.6).r-.5;float paperDown=clamp((vPaper.y-paperSpan.x)/max(paperSpan.y-paperSpan.x,1e-4),0.,1.);\ndiffuseColor.rgb*=1.+paperAmount*(paperNoise*.6+(paperDown-.5)*.3);');
+ };
+}
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
 function planarUV(g:THREE.BufferGeometry){
  const position=g.getAttribute('position'),uv=g.getAttribute('uv');
@@ -66,29 +122,46 @@ function planarUV(g:THREE.BufferGeometry){
 }
 /** Stacks several pieces; each entry is [geometry, y offset]. */
 const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.map(([g,y])=>{g.translate(0,y,0);return g;}));
-/** Corset/vase torso: rounded shoulders narrowing with a concave curve to a slim waist. */
-function vase(L:number){
- const curve:ProfilePoint[]=Array.from({length:16},(_,i)=>{const t=i/15;return [.16+(.27-.16)*Math.pow(t,2.4),.02+(L-.1)*t,0] as ProfilePoint;});
- return lathe([[0,0],[.17,0,.02],...curve.slice(1),[.285,L-.045,.05],[.2,L,.03],[0,L]]);
-}
-/** Torso silhouettes from the turned-shape sheet: all 0→L tall, widest near the shoulders. */
-function torsoGeometry(v:number,L:number){
- const R=.285;
- const g=v===0?bowl(R,L,.035)
-  :v===1?stack([dome(.13,.14,.03),0],[bowl(R,.29,.032),L-.29])
-  :v===2?stack([bowl(.19,.225,.03),0],[dome(R,.21,.03),.21])
-  :v===3?stack([dome(.21,.21,.03),0],[bowl(R,.22,.03),.20])
-  :v===4?stack([frustum(.13,.02,.12,.03),0],[frustum(.03,.31,L-.07,.03),.07])
-  :v===5?frustum(.19,R,L,.035)
-  :v===6?bicone(.16,R,.29,.2,L,.035)
-  :v===7?stack([puck(.2,.15,.06),0],[puck(.245,.15,.06),.135],[puck(R,.15,.06),.27])
-  :v===8?stack([dome(.15,.08,.025),0],[sphere(1).scale(R,.19,.2),.23])
-  :v===9?new THREE.TorusGeometry(.16,.095,40,96).scale(1,.88,1).translate(0,.21,0)
-  :vase(L);
- // Slightly larger than the slot originally allowed; shoulders sit at x = ±0.33 to match.
- g.scale(1.12,1,.83);
- return g;
-}
+/** Corner rounding of the flat (2D) parts, in metres. */
+const paperRound=.022,markRound=.007;
+/**
+ * Flat torso silhouettes in the spine's space: from the waist (y = -0.14) up just past the neck base (0.43).
+ * Sized to the visual weight of the Orb (0.62 across), which Nam picked as the right proportion on 2026-10-11.
+ */
+const torsoOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
+ [{outline:[[-.26,-.14],[.26,-.14],[.26,.43],[-.26,.43]]}],
+ [{outline:[[-.11,-.14],[.11,-.14],[.32,.43],[-.32,.43]]}],
+ [{outline:[[-.32,-.14],[.32,-.14],[.2,.43],[-.2,.43]]}],
+ [{outline:ellipse2d(0,.43,.32,.55,Math.PI,Math.PI*2,48)}],
+ [{outline:ellipse2d(0,-.12,.33,.56,0,Math.PI,48)}],
+ [{outline:ellipse2d(0,.15,.31,.31)}],
+ [{outline:ellipse2d(0,.15,.32,.32),holes:[ellipse2d(0,.15,.12,.12,0,Math.PI*2,40)]}],
+];
+/** Torso scaling (Proportions tab) hangs from the neck, so the head stays attached at any height. */
+const torsoNeck=.43,shoulderY=.325;
+/** Widest |x| of a closed outline at height y. */
+const halfWidthAt=(outline:Point2[],y:number)=>{let w=0;for(let i=0;i<outline.length;i++){const [x1,y1]=outline[i],[x2,y2]=outline[(i+1)%outline.length];if(y1!==y2&&(y1-y)*(y2-y)<=0)w=Math.max(w,Math.abs(x1+(x2-x1)*(y-y1)/(y2-y1)));}return w;};
+/** Shoulder ball centre: three quarters of its radius outside the torso edge at shoulder height, so the arms always hang from the body whatever its shape or size. */
+export const shoulderX=(torsoVariant:number,prop:Proportions=defaultProportions)=>halfWidthAt(torsoOutlines[torsoVariant][0].outline,torsoNeck-(torsoNeck-shoulderY)/prop.torsoHeight)*prop.torsoWidth+shoulderRadius*prop.joints*.75;
+/** Flat head silhouettes, 0 → 0.31 above the neck; `markY` is where the face mark sits on each. */
+const headOutlines:{outline:Point2[];markY:number}[]=[
+ {outline:ellipse2d(0,.155,.155,.155),markY:.16},
+ {outline:[[-.21,0],[.21,0],[0,.31]],markY:.11},
+ {outline:Array.from({length:6},(_,i)=>{const a=Math.PI/2+i*Math.PI/3;return [.158*Math.cos(a),.155+.155*Math.sin(a)] as Point2;}),markY:.155},
+ {outline:[[-.2,.31],[.2,.31],[0,-.02]],markY:.215},
+ {outline:[[-.145,0],[.145,0],[.145,.31],[-.145,.31]],markY:.155},
+ {outline:ellipse2d(0,0,.19,.31,0,Math.PI,40),markY:.12},
+];
+const box2d=(w:number,h:number):Point2[]=>[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]];
+/** Face marks, centred on the mark point: Dot, Dash, Triangle, Twin dots, Ring, Bar. */
+const markOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
+ [{outline:ellipse2d(0,0,.03,.03,0,Math.PI*2,32)}],
+ [{outline:box2d(.026,.09)}],
+ [{outline:[[-.04,.025],[.04,.025],[0,-.04]]}],
+ [{outline:ellipse2d(-.04,0,.022,.022,0,Math.PI*2,28)},{outline:ellipse2d(.04,0,.022,.022,0,Math.PI*2,28)}],
+ [{outline:ellipse2d(0,0,.035,.035,0,Math.PI*2,32),holes:[ellipse2d(0,0,.017,.017,0,Math.PI*2,24)]}],
+ [{outline:box2d(.09,.024)}],
+];
 /** Hip-area silhouettes centred on the pelvis bone; every one encloses both hip joints (no boxes). */
 function pelvisGeometry(v:number){
  const g=v===0?sphere(1).scale(.2,.14,.16)
@@ -100,7 +173,8 @@ function pelvisGeometry(v:number){
  if(v>1)g.scale(1,1,.85);
  return g;
 }
-export const kneeRadius=.105,elbowRadius=.088;
+/** Ball joint radii, 85% of the first 2D build so the joints read as dots rather than balls (Nam, 2026-10-11). */
+export const kneeRadius=.105*.85,elbowRadius=.088*.85,shoulderRadius=.09*.85;
 /** Distance from a ball joint's centre at which a segment end of radius `end` sits flush on the ball. */
 const seat=(ball:number,end:number)=>Math.sqrt(Math.max(ball*ball-end*end,0));
 /** Leg segment spanning y=-from … y=-to (slim at the hip, widening towards the foot). */
@@ -133,22 +207,21 @@ function footGeometry(v:number){
  g.scale(1,1,1.12);g.translate(0,0,.02);
  return g;
 }
-function geometryFor(b:BoneDefinition,p:PartChoice):THREE.BufferGeometry {
+function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions):THREE.BufferGeometry {
  const v=p.variant,L=b.length;
  const box=(x:number,y:number,z:number,r=.03)=>new RoundedBoxGeometry(x,y,z,4,r);
  const cylinder=(top:number,bottom:number,h:number,n=64)=>{const c=beveledCylinder(top,bottom,h,n,Math.min(.012,h*.08));return n<16?faceted(c):c;};
  let g:THREE.BufferGeometry;
  if(b.kind==='head'){
-  const r=.155;
-  g=v===0?sphere(r):v===1?cylinder(0,.18,L):v===2?cylinder(.155,.155,L,8):v===3?new THREE.CapsuleGeometry(.13,.05,8,24):v===4?box(.265,L,.265,.035):bowl(.17,L,.025);
-  if(v!==5)g.translate(0,L/2,0);
-  const mount=sphere(.056);mount.translate(0,.145,.115);g=mergeGeometries([g,mount]);
+  // Rounding pulls a pointed top down a little; lift every head so its top sits exactly at the rest height.
+  g=paper([{outline:headOutlines[v].outline}],paperRound);g.computeBoundingBox();g.translate(0,L-g.boundingBox!.max.y,0);g.scale(prop.head,prop.head,prop.head);
  } else if(b.kind==='torso'){
-  g=planarUV(torsoGeometry(v,L));
+  // Scaled from the neck down, so the neck stays attached whatever the height; patterns are mapped after scaling to keep their cell size.
+  g=paper(torsoOutlines[v],paperRound);g.translate(0,-torsoNeck,0);g.scale(prop.torsoWidth,prop.torsoHeight,1);g.translate(0,torsoNeck,0);g=planarUV(g);
  } else if(b.kind==='pelvis'){
-  g=planarUV(pelvisGeometry(v));
+  g=pelvisGeometry(v);g.scale(prop.pelvis,prop.pelvis,prop.pelvis);g=planarUV(g);
  } else if(b.kind==='connector'){
-  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='spine_lower'?.082:b.id==='neck'?.055:b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:.09;
+  const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='spine_lower'?.082:b.id==='neck'?.055:(b.id.startsWith('knee')?kneeRadius:b.id.startsWith('elbow')?elbowRadius:shoulderRadius)*prop.joints;
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
   if(b.id.startsWith('shoulder'))g=sphere(r);
   else if(b.id.startsWith('knee')||b.id.startsWith('elbow'))g=sphere(r);
@@ -156,46 +229,55 @@ function geometryFor(b:BoneDefinition,p:PartChoice):THREE.BufferGeometry {
   if(b.id==='spine_lower'||b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
  } else if(b.kind==='leg'){
   // Both segments stop where they sit flush on the knee ball, so the knee reads as its own part.
-  const knee=seat(kneeRadius,.08);
-  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,.08,true):legGeometry(v,knee,L,.08,.118,false);
+  const knee=seat(kneeRadius*prop.joints,.08*prop.legs);
+  g=b.id.startsWith('thigh')?legGeometry(v,0,L-knee,.064,.08,true):legGeometry(v,knee,L,.08,.118,false);g.scale(prop.legs,1,prop.legs);
  } else if(b.kind==='limb'){
   // Upper arm plugs into the shoulder ball; both arm segments stop flush on the elbow ball.
-  const upper=b.id.startsWith('upperarm'),endRadius=v===1?.068*(upper?.85:.8):v===3?.058:.068,elbow=seat(elbowRadius,endRadius);
-  g=upper?armGeometry(v,0,L-elbow,true):armGeometry(v,elbow,L,false);
+  const upper=b.id.startsWith('upperarm'),endRadius=v===1?.068*(upper?.85:.8):v===3?.058:.068,elbow=seat(elbowRadius*prop.joints,endRadius*prop.arms);
+  g=upper?armGeometry(v,0,L-elbow,true):armGeometry(v,elbow,L,false);g.scale(prop.arms,1,prop.arms);
  } else if(b.kind==='hand'){
   g=v===0?sphere(.09):v===1?box(.145,.15,.14,.035):v===2?new THREE.TorusGeometry(.064,.032,16,48):v===3?cylinder(0,.105,.17):v===4?faceted(bicone(.035,.095,.08,.035,.16,.008,8)).translate(0,-.08,0):new THREE.CapsuleGeometry(.064,.055,8,24);g.translate(0,-.045,0);
  } else if(b.kind==='foot'){
-  g=footGeometry(v);g.computeBoundingBox();const min=g.boundingBox!.min.y,max=g.boundingBox!.max.y;g.translate(0,-max,0);g.scale(1,.16/(max-min),1);
+  g=footGeometry(v);g.computeBoundingBox();const min=g.boundingBox!.min.y,max=g.boundingBox!.max.y;g.translate(0,-max,0);g.scale(1,.16/(max-min),1);g.scale(prop.feet,prop.feet,prop.feet);
  } else {
-  g=v===0?sphere(.031):v===1?box(.023,.082,.018,.008):v===2?new THREE.CylinderGeometry(.043,.043,.018,3):v===3?sphere(.021):v===4?new THREE.TorusGeometry(.03,.009,8,24):box(.025,.075,.018,.008);
-  if(v===2)g.rotateX(Math.PI/2);
-  if(v===3){g.translate(-.035,0,0);const other=sphere(.021);other.translate(.035,0,0);g=mergeGeometries([g,other]);}
-  if(v===5){const other=box(.075,.025,.018,.008);g=mergeGeometries([g,other]);}
+  // The face-mark bone sits at a fixed height; move the mark to where it reads best on the chosen head.
+  g=paper(markOutlines[v],markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
  }
  return g;
 }
-export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder) {
+export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>();
- bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1};
+ bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);if(def.id.startsWith('shoulder_'))bone.position.x=Math.sign(def.headPosition[0])*shoulderX(spec.parts.spine_upper.variant,proportions);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  bones.forEach((def,index)=>{
-  const choice=spec.parts[def.id],geometry=geometryFor(def,choice),count=geometry.getAttribute('position').count;
+  const choice=spec.parts[def.id],geometry=geometryFor(def,choice,spec,proportions),count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  const mesh=new THREE.SkinnedMesh(geometry,materialFor(def,choice,spec,weavePalette));mesh.name=`${def.id}_mesh`;mesh.renderOrder=layerOf(def.id,layerOrder);mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  const material=materialFor(def,choice,spec,weavePalette);addPaper(material,geometry,paperAmount);
+  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
- group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:2};
+ group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:2,proportions};
+ let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
+ /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
+ const restack=(next:Partial<typeof stacking>)=>{
+  stacking={...stacking,...next};const key=JSON.stringify(stacking);if(key===stackKey)return;stackKey=key;
+  drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
+ };
+ restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
  const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const def of bones){const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh;const positions=mesh.geometry.getAttribute('position'),matrix=map.get(def.id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
  const applyPose=(pose:Pose)=>{bones.forEach(def=>map.get(def.id)!.rotation.fromArray([...poseRotation(def.id,pose),'XYZ']));ground();};
  /** Live pose: local in-plane (Z) rotation per bone, in radians; bones left out go straight. */
  const applyAngles=(angles:Record<string,number>)=>{bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,angles[def.id]??0));ground();};
- /** Re-stack the parts without rebuilding the character. */
- const setLayerOrder=(order:LayerGroup[])=>{for(const def of bones)(group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).renderOrder=layerOf(def.id,order);};
+ const setLayerOrder=(order:LayerGroup[])=>restack({order});
+ /** Paper grain and tone on or off (A5); a shared uniform, so no rebuild. */
+ const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
+ /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
+ const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
  const dispose=()=>{group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,dispose};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;
