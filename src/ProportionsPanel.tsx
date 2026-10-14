@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {RotateCcw,Save} from 'lucide-react';
 import {proportionKeys,patternKeys,defaultProportions,type Proportions} from './model';
-const labels:Record<keyof Proportions,string>={head:'Head',torsoWidth:'Top piece width',torsoHeight:'Seam height',pelvis:'Bottom piece width',arms:'Arm thickness',legs:'Leg thickness',hands:'Hands',feet:'Feet',joints:'Joints',fingers:'Fingers & toes',fingerStiffness:'Finger stiffness',checker:'Checker scale',flowSpeed:'Flow speed'};
+const labels:Record<keyof Proportions,string>={head:'Head',torsoWidth:'Top piece width',torsoHeight:'Seam height',pelvis:'Bottom piece width',arms:'Arm thickness',legs:'Leg thickness',hands:'Hands',feet:'Feet',joints:'Joints',fingers:'Fingers & toes',fingerStiffness:'Finger stiffness',hair:'Hair',checker:'Checker scale',flowSpeed:'Flow speed'};
 const same=(a:Proportions,b:Proportions)=>proportionKeys.every(k=>a[k]===b[k]);
 interface Props {value:Proportions;saved:Proportions;lookChanged:boolean;onChange:(next:Proportions)=>void;onSaveDefault:()=>Promise<string>;onReset:()=>void;}
 /** Proportions tab: global size of each part for every character, with a saved default to return to. */

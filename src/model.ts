@@ -1,12 +1,13 @@
 import paletteData from './palette.json';
 import savedProportions from './proportions.json';
+import {hairStyleNames} from './hair';
 export const palette = paletteData.colors;
 export const color = (id: string) => palette.find(c => c.id === id)!.hex;
 export const theme = {paper:color('neutral_1'),ink:color('dark_1'),green:color('green_1'),blue:color('blue_1'),pink:color('pink_2')};
 /** Stage background: black like the reference video, or the studio paper. */
 export const stageColors={dark:'#000000',light:theme.paper};
 export type Vec3 = [number, number, number];
-export type SlotKind = 'pelvis'|'connector'|'torso'|'head'|'face'|'limb'|'leg'|'hand'|'foot';
+export type SlotKind = 'pelvis'|'connector'|'torso'|'head'|'face'|'limb'|'leg'|'hand'|'foot'|'hair';
 export interface BoneDefinition {id:string;parent:string|null;headPosition:Vec3;length:number;kind:SlotKind;label:string;section:string;}
 export const bones: BoneDefinition[] = [
  {id:'root',parent:null,headPosition:[0,1.39,0],length:.07,kind:'pelvis',label:'Bottom piece',section:'Body'},
@@ -39,6 +40,8 @@ export const bones: BoneDefinition[] = [
    {id:`foot_${side}`,parent:`shin_${side}`,headPosition:[0,-.60,0] as Vec3,length:.15,kind:'foot' as const,label:'Foot',section},
   ];
  }),
+ // Hair rides on the head (hair.ts). Last in the list, so older seeds keep their slot order (see legacyOrders).
+ {id:'hair',parent:'head',headPosition:[0,0,0],length:.31,kind:'hair',label:'Hair',section:'Body'},
 ];
 /**
  * Body (Nam, 2026-10-14): no fixed torso + pelvis any more, but one or two flat pieces from one catalogue, in one of
@@ -80,15 +83,16 @@ export const variants:Record<SlotKind,string[]>={
  foot:['Flare','Dome','Wedge','Puck','Bell','Octagon'],
  // Face marks are always filled shapes, never outlines (Nam, 2026-10-14): the old Ring is now a Diamond.
  face:['Dot','Dash','Triangle','Twin dots','Diamond','Bar'],
+ hair:hairStyleNames,
 };
 export const restHeight=2.4;
 /**
  * Global look proportions (Proportions tab): 1 = the studio default. Kept per browser like the weave palette,
  * not in the seed. Bone lengths never change; only the parts' size, and the shoulders follow the torso edge.
  */
-export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','checker','flowSpeed'] as const;
+export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','hair','checker','flowSpeed'] as const;
 export type Proportions=Record<typeof proportionKeys[number],number>;
-export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,checker:1,flowSpeed:1};
+export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,hair:1,checker:1,flowSpeed:1};
 export const proportionRange={min:.5,max:1.5};
 /**
  * Pattern look settings kept with the proportions (per browser, in the undo history) but shown under Pattern scale in
@@ -222,9 +226,9 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  * Not stored in the seed: the seed keeps each part's colour.
  */
 export const schemeLayouts=['arms-legs','upper-lower','alternate','sides'] as const;
-export interface Scheme {A:number;B:number;C:number;J:number[];H:number;layout:typeof schemeLayouts[number];}
+export interface Scheme {A:number;B:number;C:number;J:number[];H:number;R:number;layout:typeof schemeLayouts[number];}
 /** Pinned roles: locked hands/feet (accent), locked joint pairs (by type) and a locked head keep their colour. */
-export interface PinnedScheme {C?:number;J?:(number|undefined)[];H?:number;}
+export interface PinnedScheme {C?:number;J?:(number|undefined)[];H?:number;R?:number;}
 /** Joint type of a joint bone: 0 shoulders (and the hidden hips), 1 elbows, 2 knees. */
 const jointType=(id:string)=>id.startsWith('elbow')?1:id.startsWith('knee')?2:0;
 const dark=palette.findIndex(c=>c.id==='dark_1');
@@ -249,7 +253,10 @@ export function drawScheme(random:()=>number,pinned:PinnedScheme={}):Scheme{
   const others=vibrant.filter(c=>![A,B,C,...J].includes(c)&&!pinnedJ.includes(c));
   J.push(pick(either(others.filter(c=>Math.abs(tones[c].l-(tones[A].l+tones[B].l)/2)>=.15),others)));
  }
- return {A,B,C,J,H:pinned.H??pick(either(vibrant.filter(c=>![A,B,...J].includes(c)),vibrant.filter(c=>![A,B].includes(c)))),layout:pick(schemeLayouts)};
+ const H=pinned.H??pick(either(vibrant.filter(c=>![A,B,...J].includes(c)),vibrant.filter(c=>![A,B].includes(c))));
+ // Hair: its own colour, away from the head's on the colour wheel.
+ const R=pinned.R??pick(either(vibrant.filter(c=>c!==H&&hueGap(c,H)>=60),vibrant.filter(c=>c!==H)));
+ return {A,B,C,J,H,R,layout:pick(schemeLayouts)};
 }
 /** Colour and two-tone accent of a part under a scheme. Neighbours always differ: limbs A/B, joints J (by type), hands, feet and pelvis C, neck and waist B, head H, torso A. */
 export function schemeColor(id:string,s:Scheme):[number,number]{
@@ -262,6 +269,7 @@ export function schemeColor(id:string,s:Scheme):[number,number]{
  }
  if(part==='hand'||part==='foot'||id==='root')return [s.C,s.A];
  if(id==='head')return [s.H,s.A];
+ if(id==='hair')return [s.R,s.A];
  if(id==='neck'||id==='spine_lower')return [s.B,s.A];
  if(id==='spine_upper')return [s.A,s.C];
  return [dark,s.H];
@@ -271,7 +279,7 @@ const adjacent=(id:string)=>bones.filter(n=>n.id===boneById(id).parent||n.parent
 function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>number){
  const kept=(id:string)=>frozen.has(id)?parts[id].color:undefined,pinned:PinnedScheme={};
  for(const id of ['hand_L','foot_L'])pinned.C??=kept(id);
- pinned.J=['shoulder_L','elbow_L','knee_L'].map(kept);pinned.H=kept('head');
+ pinned.J=['shoulder_L','elbow_L','knee_L'].map(kept);pinned.H=kept('head');pinned.R=kept('hair');
  const clashes=(s:Scheme)=>bones.some(b=>!frozen.has(b.id)&&adjacent(b.id).some(n=>frozen.has(n)&&parts[n].color===schemeColor(b.id,s)[0]));
  // Usually the first scheme fits; with many locks, try a few more before patching single parts.
  let scheme=drawScheme(random,pinned);for(let i=0;i<60&&clashes(scheme);i++)scheme=drawScheme(random,pinned);
@@ -358,11 +366,11 @@ export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:str
  paint(parts,new Set(bones.filter(b=>lockedLinked.has(b.id)).map(b=>b.id)),rng(`${spec.label}|colours|${salt}`));
  return normalizeSpec({...spec,parts});
 }
-export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~5${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~6${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
 /**
  * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark, 3 = body pieces and builds,
  * 4 = joint shapes (older seeds open with sphere joints, as they were drawn), 5 = joint sizes (older seeds open with
- * size M, as they were drawn).
+ * size M, as they were drawn), 6 = hair (a new last slot; older seeds get hair from their label).
  * A version-1 torso maps to the nearest version-2 one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
  * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index. Older torsos and pelvises
  * then map onto the body catalogue as a Big top build (big torso over a small pelvis, like before):
@@ -370,14 +378,14 @@ export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~5${spec.de
  */
 const legacyTorso=[3,1,4,0,1,1,5,0,5,6,1],torsoV3=[1,4,5,2,3,0,6],pelvisV3=[0,6,2,3,1,7];
 /** Slot orders of older seeds: before elbows (24 slots) and before knees and elbows (22 slots). */
-const legacyOrders=[bones.filter(b=>!b.id.startsWith('elbow_')),bones.filter(b=>!b.id.startsWith('elbow_')&&!b.id.startsWith('knee_'))];
+const legacyOrders=[bones.filter(b=>b.id!=='hair'),bones.filter(b=>b.id!=='hair'&&!b.id.startsWith('elbow_')),bones.filter(b=>b.id!=='hair'&&!b.id.startsWith('elbow_')&&!b.id.startsWith('knee_'))];
 export function decodeSeed(input:string):CharacterSpec {
  const seed=input.trim();if(!seed||seed.length>600)throw new Error('Enter a seed between 1 and 600 characters.');
  if(!seed.includes('~'))return generate(seed);
  const [label,packed,...rest]=seed.split('~');
  const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2);
  const version=packed?.[0];
- if(rest.length||!label||!order||!['1','2','3','4','5'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ if(rest.length||!label||!order||!['1','2','3','4','5','6'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
  const density=parseInt(packed[1],36);if(density<2||density>12)throw new Error('Invalid pattern scale in seed.');
  // Joints missing from older seeds are derived from the label so they stay deterministic.
  const fallback=generate(label),parts:Record<string,PartChoice>=Object.fromEntries(bones.filter(b=>!order.includes(b)).map(b=>[b.id,fallback.parts[b.id]]));
@@ -388,7 +396,7 @@ export function decodeSeed(input:string):CharacterSpec {
   if(old&&b.kind==='torso')variant=torsoV3[version==='1'?legacyTorso[variant]:variant];
   if(old&&b.kind==='pelvis')variant=pelvisV3[variant];
   if(old&&b.id==='spine_lower')variant=bigTop;
-  if(isBallJoint(b.id)&&version!=='5')variant=(version==='4'?variant:0)+jointShapes.length;
+  if(isBallJoint(b.id)&&version!=='5'&&version!=='6')variant=(version==='4'?variant:0)+jointShapes.length;
   parts[b.id]={variant,color:c,accent,pattern};
  });
  return normalizeSpec({version:1,label,parts,density});

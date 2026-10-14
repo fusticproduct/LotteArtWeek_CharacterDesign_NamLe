@@ -6,6 +6,7 @@ import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDep
 import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
 import {createFingers} from './fingers';
+import {hairStyles,placeHair} from './hair';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
@@ -28,7 +29,7 @@ export const groupOf=(id:string):LayerGroup=>{
  if(id==='root'||id.startsWith('hip_'))return 'pelvis';
  // The build row (waist bone) is listed with the top piece; its hidden mesh is drawn with the bottom piece.
  if(id==='spine_upper'||id==='spine_lower')return 'torso';
- if(id==='head'||id==='face_mark')return 'head';
+ if(id==='head'||id==='face_mark'||id==='hair')return 'head';
  if(id==='neck')return 'neck';
  return /^(shoulder|upperarm|elbow|forearm|hand)_/.test(id)?'arms':'legs';
 };
@@ -49,7 +50,7 @@ export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):stri
   arms:pair(limbStack.arm,depth.frontArm,tucked),
   legs:pair(limbStack.leg,depth.frontLeg),
   torso:[...pair(limbStack.arm,depth.frontArm,(['L','R'] as const).filter(s=>!tucked.includes(s))),'spine_upper'],
-  head:['head','face_mark'],neck:['neck'],pelvis:['spine_lower','hip_L','hip_R','root'],
+  head:['head','hair','face_mark'],neck:['neck'],pelvis:['spine_lower','hip_L','hip_R','root'],
  };
  return [...order].reverse().flatMap(g=>blocks[g]);
 }
@@ -177,8 +178,14 @@ export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>h
 export const jointRadius=(spec:CharacterSpec,type:'shoulder'|'elbow'|'knee',prop:Proportions=defaultProportions)=>({shoulder:shoulderRadius,elbow:elbowRadius,knee:kneeRadius})[type]*jointSizeOf(spec.parts[`${type}_L`].variant)*prop.joints;
 /** A segment's end is this fraction of the joint it meets, so the joint covers it and the segment tapers from joint to joint. */
 const endRatio=.91;
+/** A character's hair placed on its head (hair.ts), in the head bone's space, the head outline lifted and scaled as drawn. */
+function hairOn(spec:CharacterSpec,prop:Proportions){
+ const head=headOutlines[spec.parts.head.variant],lift=.31-Math.max(...head.outline.map(p=>p[1]));
+ const outline=head.outline.map(([x,y])=>[x*prop.head,(y+lift)*prop.head] as Point2),markTop=(head.markY+.05)*prop.head;
+ return placeHair(hairStyles[spec.parts.hair.variant]??hairStyles[0],outline,markTop,prop.hair);
+}
 /** Flat head silhouettes, 0 → 0.31 above the neck; `markY` is where the face mark sits on each. */
-const headOutlines:{outline:Point2[];markY:number}[]=[
+export const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:ellipse2d(0,.155,.155,.155),markY:.16},
  {outline:[[-.21,0],[.21,0],[0,.31]],markY:.11},
  {outline:Array.from({length:6},(_,i)=>{const a=Math.PI/2+i*Math.PI/3;return [.158*Math.cos(a),.155+.155*Math.sin(a)] as Point2;}),markY:.155},
@@ -292,6 +299,9 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   g=v===0?sphere(.09):v===1?box(.145,.15,.14,.035):v===2?new THREE.TorusGeometry(.064,.032,16,48):v===3?cylinder(0,.105,.17):v===4?faceted(bicone(.035,.095,.08,.035,.16,.008,8)).translate(0,-.08,0):new THREE.CapsuleGeometry(.064,.055,8,24);g.translate(0,-.045,0);
  } else if(b.kind==='foot'){
   g=footGeometry(v);g.computeBoundingBox();const min=g.boundingBox!.min.y,max=g.boundingBox!.max.y;g.translate(0,-max,0);g.scale(1,.16/(max-min),1);g.scale(prop.feet,prop.feet,prop.feet);
+ } else if(b.kind==='hair'){
+  // The hair bone's own mesh is the front cap; a style without one keeps a speck hidden in the head's centre.
+  const front=hairOn(spec,prop).front;g=front?paper([{outline:front}],paperRound):sphere(.001).translate(0,.15,0);
  } else {
   // The face-mark bone sits at a fixed height; move the mark to where it reads best on the chosen head.
   g=paper(markOutlines[v],markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
@@ -335,6 +345,16 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return mesh;
  });
+ // Hair behind the head (hair.ts): the hair colour and, for two-colour styles, the accent; both ride on the hair bone.
+ const hairBone=map.get('hair')!,hairIndex=bones.findIndex(b=>b.id==='hair'),placed=hairOn(spec,proportions);
+ const hairBack=[false,true].flatMap(accent=>{
+  const pieces=placed.back.filter(p=>p.accent===accent);if(!pieces.length)return [];
+  const geometry=paper(pieces.map(p=>({outline:p.points})),paperRound),count=geometry.getAttribute('position').count;
+  geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:hairIndex),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
+  const material=new THREE.MeshBasicMaterial({color:colorOf(accent?spec.parts.hair.accent:spec.parts.hair.color),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
+  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=accent?'hair_back_accent':'hair_back';mesh.userData={accent};mesh.position.copy(hairBone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  return [mesh];
+ });
  group.userData={seed:spec.label,restHeight,units:'meters',rigVersion:3,proportions};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
@@ -343,6 +363,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder-.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
+  for(const back of hairBack)back.renderOrder=group.getObjectByName('head_mesh')!.renderOrder-(back.userData.accent?.4:.5);
  };
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.

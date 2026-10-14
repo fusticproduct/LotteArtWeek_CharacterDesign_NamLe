@@ -4,6 +4,7 @@ import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
 import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
 import {tether} from '../src/fingers';
+import {hairStyles} from '../src/hair';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -40,7 +41,7 @@ it('gives shoulders, elbows and knees one of five shapes (no triangle), mirrored
  expect(after.parts.elbow_L.variant).not.toBe(before.parts.elbow_L.variant);expect(after.parts.knee_L).toEqual(before.parts.knee_L);expect(after.parts.elbow_L.color).toBe(before.parts.elbow_L.color);
  // A version-3 seed opens with spheres and a version-4 seed with its shapes, both at size M, as they were drawn.
  const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;
- expect(decodeSeed(encodeSeed(spec).replace('~5','~3')).parts.knee_L.variant).toBe(5);expect(decodeSeed(encodeSeed(spec).replace('~5','~4')).parts.knee_L.variant).toBe(8);
+ expect(decodeSeed(encodeSeed(spec).replace('~6','~3')).parts.knee_L.variant).toBe(5);expect(decodeSeed(encodeSeed(spec).replace('~6','~4')).parts.knee_L.variant).toBe(8);
  for(const id of ['thigh_L','thigh_R','shin_L','shin_R'])expect(bones.find(b=>b.id===id)!.length).toBeCloseTo(.4*1.5);
 });
 it('produces subdivided beveled round surfaces with finite normals and exact bounds',()=>{
@@ -145,8 +146,8 @@ it('adds mirrored knee joints without changing leg length, and still reads legac
  const knee=bones.find(b=>b.id==='knee_L')!,shin=bones.find(b=>b.id==='shin_L')!;
  expect(knee.parent).toBe('thigh_L');expect(knee.headPosition).toEqual([0,-.6,0]);expect(shin.parent).toBe('knee_L');expect(shin.headPosition).toEqual([0,0,0]);
  const spec=generate('knees');expect(spec.parts.knee_R).toEqual(spec.parts.knee_L);
- const packed=encodeSeed(spec).split('~')[1],legacy=packed.slice(0,2)+bones.map((b,i)=>/^(knee|elbow)_/.test(b.id)?'':packed.slice(2+i*4,6+i*4)).join('');
- const restored=decodeSeed(`knees~${legacy}`);for(const b of bones)if(!/^(knee|elbow)_/.test(b.id))expect(restored.parts[b.id]).toEqual(spec.parts[b.id]);
+ const packed=encodeSeed(spec).split('~')[1],legacy=packed.slice(0,2)+bones.map((b,i)=>/^(knee_|elbow_|hair)/.test(b.id)?'':packed.slice(2+i*4,6+i*4)).join('');
+ const restored=decodeSeed(`knees~${legacy}`);for(const b of bones)if(!/^(knee_|elbow_|hair)/.test(b.id))expect(restored.parts[b.id]).toEqual(spec.parts[b.id]);
 });
 it('closes every lathe with a real fillet on the bottom rim as well as the top rim',()=>{
  for(const g of [frustum(.2,.2,.2,.05),dome(.2,.2,.04)]){const p=g.getAttribute('position');let bottomRim=false;for(let i=0;i<p.count;i++){const r=Math.hypot(p.getX(i),p.getZ(i)),y=p.getY(i);if(y>.005&&y<.03&&r>.17&&r<.199)bottomRim=true;}expect(bottomRim).toBe(true);g.dispose();}
@@ -163,8 +164,8 @@ it('never stacks two beaded segments on one limb, even through rerolls and locks
 });
 it('reads 24-slot seeds from before the elbow joints',()=>{
  const spec=generate('elbows'),packed=encodeSeed(spec).split('~')[1];
- const old=packed.slice(0,2)+bones.map((b,i)=>b.id.startsWith('elbow_')?'':packed.slice(2+i*4,6+i*4)).join('');
- const restored=decodeSeed(`elbows~${old}`);for(const b of bones)if(!b.id.startsWith('elbow_'))expect(restored.parts[b.id]).toEqual(spec.parts[b.id]);
+ const old=packed.slice(0,2)+bones.map((b,i)=>b.id.startsWith('elbow_')||b.id==='hair'?'':packed.slice(2+i*4,6+i*4)).join('');
+ const restored=decodeSeed(`elbows~${old}`);for(const b of bones)if(!b.id.startsWith('elbow_')&&b.id!=='hair')expect(restored.parts[b.id]).toEqual(spec.parts[b.id]);
 });
 it('solves in-plane bone angles from MediaPipe landmarks',()=>{
  // Upright body in a square frame: left landmarks on the image right, y grows downwards.
@@ -220,10 +221,10 @@ it('restacks limbs from camera depth only after the cue holds for a few frames',
  // A one-frame blip the other way does not flip it back.
  state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
 });
-it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 5',()=>{
+it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 6',()=>{
  const spec=generate('legacy-torso');spec.parts.root.variant=5;spec.parts.spine_lower.variant=0;
  const packed=encodeSeed(spec).split('~')[1],at=(id:string)=>bones.findIndex(b=>b.id===id),swap=(p:string,id:string,v:number)=>p.slice(0,2+at(id)*4)+v.toString(36)+p.slice(3+at(id)*4);
- expect(packed[0]).toBe('5');
+ expect(packed[0]).toBe('6');
  // Version 1 → 2: Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; then onto the body shapes: Bowl, Block, Donut, Funnel.
  for(const [old,now] of [[0,2],[7,1],[9,6],[10,4]]){const v1='1'+swap(packed,'spine_upper',old).slice(1);const s=decodeSeed(`legacy-torso~${v1}`);expect(s.parts.spine_upper.variant).toBe(now);expect(s.parts.spine_lower.variant).toBe(2);}
  // Version 2: Orb torso → Circle; pelvis Diamond → Diamond, Puck → Block, Tire → Donut (a small piece, so it becomes a Circle).
@@ -234,7 +235,7 @@ it('reads version-1 and version-2 seeds onto the body catalogue as a Big top bui
 });
 it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder on the top piece edge',()=>{
  const extent=(rig:ReturnType<typeof createCharacter>,id?:string)=>{let lo=Infinity,hi=-Infinity;for(const b of bones){if(id&&b.id!==id)continue;const mesh=rig.group.getObjectByName(`${b.id}_mesh`) as SkinnedMesh,p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const y=new Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).y;lo=Math.min(lo,y);hi=Math.max(hi,y);}}return hi-lo;};
- const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions'),base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
+ const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions');spec.parts.hair.variant=0;const base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
  expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
  expect(bigHead.map.get('elbow_L')!.position.toArray()).toEqual(base.map.get('elbow_L')!.position.toArray());
  const width=(rig:ReturnType<typeof createCharacter>,id:string)=>{const g=(rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).geometry;g.computeBoundingBox();return g.boundingBox!.max.x-g.boundingBox!.min.x;};
@@ -275,11 +276,11 @@ it('plays the recorded Dance as a smooth loop and breathes gently around the pre
  for(const id of danceBones)expect(danceFrame(count/danceFps).angles[id]).toBeCloseTo(first.angles[id],9);
  for(const pose of ['idle','reach','stride'] as const){const calm=presetAngles(pose);for(const t of [0,.7,1.9,3.1]){const a=breathe(pose,t);for(const id of Object.keys(calm))expect(Math.abs(a[id]-calm[id])).toBeLessThan(.04);}}
 });
-it('paints each character with its own scheme (up to seven colours), keeps locked colours, and recolours without changing shapes',()=>{
+it('paints each character with its own scheme (up to eight colours, with the hair), keeps locked colours, and recolours without changing shapes',()=>{
  const roles=(s:ReturnType<typeof generate>)=>new Set(bones.filter(b=>b.kind!=='face').map(b=>s.parts[b.id].color));
  const seen=new Set<string>();
  for(let i=0;i<200;i++){
-  const s=generate(`scheme-${i}`);expect(roles(s).size,`${i}`).toBeLessThanOrEqual(7);
+  const s=generate(`scheme-${i}`);expect(roles(s).size,`${i}`).toBeLessThanOrEqual(8);
   expect(s.parts.hand_L.color).toBe(s.parts.foot_R.color);expect(s.parts.root.color).toBe(s.parts.hand_L.color);
   seen.add([...roles(s)].sort().join('.'));
  }
@@ -428,4 +429,21 @@ it('scales the patchwork cells with Checker scale and the flow speed with Flow s
  // Node has no canvas, so textures are only built in the browser; there the offset moves unless Flow speed is 0.
  const still=offsetAfter(0);if(still.map)expect(still.moved).toBe(0);
  const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,checker:2});expect(rig.group.getObjectByName(`${spot}_mesh`)).toBeDefined();rig.dispose();
+});
+
+it('places every hair style on every head: the cap stays above the face mark, the back sits behind the head, in its own colour',()=>{
+ for(let head=0;head<variants.head.length;head++)for(let style=0;style<hairStyles.length;style++){
+  const spec=generate('hair');spec.parts.head.variant=head;spec.parts.hair.variant=style;const rig=createCharacter(spec),label=`head ${head}, ${hairStyles[style].name}`;
+  const front=rig.group.getObjectByName('hair_mesh') as SkinnedMesh,mark=rig.group.getObjectByName('face_mark_mesh') as SkinnedMesh,headMesh=rig.group.getObjectByName('head_mesh') as SkinnedMesh;
+  expect(front.renderOrder,label).toBeGreaterThan(headMesh.renderOrder);expect(mark.renderOrder,label).toBeGreaterThan(front.renderOrder);
+  // The cap's lowest point is above the mark's top (both in world space at rest).
+  const extreme=(m:SkinnedMesh,pick:(a:number,b:number)=>number,start:number)=>{const p=m.geometry.getAttribute('position'),v=new Vector3();let y=start;for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);y=pick(y,v.y);}return y;};
+  if(hairStyles[style].cap)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
+  for(const name of ['hair_back','hair_back_accent']){const back=rig.group.getObjectByName(name) as SkinnedMesh|undefined;if(back)expect(back.renderOrder,label).toBeLessThan(headMesh.renderOrder);}
+  rig.dispose();
+ }
+ for(let i=0;i<60;i++){const s=generate(`hair-${i}`);expect(s.parts.hair.color,`${i}`).not.toBe(s.parts.head.color);}
+ // The Hair slider scales the back pieces.
+ const spec=generate('hair-size');spec.parts.hair.variant=3;const size=(hair:number)=>{const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,hair}),g=(rig.group.getObjectByName('hair_back') as SkinnedMesh).geometry;g.computeBoundingBox();const w=g.boundingBox!.max.x-g.boundingBox!.min.x;rig.dispose();return w;};
+ expect(size(1.5)/size(1)).toBeCloseTo(1.5,2);
 });

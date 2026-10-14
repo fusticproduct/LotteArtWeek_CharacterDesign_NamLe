@@ -39,7 +39,7 @@ npm run dev     # chạy app, mở địa chỉ "Local:" mà terminal in ra
 Lệnh khác:
 
 ```sh
-npm test        # 39 test tự động
+npm test        # 40 test tự động
 npm run build   # bản production trong dist/ (phải phục vụ qua HTTP, không mở file trực tiếp)
 npm run preview # xem thử bản build
 ```
@@ -68,7 +68,7 @@ Trên macOS, lần đầu dùng webcam phải cấp quyền Camera cho ứng d�
 | Thanh dưới khung | Bốn tư thế: At ease, Hands up, Step out (ba tư thế này "thở" nhẹ: thân, đầu, tay đung đưa chu kỳ 3.6 s; tắt khi hệ điều hành bật giảm chuyển động) và **Dance** (phát lặp 3 phút nhảy đã ghi từ video mẫu, không cần server hay camera) |
 | Tab **Parts** (phải) | Bộ phận và lớp: danh sách 6 khối lớp (Arms, Head, Body, Neck, Lower body, Legs). Khối Body có dòng **Build** (kiểu ghép thân) và **Top piece** (khối trên, hoặc khối duy nhất); khối Lower body có **Bottom piece** (khối dưới; "None" khi Build là Single) và khớp hông; **khối trên cùng được vẽ phía trước**. Kéo tay nắm ở đầu khối để đổi thứ tự (hoặc chọn tay nắm rồi bấm ↑/↓). Trong khối Arms/Legs, các bộ phận xếp theo thứ tự vẽ cố định (xem mục 7). Mỗi dòng có nút random (đổi **hình** của bộ phận, giữ màu; dòng Hip joints thì đổi màu mọi khớp) và nút khóa. "Reset order" trả về thứ tự mặc định |
 | Dưới danh sách | Slider **Pattern scale** (số ô đan, mặc định 6), **Checker scale** (cỡ ô patchwork, 40–250%), **Flow speed** (tốc độ trôi màu của gradient, -300% đến 300%: 0 là đứng yên, âm là trôi ngược; hai slider này lưu theo trình duyệt cùng các tỉ lệ, có trong undo), chọn **Palette** (HFCD / XMAS / TET: đổi màu cả nhân vật, pattern đan và nền đen của sân khấu), **Paper texture** On/Off (vân giấy và đậm nhạt nhẹ trên mọi bộ phận; lưu theo trình duyệt; không đi vào file FBX/OBJ), số bộ phận đang khóa |
-| Tab **Proportions** | 12 slider 50–150% chỉnh cỡ bộ phận cho mọi nhân vật: Head, Top piece width, Seam height (dời chỗ nối hai khối thân lên/xuống; khối kia tự dài ra để chạm), Bottom piece width (hai slider độ rộng chỉ áp lên khối không tròn), Arm thickness, Leg thickness, Hands, Feet, Joints, Fingers & toes (cỡ chung của hình tròn ngón tay và ngón chân), Finger stiffness (50% mềm lủng lẳng, 100% giữ dáng, 150% gần như cứng). **Save all as default** lưu mọi cài đặt làm mặc định: các tỉ lệ (kể cả Checker scale, Flow speed) vào `src/proportions.json`, palette, thứ tự lớp, Paper texture và nền đen/giấy vào `src/settings.json` (khi chạy `npm run dev`), thành mặc định chung của dự án cho mọi trình duyệt; bản build tĩnh thì chỉ lưu cho trình duyệt đó. Trình duyệt mới mở app sẽ bắt đầu từ mặc định này. **Reset** trả mọi cài đặt về mặc định đã lưu; "Set all sliders to 100%" trả về cỡ gốc. Giá trị đang chỉnh lưu theo trình duyệt, không nằm trong seed |
+| Tab **Proportions** | 12 slider 50–150% chỉnh cỡ bộ phận cho mọi nhân vật: Head, Top piece width, Seam height (dời chỗ nối hai khối thân lên/xuống; khối kia tự dài ra để chạm), Bottom piece width (hai slider độ rộng chỉ áp lên khối không tròn), Arm thickness, Leg thickness, Hands, Feet, Joints, Fingers & toes (cỡ chung của hình tròn ngón tay và ngón chân), Hair (cỡ tóc), Finger stiffness (50% mềm lủng lẳng, 100% giữ dáng, 150% gần như cứng). **Save all as default** lưu mọi cài đặt làm mặc định: các tỉ lệ (kể cả Checker scale, Flow speed) vào `src/proportions.json`, palette, thứ tự lớp, Paper texture và nền đen/giấy vào `src/settings.json` (khi chạy `npm run dev`), thành mặc định chung của dự án cho mọi trình duyệt; bản build tĩnh thì chỉ lưu cho trình duyệt đó. Trình duyệt mới mở app sẽ bắt đầu từ mặc định này. **Reset** trả mọi cài đặt về mặc định đã lưu; "Set all sliders to 100%" trả về cỡ gốc. Giá trị đang chỉnh lưu theo trình duyệt, không nằm trong seed |
 | Tab **Live pose** | Bật/tắt bắt chuyển động, trạng thái kết nối, chọn Webcam / Demo video (bấm khi đang tắt cũng bật luôn với nguồn đó), slider **Motion smoothing**, ô xem hình camera |
 
 Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn chân, đùi, ống chân) hiện thành một dòng. Bắp tay và cẳng tay có dòng Left/Right riêng.
@@ -92,6 +92,7 @@ Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn ch�
 - **Khớp nhiều cỡ, tay chân thon theo khớp:** vai, khuỷu, gối mỗi loại một cỡ S/M/L (×0,72 / ×1 / ×1,35), ba loại không bao giờ cùng cỡ. Đầu mỗi đoạn tay/chân bằng 0,91 lần khớp ở đầu đó, nên đoạn thon từ khớp này sang khớp kia: Cylinder, Octagon thành hình thon, Box thành lăng trụ vuông thon (nhìn như hình thang), Cone thu còn 62% ở đầu xa, Chain hạt to dần/nhỏ dần. Cẳng tay thon về cổ tay (0,058); ống chân vẫn loe về bàn chân. Code: `jointRadius()`, `armGeometry()` trong `rig.ts`.
 - **Khớp xoay theo góc trung bình:** mỗi khớp (vai, khuỷu, hông, gối) xoay đúng nửa đường giữa đoạn trước và đoạn sau nó (gối vuông nằm giữa góc đùi và ống chân); đoạn sau xoay nốt nửa còn lại nên tay chân vẫn chỉ đúng hướng. Điểm gắn bắp tay (lệch tâm vai 2 cm) được xoay ngược lại nên không bị dời. Code: `halfway()` trong `createCharacter()` (`rig.ts`).
 - **Ngón tay ragdoll, 5 hình tròn chạm nhau:** mỗi bàn tay có đúng 5 hình tròn (mỗi ngón một hình), cùng cỡ và cùng màu với ngón chân (màu phụ của bàn tay, khác màu tay), vẽ ngay dưới bàn tay. Lúc nghỉ chúng xếp thành vòng cung ôm mép ngoài bàn tay, ngón nào cũng chạm ngón bên cạnh. Vật lý verlet (trọng lực, quán tính, lực kéo về chỗ, sợi dây ngắn 2,2 bán kính buộc vào mép tay) cho chúng đung đưa, lăn men theo mép tay, nhưng ngón cạnh nhau luôn chạm nhau, không ngón nào lọt vào tay hay chồng lên nhau. Slider Fingers & toes chỉnh cỡ chung, Finger stiffness chỉnh lực kéo. Chưa xuất vào FBX/OBJ. Code: `src/fingers.ts`.
+- **Tóc:** 22 kiểu hình khối lớn, không phân biệt giới tính, cộng kiểu trọc (None): Spikes (gai lệch như ảnh mẫu), Sunburst, Afro, Cloud, Fan (hai màu), Flame, Fin, Flat top, Bowl, Helmet, Halo, Waves, Horns, Blocks (hai màu), Sweep, Ball top, Ears, Leaves (hai màu), Crown, Gem, Ridge, Swoosh. Phần sau vẽ dưới đầu; mũ/mái trước cắt từ chính đường viền hình đầu phía trên một đường cắt (có thể nghiêng), luôn nằm trên dấu mặt; dấu mặt luôn vẽ trên tóc. Cỡ tóc theo cỡ hình đầu, slider Hair trong tab Proportions. Màu tóc riêng trong bộ màu (xa màu đầu trên vòng màu). Dòng Hair ở khối Head để random/khóa. Thiết kế: `docs/hair-proposal.html` (vẽ từ `src/hair.ts`).
 - **Ngón chân:** mỗi bàn chân có 5 hình tròn phẳng xếp dọc theo đế, vẽ đè lên bàn chân, luôn chạm nhau không chồng (tâm cách nhau đúng một đường kính, xếp giữa bàn chân; tăng cỡ thì hàng rộng ra); cùng cỡ, cùng màu với ngón tay. Nhân vật đứng trên điểm thấp nhất của ngón chân. Chưa xuất vào FBX/OBJ.
 - **Chân:** đùi mảnh như tay, càng xuống càng to, bàn chân loe.
 - **Bàn chân hút sàn:** bàn chân ở trên hoặc gần sàn (sàn = đế bàn chân thấp hơn) thì nằm phẳng; cách sàn hơn 20 cm thì xoay tự do theo ống chân, nên khi nhảy nhân vật đá chân, nhón chân thoải mái; từ 5 đến 20 cm chuyển mượt. Áp cho mọi tư thế, Dance và Live pose. Code: `settleFeet()` trong `rig.ts`.
@@ -122,6 +123,7 @@ src/
   dance.ts / dance.json  dữ liệu Dance đã nén (15 khung/giây, góc từng xương + thứ tự lớp)
   fingers.ts       ngón tay ragdoll: 5 hình tròn buộc vào mép bàn tay (verlet, va chạm)
   settings.ts      cài đặt giao diện mặc định (palette, thứ tự lớp, giấy, nền) đọc từ settings.json
+  hair.ts          kiểu tóc (thiết kế trong khung 200 px) và cách đặt lên từng hình đầu
   history.ts       undo / redo (lịch sử thay đổi, gộp các bước kéo slider)
   themes.ts        palette HFCD / XMAS / TET: màu bộ phận và màu nền theo palette
   thumbnails.ts    vẽ nhân vật ra ảnh (dùng cho lưới ×6)
@@ -174,7 +176,7 @@ type CharacterSpec = { version: 1; label: string; parts: Record<boneId, PartChoi
 
 ### Seed
 
-Dạng `label~5DPPPP…`: sau dấu `~` là số phiên bản (`5` = cỡ khớp; `4` = hình khớp; `3` = khối thân và Build, khớp tròn; `2` = danh mục có đầu, thân, dấu mặt phẳng; `1` = danh mục 3D cũ), một ký tự `density`, rồi 4 ký tự cho mỗi bone (variant, color, accent, pattern), tất cả ở hệ cơ số 36, theo đúng thứ tự mảng `bones`. Seed cũ 22 hoặc 24 bone vẫn đọc được; khớp còn thiếu được suy ra từ `label`. Gõ một chuỗi không có `~` thì app coi đó là `label` và sinh nhân vật từ nó.
+Dạng `label~6DPPPP…`: sau dấu `~` là số phiên bản (`6` = tóc, thêm một ô cuối; `5` = cỡ khớp; `4` = hình khớp; `3` = khối thân và Build, khớp tròn; `2` = danh mục có đầu, thân, dấu mặt phẳng; `1` = danh mục 3D cũ), một ký tự `density`, rồi 4 ký tự cho mỗi bone (variant, color, accent, pattern), tất cả ở hệ cơ số 36, theo đúng thứ tự mảng `bones`. Seed cũ 22 hoặc 24 bone vẫn đọc được; khớp còn thiếu được suy ra từ `label`. Gõ một chuỗi không có `~` thì app coi đó là `label` và sinh nhân vật từ nó.
 
 Seed phiên bản `1` và `2` vẫn mở được, thành Build **Big top** (thân lớn trên hông nhỏ, giống trước). Thân phiên bản 1 (11 kiểu) đổi sang thân phiên bản 2 theo `legacyTorso`: Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan, Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut. Rồi thân và hông cũ đổi sang khối (`torsoV3`, `pelvisV3`): Column→Block, Fan→Dome, Orb→Circle; hông Orb→Circle, Tire→Donut (là khối nhỏ nên thành Circle), Puck→Block; còn lại giữ tên. Đầu và dấu mặt giữ nguyên số thứ tự (Sphere→Circle, Cone→Triangle, Octagon→Hexagon, Capsule→Down triangle, Cube→Square, Hemisphere→Dome; Cross→Bar).
 
@@ -192,6 +194,7 @@ Seed phiên bản `1` và `2` vẫn mở được, thành Build **Big top** (th�
 | Thigh / Shin | Taper, Bell, Stack, Chain, Octagon, Pill |
 | Hand | Sphere, Cube, Ring, Cone, Octagon, Capsule |
 | Foot | Flare, Dome, Wedge, Puck, Bell, Octagon |
+| Hair (phẳng) | None + 22 kiểu (xem `docs/hair-proposal.html`) |
 | Face mark (phẳng, luôn là hình đặc) | Dot, Dash, Triangle, Twin dots, Diamond, Bar (Diamond thay Ring cũ) |
 
 ## 7. Bộ xương (26 bone)
@@ -279,7 +282,7 @@ Lưu ý: FBX và OBJ xuất **khối 3D** của nhân vật ở tư thế đang 
 
 ## 11. Test
 
-`npm test` chạy 39 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, khớp xoay nửa đường giữa hai đoạn, tay chân thon theo cỡ khớp, ngón tay ragdoll không lọt vào bàn tay, ngón chân, gradient Flow trên 4 bộ phận, bàn chân hút sàn, patchwork ở hai chỗ ngẫu nhiên không đối xứng, không hai bộ phận chạm nhau cùng có hoa văn, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
+`npm test` chạy 40 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, khớp xoay nửa đường giữa hai đoạn, tay chân thon theo cỡ khớp, ngón tay ragdoll không lọt vào bàn tay, ngón chân, gradient Flow trên 4 bộ phận, bàn chân hút sàn, patchwork ở hai chỗ ngẫu nhiên không đối xứng, không hai bộ phận chạm nhau cùng có hoa văn, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
 
 Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture và giao diện. Sau khi sửa hình hay giao diện, cần mở app xem bằng mắt.
 

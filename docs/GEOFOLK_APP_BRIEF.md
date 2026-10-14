@@ -794,3 +794,11 @@ Anh Nam: thêm lưu mặc định cho mọi cài đặt.
 - Một bán kính chung 2,8 cm × slider "Fingers & toes" (gộp slider Fingers và Toes) cho mọi hình tròn ngón tay, ngón chân; một màu chung (màu phụ của bàn tay).
 - 5 ngón tay xếp vòng cung ôm mép ngoài bàn tay, mỗi ngón chạm ngón cạnh (tâm cách nhau một đường kính, góc 2·asin(r/(R+r))). Vật lý giữ: ngón cạnh nhau luôn chạm, không ngón nào trong tay, không chồng nhau (12 vòng giải mỗi bước).
 - Flow speed được âm (-300% đến 300%): màu trôi ngược chiều.
+
+## 51. Tóc (14/10/2026)
+
+Anh Nam duyệt bảng 32 kiểu đầu tiên rồi góp ý: tóc không phân biệt giới tính, ưu tiên hình lớn như vương miện gai trong ảnh, bỏ hình quá nhỏ, giữ đa dạng. Sau đó hỏi tóc đâu (muốn có trong app).
+
+- 22 kiểu + None trong `src/hair.ts`, thiết kế trong khung 200 px (đầu tròn tâm (100,112), bán kính 38); `docs/hair-proposal.html` vẽ trực tiếp từ file này (lưới trên đầu tròn và bảng mọi kiểu × 6 hình đầu). Bỏ: tóc buộc hai bên, tóc dài, đuôi ngựa, búi xiên, bím hạt, ăng-ten, chỏm tóc, mái răng cưa, vòng hạt, mũ len, pixie, mullet.
+- Đặt lên đầu: khung thiết kế quy ra mét theo cỡ hình đầu (trung bình rộng và cao so với 76 px), tâm là tâm hình đầu. Mũ/mái trước = đường viền hình đầu cắt phía trên một đường (có thể nghiêng, kiểu Sweep), nở ra vài px; đường cắt không bao giờ thấp hơn đỉnh dấu mặt + 8 mm.
+- Bộ phận mới `hair` (bone con của đầu, cuối danh sách nên seed cũ vẫn đọc được, tóc lấy theo tên nhân vật). Seed phiên bản 6. Màu tóc là vai trò mới R trong bộ màu (khác màu đầu, cách ≥ 60° trên vòng màu khi được); kiểu hai màu dùng màu phụ. Slider Hair (50–150%).

@@ -41,6 +41,7 @@ export function partColors(spec:CharacterSpec,name:WeavePaletteName):(index:numb
  assign(p.hand_L.color,i=>hueGap(i,a)>=60&&hueGap(i,b)>=60);
  for(const id of ['shoulder_L','elbow_L','knee_L'])assign(p[id].color,i=>Math.abs(tones[i].l-(tones[a].l+tones[b].l)/2)>=.15);
  assign(p.head.color);
+ assign(p.hair.color,i=>hueGap(i,of(p.head.color,a))>=60);
  for(const bone of bones){assign(p[bone.id].color);assign(p[bone.id].accent);}
  return i=>palette[i].family==='dark'?look.mark!:body[of(i,a)];
 }
