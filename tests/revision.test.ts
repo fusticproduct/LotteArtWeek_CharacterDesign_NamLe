@@ -359,19 +359,23 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('hangs five stiff ragdoll fingers of touching circles from each hand, drawn under it',()=>{
- const rig=createCharacter(generate('fingers'));
+it('floats five finger balls by each hand in their own colour: pulled to their slots, knocked away by the hand, never overlapping',()=>{
+ const spec=generate('fingers'),rig=createCharacter(spec);
  expect(rig.fingers.meshes.length).toBe(10);
- for(const finger of rig.fingers.meshes)expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
- const middle=rig.fingers.chains[2],tip=middle.length-1,handUp=new Vector3();
- // Hands down: the fingers hang below where they leave the hand.
- rig.applyPose('idle');rig.settleFingers();expect(middle[tip].y).toBeLessThan(middle[0].y-.08);
- // Hands up: the fingers keep their shape and point up with the hand.
- rig.applyPose('reach');rig.settleFingers();
- const hand=rig.map.get('hand_L')!;handUp.setFromMatrixColumn(hand.matrixWorld,1).negate().normalize();
- const stiffTip=middle[0].y+handUp.y*tip*2*rig.fingers.radii[2];expect(handUp.y).toBeGreaterThan(.5);expect(Math.abs(stiffTip-middle[tip].y)).toBeLessThan(.03);
- // The circles always touch without overlapping: one diameter apart.
- for(let j=1;j<middle.length;j++)expect(middle[j].distanceTo(middle[j-1])).toBeCloseTo(2*rig.fingers.radii[2],5);
+ for(const finger of rig.fingers.meshes){
+  expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
+  expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
+ }
+ // At rest every ball sits in its slot, touching the hand's rim.
+ rig.applyPose('idle');rig.settleFingers();
+ for(const f of rig.fingers.state()){expect(f.pos.distanceTo(f.slot)).toBeLessThan(.003);expect(f.pos.distanceTo(f.centre)).toBeCloseTo(rig.fingers.handRadius+f.radius,2);}
+ // Swing the arms up: the balls lag behind, are never inside the hand, never overlap, and the attractor brings them back.
+ rig.applyPose('reach');
+ for(let i=0;i<8;i++){rig.tick(1/60);const all=rig.fingers.state();for(const f of all)expect(f.pos.distanceTo(f.centre)).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
+  for(let a=0;a<all.length;a++)for(let b=a+1;b<all.length;b++)expect(all[a].pos.distanceTo(all[b].pos)).toBeGreaterThan(all[a].radius+all[b].radius-.002);}
+ expect(Math.max(...rig.fingers.state().map(f=>f.pos.distanceTo(f.slot)))).toBeGreaterThan(.02);
+ for(let i=0;i<240;i++)rig.tick(1/60);
+ expect(Math.max(...rig.fingers.state().map(f=>f.pos.distanceTo(f.slot)))).toBeLessThan(.01);
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
 
@@ -386,7 +390,7 @@ it('puts five toes along each sole over the foot, in the foot accent colour, and
  rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
  expect(low).toBeCloseTo(0,2);
  const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5,toes:1.5});
- const reach=(r:ReturnType<typeof createCharacter>)=>{const c=r.fingers.chains[2];return c[0].distanceTo(c[c.length-1]);};expect(reach(big)).toBeGreaterThan(reach(rig)*1.3);
+ expect(big.fingers.state()[2].radius).toBeCloseTo(rig.fingers.state()[2].radius*1.5,6);
  // Bigger toes widen the row by the same factor, so the circles still touch without overlapping.
  const size=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();const b=g.boundingBox!;return [b.max.x-b.min.x,b.max.y-b.min.y];};
  expect(size(big)[1]/size(rig)[1]).toBeCloseTo(1.5,1);expect(size(rig)[0]/size(rig)[1]).toBeCloseTo(5,1);expect(size(big)[0]/size(big)[1]).toBeCloseTo(5,1);

@@ -321,8 +321,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const material=materialFor(def,choice,spec,weavePalette,colorOf);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
- // Ragdoll fingers in the hands' colour (fingers.ts); drawn just under their hand.
- const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].color)})),proportions.fingers,proportions.fingerStiffness);
+ // Finger balls in the hand's accent colour, their own (fingers.ts); drawn just under their hand.
+ const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].accent)})),proportions.fingers,proportions.fingerStiffness);
  // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, in the foot's accent colour. They
  // always touch without overlapping, one diameter apart and centred on the foot; the Toes slider widens the row.
  const toes=(['L','R'] as const).map(side=>{

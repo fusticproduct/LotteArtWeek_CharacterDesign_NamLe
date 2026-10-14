@@ -754,3 +754,11 @@ Anh Nam: vài bộ phận ngẫu nhiên có gradient tuyến tính (không dạn
 - Ngón chân luôn là các hình tròn chạm nhau, không chồng, kể cả khi tăng cỡ: tâm cách nhau đúng một đường kính, cả hàng xếp giữa bàn chân.
 - Ngón tay đổi từ dải spline sang chuỗi hình tròn chạm nhau, vẫn ragdoll: tâm hình tròn là điểm verlet, cách nhau một đường kính. Ngón cái tròn to hơn (bán kính 1,8 cm), các ngón khác 1,4–1,6 cm, số hình tròn theo độ dài ngón.
 - Gradient Flow chạy dọc trục của bộ phận (dọc chân, dọc tay) và xoay theo bộ phận, không chéo ngẫu nhiên.
+
+## 45. Ngón tay là 5 quả bóng bám theo tay (14/10/2026)
+
+Anh Nam: luôn chỉ 5 hình tròn cho 5 ngón; coi như các quả bóng lơ lửng luôn bám theo bàn tay và va chạm với bàn tay: luôn về đúng chỗ nhưng bị tay đẩy, có lực hút kéo về chỗ. Ngón có màu riêng, khác màu bàn tay.
+
+- Mỗi bóng: chỗ nghỉ ở ngay ngoài đĩa bàn tay (bán kính 8,5 cm quanh tâm bàn tay), xòe từ -1,2 đến 1,08 rad quanh trục tay (ngón cái phía trong, to nhất 3 cm, ngón út 2,4 cm). Lò xo hút 0,12 mỗi bước ở 100% (giảm dần theo slider), giữ 86% vận tốc.
+- Va chạm: bóng lọt vào đĩa bàn tay thì bị đẩy ra mép và mất vận tốc hướng vào; các bóng đẩy nhau ra khi chạm; 8 vòng mỗi bước, vòng cuối luôn là bàn tay nên không bóng nào nằm trong tay.
+- Màu: màu phụ của bàn tay (lưu trong seed), khác màu bàn tay.
