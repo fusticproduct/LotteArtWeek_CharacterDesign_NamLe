@@ -762,3 +762,11 @@ Anh Nam: luôn chỉ 5 hình tròn cho 5 ngón; coi như các quả bóng lơ l�
 - Mỗi bóng: chỗ nghỉ ở ngay ngoài đĩa bàn tay (bán kính 8,5 cm quanh tâm bàn tay), xòe từ -1,2 đến 1,08 rad quanh trục tay (ngón cái phía trong, to nhất 3 cm, ngón út 2,4 cm). Lò xo hút 0,12 mỗi bước ở 100% (giảm dần theo slider), giữ 86% vận tốc.
 - Va chạm: bóng lọt vào đĩa bàn tay thì bị đẩy ra mép và mất vận tốc hướng vào; các bóng đẩy nhau ra khi chạm; 8 vòng mỗi bước, vòng cuối luôn là bàn tay nên không bóng nào nằm trong tay.
 - Màu: màu phụ của bàn tay (lưu trong seed), khác màu bàn tay.
+
+## 46. Quay lại ngón ragdoll, không chồng lên bàn tay (14/10/2026)
+
+Anh Nam thích ngón ragdoll (chuỗi hình tròn) hơn bản 5 quả bóng, nhưng các hình tròn không được chồng lên bàn tay.
+
+- Ngón tay lại là chuỗi hình tròn chạm nhau (mục 44), màu riêng (màu phụ của bàn tay).
+- Bàn tay coi như đĩa cứng bán kính 8,5 cm quanh tâm bàn tay: hình tròn đầu tiên của mỗi ngón nằm chạm mép ngoài; hình nào lọt vào thì bị đẩy ra mép (có test khi vung tay nhanh).
+- Bản 5 quả bóng vẫn còn trong lịch sử git (commit "Fingers are five floating balls that follow the hand").

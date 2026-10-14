@@ -359,23 +359,23 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('floats five finger balls by each hand in their own colour: pulled to their slots, knocked away by the hand, never overlapping',()=>{
+it('hangs five stiff ragdoll fingers of touching circles from each hand, in their own colour, never overlapping the hand',()=>{
  const spec=generate('fingers'),rig=createCharacter(spec);
  expect(rig.fingers.meshes.length).toBe(10);
  for(const finger of rig.fingers.meshes){
   expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
   expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
  }
- // At rest every ball sits in its slot, touching the hand's rim.
- rig.applyPose('idle');rig.settleFingers();
- for(const f of rig.fingers.state()){expect(f.pos.distanceTo(f.slot)).toBeLessThan(.003);expect(f.pos.distanceTo(f.centre)).toBeCloseTo(rig.fingers.handRadius+f.radius,2);}
- // Swing the arms up: the balls lag behind, are never inside the hand, never overlap, and the attractor brings them back.
- rig.applyPose('reach');
- for(let i=0;i<8;i++){rig.tick(1/60);const all=rig.fingers.state();for(const f of all)expect(f.pos.distanceTo(f.centre)).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
-  for(let a=0;a<all.length;a++)for(let b=a+1;b<all.length;b++)expect(all[a].pos.distanceTo(all[b].pos)).toBeGreaterThan(all[a].radius+all[b].radius-.002);}
- expect(Math.max(...rig.fingers.state().map(f=>f.pos.distanceTo(f.slot)))).toBeGreaterThan(.02);
- for(let i=0;i<240;i++)rig.tick(1/60);
- expect(Math.max(...rig.fingers.state().map(f=>f.pos.distanceTo(f.slot)))).toBeLessThan(.01);
+ const check=(label:string)=>{for(const f of rig.fingers.state())f.pos.forEach((p,j)=>{
+  // Never inside the hand disc; each circle touches the next one without overlapping.
+  expect(p.distanceTo(f.centre),`${label}: circle ${j}`).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
+  if(j)expect(p.distanceTo(f.pos[j-1]),`${label}: gap ${j}`).toBeCloseTo(2*f.radius,4);
+ });};
+ rig.applyPose('idle');rig.settleFingers();check('idle');
+ const middle=rig.fingers.chains[2],tip=middle.length-1;expect(middle[tip].y).toBeLessThan(middle[0].y-.05);
+ // Swing the arms up fast: the fingers lag and swing, but never pass into the hand.
+ rig.applyPose('reach');for(let i=0;i<30;i++){rig.tick(1/60);check(`swing ${i}`);}
+ rig.settleFingers();check('reach');
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
 
