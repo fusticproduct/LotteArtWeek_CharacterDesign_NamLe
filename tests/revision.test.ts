@@ -9,8 +9,9 @@ import {normalizeRiso,defaultRiso} from '../src/riso';
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
+const partColorsFor=(spec:ReturnType<typeof generate>)=>partColors(spec,'HFCD');
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,headOutlines,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
+import {createCharacter,headOutlines,checkerStyleOf,checkerColours,checkerStyles,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointPiece,elbowRadius,kneeRadius,jointRadius} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -536,4 +537,14 @@ it('reads riso settings in range, also the older on/off switch, and keeps them w
  expect(normalizeRiso({on:true,size:9,coverage:-1,angle:400,grain:'x',opacity:.5,color:'red',blend:'Glow',invert:true})).toEqual({...defaultRiso,on:true,size:.04,coverage:.3,angle:90,opacity:.5,invert:true});
  const custom={on:true,color:'#112233',blend:'Multiply' as const,opacity:.7,size:.012,coverage:.6,angle:15,grain:0,invert:false};
  expect(normalizeSettings({riso:custom}).riso).toEqual(custom);expect(normalizeSettings({riso:false}).riso).toEqual(defaultRiso);
+});
+
+it('gives each checker spot one of four looks on its own, stripes and checks in two different colours of the character',()=>{
+ const seen=new Set<number>();let differ=0;
+ for(let i=0;i<200;i++){
+  const spec=generate(`checker-${i}`),spots=bones.filter(b=>spec.parts[b.id].pattern===patchwork).map(b=>b.id),colorOf=partColorsFor(spec);
+  const styles=spots.map(id=>checkerStyleOf(spec,id));styles.forEach(s=>seen.add(s));if(new Set(styles).size>1)differ++;
+  for(const id of spots){const [a,b]=checkerColours(spec,id,colorOf);expect(a).not.toBe(b);const own=Object.values(spec.parts).flatMap(p=>[colorOf(p.color),colorOf(p.accent)]);expect(own).toContain(a);expect(own).toContain(b);}
+ }
+ expect(seen.size).toBe(checkerStyles.length);expect(differ).toBeGreaterThan(50);
 });

@@ -863,3 +863,10 @@ Anh Nam: Riso cần bảng thuộc tính; không phải một lớp texture cố
 - Shader (`addPaper`): lưới chấm tính theo tọa độ của bộ phận (`vPaper`, mét), xoay theo Screen angle, nên chấm đi và xoay cùng bộ phận. Màu riso hòa lên màu bộ phận bằng chế độ đã chọn, ở khe giữa các chấm (Gaps) hoặc trong chấm (Dots), mạnh theo Opacity. Màu đậm vẫn phủ mực dày hơn một chút; Grain làm chấm lệch theo vân giấy.
 - Bảng điều khiển hiện dưới nút Riso khi bật; lưu theo trình duyệt (`geofolk.riso`, JSON) và trong Save all as default (`riso` trong `src/settings.json`, máy chủ dev kiểm tra từng giá trị).
 
+## 59. Checker có 4 kiểu (14/10/2026)
+
+Anh Nam gửi ảnh poster sọc/caro và yêu cầu: mẫu checker luân phiên giữa mẫu đang có, sọc ngang, sọc dọc, bàn cờ hai màu, đều trong màu của nhân vật; hai chỗ checker có thể khác kiểu.
+
+- `checkerStyleOf(spec, bộ phận)` (rig.ts): mỗi chỗ chọn ngẫu nhiên theo tên nhân vật và bộ phận một trong Patchwork, Stripes across, Stripes down, Checkerboard (không nằm trong seed; cùng seed luôn ra cùng kiểu).
+- Sọc/bàn cờ: hai màu lấy từ các màu nhân vật đang dùng (`checkerColours`): màu đầu ngẫu nhiên, màu thứ hai là màu khác độ sáng nhất trong vài màu còn lại. Sọc 3 cm, ô cờ 5 cm ở Checker scale 100%, trải phẳng theo mét như patchwork.
+

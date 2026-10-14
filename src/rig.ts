@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {rng,bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors,stageColor} from './themes';
@@ -58,6 +58,23 @@ export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):stri
 }
 /** Flow: one full loop of its colours per 0.6 m, sliding along at one loop per 14 s. */
 export const flowSpan=.6,flowPeriod=14;
+/**
+ * Checker spots (Nam, 2026-10-14): each of the two patchwork spots takes one of four looks, on its own: the patchwork
+ * quilt, stripes across the part, stripes down it, or a two-colour checkerboard. Stripes and checks use two of the
+ * character's own colours, picked to stand apart in lightness.
+ */
+export const checkerStyles=['Patchwork','Stripes across','Stripes down','Checkerboard'] as const;
+export const checkerStyleOf=(spec:CharacterSpec,id:string)=>Math.floor(rng(`${spec.label}|${id}|checker`)()*checkerStyles.length);
+const lightnessOf=(hex:string)=>{const c=new THREE.Color(hex);return (Math.max(c.r,c.g,c.b)+Math.min(c.r,c.g,c.b))/2;};
+/** Two of the character's colours for a stripe or check spot: a random first one, then the most different in lightness of a few. */
+export function checkerColours(spec:CharacterSpec,id:string,colorOf:(index:number)=>string):[string,string]{
+ const r=rng(`${spec.label}|${id}|checker colours`),own=[...new Set(Object.values(spec.parts).flatMap(p=>[colorOf(p.color),colorOf(p.accent)]))];
+ const first=own[Math.floor(r()*own.length)],rest=own.filter(c=>c!==first).sort(()=>r()-.5).slice(0,4);
+ const second=rest.sort((a,b)=>Math.abs(lightnessOf(b)-lightnessOf(first))-Math.abs(lightnessOf(a)-lightnessOf(first)))[0]??'#ffffff';
+ return [first,second];
+}
+/** Stripe width and check size (m) at Checker scale 100%. */
+export const stripeWidth=.03,checkSize=.05;
 /** World size (m) of one patchwork tile: 24 units of 3.5 cm, so a limb is about four units across. */
 export const patchworkTile=patchworkUnits*.035;
 /** World size (m) of one weave tile for a pattern-scale value: higher scale = more, smaller cells. */
@@ -82,9 +99,17 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
   material.map=texture;material.color.setRGB(1,1,1);
  }
  else if(p.pattern===patchwork&&typeof document!=='undefined'){
-  // Patchwork quilt, mapped flat in metres like the weave; each of the two spots has its own quilt.
-  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
-  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/(patchworkTile*prop.checker),1/(patchworkTile*prop.checker));
+  // Mapped flat in metres like the weave; each of the two spots has its own look: the patchwork quilt, or stripes or
+  // checks in two of the character's colours (one period of them per texture, repeated).
+  const style=checkerStyleOf(spec,b.id);let texture:THREE.CanvasTexture,period=patchworkTile;
+  if(style===0)texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
+  else{
+   const [a,c]=checkerColours(spec,b.id,colorOf),canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d')!;
+   ctx.fillStyle=a;ctx.fillRect(0,0,256,256);ctx.fillStyle=c;
+   if(style===1)ctx.fillRect(0,0,256,128);else if(style===2)ctx.fillRect(0,0,128,256);else{ctx.fillRect(0,0,128,128);ctx.fillRect(128,128,128,128);}
+   texture=new THREE.CanvasTexture(canvas);period=2*(style===3?checkSize:stripeWidth);
+  }
+  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/(period*prop.checker),1/(period*prop.checker));
   material.map=texture;material.color.setRGB(1,1,1);
  }
  else if(p.pattern===twoTone&&!isBeaded(b,p.variant)&&typeof document!=='undefined'){
