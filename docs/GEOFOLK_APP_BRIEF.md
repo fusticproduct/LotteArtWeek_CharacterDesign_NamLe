@@ -690,3 +690,9 @@ Anh Nam gửi ảnh tham chiếu (lưới ô cờ nhiều màu: khối bàn cờ
 - Hoa văn: tấm 24 × 24 ô (ô 3,5 cm, tấm 0,84 m, lặp liền mép), chia hàng và cột thành khối 2 hoặc 3 ô; mỗi khối là bàn cờ hai màu (45%), sọc ngang (27%), sọc dọc (25%) hoặc một màu. Màu lấy từ bảng màu đan của palette đang chọn (HFCD/XMAS/TET); màu nhạt là các màu sáng của bảng cộng vài màu đậm pha trắng. Trải phẳng theo mét như hoa văn đan; hai bên trái/phải dùng chung một tấm.
 - Vị trí: đúng một cặp. Khối trên đan → hai bắp tay (cách một khớp vai); khối dưới đan → hai đùi (cách một khớp hông); thân 1 khối mang cả vai lẫn hông nên chọn một trong hai. Cặp đang có giữ nguyên qua random/khóa; seed cũ được thêm cặp này khi mở.
 - Seed: pattern 6 = Patchwork.
+
+## 36. Patchwork ở hai chỗ ngẫu nhiên; mặt luôn là hình đặc (14/10/2026)
+
+- Anh Nam: hai chỗ patchwork phải khác nhau, ở chỗ ngẫu nhiên, không phải hai bên đối xứng. Giờ: một bên bắp tay và một bên đùi (đều cách thân một bộ phận), bên chọn ngẫu nhiên, mỗi chỗ một tấm riêng. Seed cũ có cặp đối xứng giữ bắp tay trái và đùi phải.
+- Dấu mặt luôn là hình đặc, không có dạng viền: Ring đổi thành Diamond.
+- Anh Nam lưu tỉ lệ mặc định mới trong tab Proportions (đầu 55%, thân rộng 65%, chân 130%…), đã commit riêng.

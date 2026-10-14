@@ -319,16 +319,17 @@ it('lays a foot on or near the floor flat, and lets a raised foot follow its shi
  rig.dispose();
 });
 
-it('puts the patchwork on exactly one left/right pair of segments, one part away from a woven body piece',()=>{
- const base=generate('pw-base');let upper=0;
+it('puts the patchwork on two spots, one upper arm and one thigh, never a mirrored pair, and keeps a spot through rerolls',()=>{
+ const base=generate('pw-base'),sides=new Set<string>();
  for(let i=0;i<150;i++){
   const s=i%3===0?generate(`pw-${i}`,base,new Set(['upperarm_L'])):i%3===1?generate(`pw-${i}`,base,new Set(),['upperarm_L','thigh_R','spine_lower','spine_upper'][i%4]):generate(`pw-${i}`);
-  const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id).sort(),segment=on[0]?.split('_')[0];
-  expect(on,`${i}`).toEqual([`${segment}_L`,`${segment}_R`]);expect(['upperarm','thigh']).toContain(segment);if(segment==='upperarm')upper++;
-  // Past the shoulders lies the top piece, past the hips the bottom piece; a Single body carries both.
-  const woven=(id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern<twoTone;
-  if(s.parts.spine_lower.variant>0)expect(woven(segment==='upperarm'?'spine_upper':'root'),`${i}`).toBe(true);
+  const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id).sort();
+  expect(on.length,`${i}`).toBe(2);expect(on[0].startsWith('thigh_')&&on[1].startsWith('upperarm_'),`${i}: ${on}`).toBe(true);
+  sides.add(on.map(id=>id.slice(-1)).join(''));
   expect(decodeSeed(encodeSeed(s)).parts[on[0]].pattern).toBe(patchwork);
  }
- expect(upper).toBeGreaterThan(20);expect(upper).toBeLessThan(130);
+ // All four side combinations come up (left arm with right thigh, and so on).
+ expect([...sides].sort()).toEqual(['LL','LR','RL','RR']);
+ const spot=bones.find(b=>b.id.startsWith('upperarm_')&&base.parts[b.id].pattern===patchwork)!.id;
+ expect(generate('pw-reroll',base,new Set(),spot).parts[spot].pattern).toBe(patchwork);
 });

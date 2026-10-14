@@ -70,8 +70,8 @@ function weaveCanvas(seed:string,palette:WeavePaletteName,draw:(canvas:HTMLCanva
 function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string) {
  const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
  if(p.pattern===patchwork&&typeof document!=='undefined'){
-  // Patchwork quilt, mapped flat in metres like the weave; the left and right segment share one quilt.
-  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id.replace(/_[LR]$/,'')}|patchwork`,weavePalette,drawPatchwork,1024));
+  // Patchwork quilt, mapped flat in metres like the weave; each of the two spots has its own quilt.
+  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
   texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/patchworkTile,1/patchworkTile);
   material.map=texture;material.color.setRGB(1,1,1);
  }

@@ -102,11 +102,13 @@ export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id==='root'
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone','Patchwork'] as const;
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
-/** Patchwork (index 6): a checkerboard quilt on one pair of limb segments, one part away from a woven body piece. */
+/**
+ * Patchwork (index 6): a checkerboard quilt on two segments one part away from the body, at random spots and never a
+ * mirrored pair (Nam, 2026-10-14): one upper arm (past a shoulder) and one thigh (past a hip), each its own quilt.
+ */
 export const patchwork=6;
-/** Limb segment pairs one part away from a woven body piece: the upper arms (past the shoulders) from the top piece, the thighs (past the hips) from the bottom piece; a Single body carries both. */
-const patchworkPairs=(parts:Record<string,PartChoice>)=>{const woven=(id:string)=>parts[id].pattern>0&&parts[id].pattern<twoTone,single=parts.spine_lower.variant===0;return [...(single||woven('spine_upper')?['upperarm']:[]),...(single||woven('root')?['thigh']:[])];};
-const hasPatchwork=(parts:Record<string,PartChoice>,segment:string)=>parts[`${segment}_L`].pattern===patchwork||parts[`${segment}_R`].pattern===patchwork;
+const patchworkSides=(parts:Record<string,PartChoice>,segment:string)=>(['L','R'] as const).filter(side=>parts[`${segment}_${side}`].pattern===patchwork);
+const otherSide=(side:'L'|'R')=>side==='L'?'R':'L';
 export interface PartChoice {variant:number;color:number;accent:number;pattern:number;}
 export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;}
 /** Preset poses; 'dance' plays the recorded motion in src/dance.ts and rests in the idle pose for exports. */
@@ -158,10 +160,12 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  if(build===pair&&!pairPartners(top.variant).includes(bottom.variant))bottom.variant=pairPartners(top.variant)[0];
  // There is always a woven piece: a Single body is always woven, and of two pieces at least one is.
  if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;
- // Exactly one patchwork pair, next to a woven piece: the pair that has it stays, otherwise the first that may.
- const near=patchworkPairs(parts),chosen=near.find(segment=>hasPatchwork(parts,segment))??near[0];
+ // Exactly two patchwork spots, one upper arm and one thigh. A spot that has it stays; an older mirrored pair keeps
+ // its left arm and right thigh; a missing spot goes to the other side from the one that is there.
+ const arm=patchworkSides(parts,'upperarm'),leg=patchworkSides(parts,'thigh');
+ const armSide=arm.length===1?arm[0]:arm.length===2?'L':leg.length===1?otherSide(leg[0]):'L',legSide=leg.length===1?leg[0]:otherSide(armSide);
  for(const id of Object.keys(parts))if(parts[id].pattern===patchwork)parts[id].pattern=0;
- if(chosen)for(const side of ['L','R'])parts[`${chosen}_${side}`].pattern=patchwork;
+ parts[`upperarm_${armSide}`].pattern=patchwork;parts[`thigh_${legSide}`].pattern=patchwork;
  return {...spec,parts};
 }
 /**
@@ -282,9 +286,9 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
  fitBody(parts,frozen,lockedLinked,onlyLinked,random);
- // A new patchwork pair when none of the allowed pairs has one yet (normalizeSpec keeps exactly one).
- const near=patchworkPairs(parts);
- if(!near.some(segment=>hasPatchwork(parts,segment))){const segment=near[Math.floor(random()*near.length)];for(const side of ['L','R'])if(!frozen.has(`${segment}_${side}`))parts[`${segment}_${side}`].pattern=patchwork;}
+ // A rerolled segment keeps its patchwork; a character without any gets one upper arm and one thigh, sides at random.
+ if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===patchwork)parts[id].pattern=patchwork;
+ if(!['upperarm','thigh'].some(segment=>patchworkSides(parts,segment).length))for(const segment of ['upperarm','thigh']){const id=`${segment}_${random()<.5?'L':'R'}`;if(!frozen.has(id))parts[id].pattern=patchwork;}
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
