@@ -103,8 +103,10 @@ export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone'
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
 /**
- * Patchwork (index 6): a checkerboard quilt on two segments one part away from the body, at random spots and never a
- * mirrored pair (Nam, 2026-10-14): one upper arm (past a shoulder) and one thigh (past a hip), each its own quilt.
+ * Patchwork (index 6): a checkerboard quilt on two segments at random spots, never a mirrored pair, each its own quilt
+ * (Nam, 2026-10-14): one upper arm and one shin. Two parts that touch are never both patterned, there is always a
+ * visible joint between them: the upper arm is past the shoulder ball; a thigh touches the body (the hip joint is
+ * hidden inside it), so the leg's spot is the shin, past the knee.
  */
 export const patchwork=6;
 const patchworkSides=(parts:Record<string,PartChoice>,segment:string)=>(['L','R'] as const).filter(side=>parts[`${segment}_${side}`].pattern===patchwork);
@@ -158,14 +160,16 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  if(build===bigTop&&bottom.variant===donut)bottom.variant=0;
  if(!topShapes(build).includes(top.variant))top.variant=0;
  if(build===pair&&!pairPartners(top.variant).includes(bottom.variant))bottom.variant=pairPartners(top.variant)[0];
- // There is always a woven piece: a Single body is always woven, and of two pieces at least one is.
+ // There is always a woven piece, and two stacked pieces touch, so exactly one of them is woven: a Single body is
+ // always woven; of two pieces, the top one stays woven if both are.
  if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;
- // Exactly two patchwork spots, one upper arm and one thigh. A spot that has it stays; an older mirrored pair keeps
- // its left arm and right thigh; a missing spot goes to the other side from the one that is there.
- const arm=patchworkSides(parts,'upperarm'),leg=patchworkSides(parts,'thigh');
+ if(build!==single&&top.pattern&&bottom.pattern)bottom.pattern=0;
+ // Exactly two patchwork spots, one upper arm and one shin. A spot that has it stays (an older thigh spot moves down to
+ // its shin); an older mirrored pair keeps its left arm and right shin; a missing spot goes to the other side.
+ const arm=patchworkSides(parts,'upperarm'),shins=patchworkSides(parts,'shin'),leg=shins.length?shins:patchworkSides(parts,'thigh');
  const armSide=arm.length===1?arm[0]:arm.length===2?'L':leg.length===1?otherSide(leg[0]):'L',legSide=leg.length===1?leg[0]:otherSide(armSide);
  for(const id of Object.keys(parts))if(parts[id].pattern===patchwork)parts[id].pattern=0;
- parts[`upperarm_${armSide}`].pattern=patchwork;parts[`thigh_${legSide}`].pattern=patchwork;
+ parts[`upperarm_${armSide}`].pattern=patchwork;parts[`shin_${legSide}`].pattern=patchwork;
  return {...spec,parts};
 }
 /**
@@ -258,12 +262,13 @@ function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<s
   const bottomLeads=locked.has('root')||(!locked.has('spine_upper')&&!!only?.has('root')),tops=pairTops(bottom.variant);
   if(bottomLeads&&tops.length)top.variant=pick(tops);else bottom.variant=pick(pairPartners(top.variant));
  }
- // Patterns: a Single body is always woven; of two pieces, one or both are woven.
+ // Patterns: a Single body is always woven; of two pieces (they touch) exactly one is, the top 55% of the time.
  const woven=()=>1+Math.floor(random()*4),r=random(),free=(id:string)=>!frozen.has(id);
  if(build===single){if(free('spine_upper')||!top.pattern)top.pattern=woven();if(free('root'))bottom.pattern=0;return;}
- if(free('spine_upper'))top.pattern=r<.65?woven():0;
- if(free('root'))bottom.pattern=r>=.3?woven():0;
- // Two plain pieces (e.g. after a Single becomes a Pair) get a weave on a piece the user has not locked.
+ if(free('spine_upper')&&free('root')){top.pattern=r<.55?woven():0;bottom.pattern=top.pattern?0:woven();}
+ else if(free('spine_upper'))top.pattern=bottom.pattern?0:woven();
+ else if(free('root'))bottom.pattern=top.pattern?0:woven();
+ // A kept plain pair (e.g. after a Single becomes a Pair) gets a weave on a piece the user has not locked.
  if(!top.pattern&&!bottom.pattern){if(!locked.has('spine_upper'))top.pattern=woven();else if(!locked.has('root'))bottom.pattern=woven();}
 }
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
@@ -286,9 +291,9 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
  fitBody(parts,frozen,lockedLinked,onlyLinked,random);
- // A rerolled segment keeps its patchwork; a character without any gets one upper arm and one thigh, sides at random.
+ // A rerolled segment keeps its patchwork; a character without any gets one upper arm and one shin, sides at random.
  if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===patchwork)parts[id].pattern=patchwork;
- if(!['upperarm','thigh'].some(segment=>patchworkSides(parts,segment).length))for(const segment of ['upperarm','thigh']){const id=`${segment}_${random()<.5?'L':'R'}`;if(!frozen.has(id))parts[id].pattern=patchwork;}
+ if(!['upperarm','shin'].some(segment=>patchworkSides(parts,segment).length))for(const segment of ['upperarm','shin']){const id=`${segment}_${random()<.5?'L':'R'}`;if(!frozen.has(id))parts[id].pattern=patchwork;}
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}

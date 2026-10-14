@@ -703,3 +703,11 @@ Anh Nam: hai khối (ví dụ hai Bowl, hay hai khối vuông) phải xếp ch�
 
 - Trước: hai khối chồng nhau 9 cm dọc giữa (cả hai chứa một đĩa 4,5 cm quanh điểm xoay). Giờ chỉ chồng 1,4 cm; khối trên ngồi lên khối dưới.
 - Điểm xoay eo đặt ở chỗ chạm. Trong Dance, eo gập trung vị 0,06 rad, 90% dưới 0,19 rad, lớn nhất 0,57 rad; khi gập, khe giữa hai khối lộ ra phía ngoài, nên có thêm quả cầu eo (màu cổ, bán kính 0,055) nằm sau cả hai khối để lấp khe như một khớp bản lề. Lúc đứng yên nó gần như khuất (giữa hai hình tròn thì lộ thành một hạt nhỏ).
+
+## 38. Hai bộ phận chạm nhau không cùng có hoa văn (14/10/2026)
+
+Anh Nam: không có hai bộ phận chạm nhau nào cùng có hoa văn; giữa chúng ít nhất phải có một khớp (như vai). Đùi chạm thân (khớp hông bị che), nên patchwork ở chân chuyển xuống ống chân.
+
+- Patchwork: một bên bắp tay (qua khớp vai) và một bên ống chân (qua khớp gối). Seed cũ có patchwork ở đùi chuyển xuống ống chân cùng bên.
+- Hai khối thân xếp chồng chạm nhau, nên thân 2 khối có đúng một khối đan (khối trên 55%). Seed cũ có cả hai khối đan giữ khối trên.
+- Two-tone trên tay chân là chia màu, không tính là hoa văn.

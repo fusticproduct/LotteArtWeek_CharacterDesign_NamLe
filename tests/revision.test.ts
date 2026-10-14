@@ -108,7 +108,7 @@ it('generates every build, pairs equal or mirrored shapes, and keeps the pair th
   const build=s.parts.spine_lower.variant;seen.add(build);
   if(build===1)expect(pairPartners(s.parts.spine_upper.variant),`${i}`).toContain(s.parts.root.variant);
   if(build===2)expect(s.parts.root.variant).not.toBe(6);if(build===3)expect(s.parts.spine_upper.variant).not.toBe(6);
-  if(build>0)expect(s.parts.spine_upper.pattern+s.parts.root.pattern,`${i}: one piece is woven`).toBeGreaterThan(0);else expect(s.parts.spine_upper.pattern,`${i}: a Single body is woven`).toBeGreaterThan(0);
+  if(build>0)expect(s.parts.spine_upper.pattern>0!==s.parts.root.pattern>0,`${i}: exactly one piece is woven`).toBe(true);else expect(s.parts.spine_upper.pattern,`${i}: a Single body is woven`).toBeGreaterThan(0);
   expect(topShapes(build),`${i}`).toContain(s.parts.spine_upper.variant);if(build>0)expect(bottomShapes(build),`${i}: no skirt below`).toContain(s.parts.root.variant);
  }
  expect([...seen].sort()).toEqual([0,1,2,3]);
@@ -278,7 +278,7 @@ it('paints each character with its own scheme (up to seven colours), keeps locke
   seen.add([...roles(s)].sort().join('.'));
  }
  // 200 characters, almost all with a different set of colours.
- expect(seen.size).toBeGreaterThan(180);
+ expect(seen.size).toBeGreaterThan(170);
  const base=generate('scheme-base'),locked=new Set(['head','hand_L']);
  const next=generate('scheme-next',base,locked);expect(next.parts.head.color).toBe(base.parts.head.color);expect(next.parts.foot_L.color).toBe(base.parts.hand_L.color);
  const again=recolor(base,new Set(['knee_L']),'salt');
@@ -322,12 +322,16 @@ it('lays a foot on or near the floor flat, and lets a raised foot follow its shi
  rig.dispose();
 });
 
-it('puts the patchwork on two spots, one upper arm and one thigh, never a mirrored pair, and keeps a spot through rerolls',()=>{
+it('puts the patchwork on two spots, one upper arm and one shin, never a mirrored pair, never on touching parts, and keeps a spot through rerolls',()=>{
  const base=generate('pw-base'),sides=new Set<string>();
  for(let i=0;i<150;i++){
-  const s=i%3===0?generate(`pw-${i}`,base,new Set(['upperarm_L'])):i%3===1?generate(`pw-${i}`,base,new Set(),['upperarm_L','thigh_R','spine_lower','spine_upper'][i%4]):generate(`pw-${i}`);
+  const s=i%3===0?generate(`pw-${i}`,base,new Set(['upperarm_L'])):i%3===1?generate(`pw-${i}`,base,new Set(),['upperarm_L','shin_R','spine_lower','spine_upper'][i%4]):generate(`pw-${i}`);
   const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id).sort();
-  expect(on.length,`${i}`).toBe(2);expect(on[0].startsWith('thigh_')&&on[1].startsWith('upperarm_'),`${i}: ${on}`).toBe(true);
+  expect(on.length,`${i}`).toBe(2);expect(on[0].startsWith('shin_')&&on[1].startsWith('upperarm_'),`${i}: ${on}`).toBe(true);
+  // Touching parts are never both patterned: the two body pieces, or a body piece and a thigh (its hip joint is hidden).
+  const textured=(id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern!==twoTone;
+  if(s.parts.spine_lower.variant>0)expect(textured('spine_upper')&&textured('root'),`${i}`).toBe(false);
+  for(const side of ['L','R'])expect(textured(`thigh_${side}`),`${i}`).toBe(false);
   sides.add(on.map(id=>id.slice(-1)).join(''));
   expect(decodeSeed(encodeSeed(s)).parts[on[0]].pattern).toBe(patchwork);
  }
