@@ -304,8 +304,22 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   if(body.build!==single||!angles.spine_lower)return angles;
   const bend=angles.spine_lower;return {...angles,spine_lower:0,root:(angles.root??0)+bend,thigh_L:(angles.thigh_L??0)-bend,thigh_R:(angles.thigh_R??0)-bend};
  };
+ /**
+  * Each joint turns halfway between the segment before it and the segment after it (Nam, 2026-10-14), so a square or
+  * ring knee sits at the average angle of thigh and shin. The segment after it takes the other half, so limbs point
+  * exactly where they did.
+  */
+ const halfway=(angles:Record<string,number>)=>{
+  const a={...angles};
+  for(const side of ['L','R'])for(const [joint,next] of [['shoulder','upperarm'],['elbow','forearm'],['hip','thigh'],['knee','shin']]){const turn=a[`${next}_${side}`]??0;a[`${joint}_${side}`]=(a[`${joint}_${side}`]??0)+turn/2;a[`${next}_${side}`]=turn/2;}
+  return a;
+ };
  /** Live pose: local in-plane (Z) rotation per bone, in radians; bones left out go straight. */
- const applyAngles=(angles:Record<string,number>)=>{const a=unbent(angles);bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));ground();};
+ // The upper arm hangs 2 cm off the shoulder's centre; undo the shoulder's half turn on that offset so the arm's pivot stays put.
+ const rest=new Map(bones.map(def=>[def.id,map.get(def.id)!.position.clone()])),zAxis=new THREE.Vector3(0,0,1);
+ const applyAngles=(angles:Record<string,number>)=>{
+  const a=halfway(unbent(angles));bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));
+  for(const side of ['L','R'])map.get(`upperarm_${side}`)!.position.copy(rest.get(`upperarm_${side}`)!).applyAxisAngle(zAxis,-(a[`shoulder_${side}`]??0));ground();};
  // Preset poses only turn in the picture plane (Z), so they go through the same path.
  const applyPose=(pose:Pose)=>applyAngles(Object.fromEntries(bones.map(def=>[def.id,poseRotation(def.id,pose)[2]])));
  const setLayerOrder=(order:LayerGroup[])=>restack({order});

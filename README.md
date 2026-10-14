@@ -39,7 +39,7 @@ npm run dev     # chạy app, mở địa chỉ "Local:" mà terminal in ra
 Lệnh khác:
 
 ```sh
-npm test        # 31 test tự động
+npm test        # 32 test tự động
 npm run build   # bản production trong dist/ (phải phục vụ qua HTTP, không mở file trực tiếp)
 npm run preview # xem thử bản build
 ```
@@ -86,6 +86,7 @@ Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn ch�
 - **Không lặp chuỗi hạt:** mỗi tay hoặc chân có tối đa một đoạn dạng hạt (Chain/Stack).
 - **Hạt Chain luôn tròn đều:** mỗi hạt là hình cầu thật, không bị kéo dãn hay ép dẹt theo độ dài đoạn hoặc slider Proportions. Độ dài đoạn quyết định số hạt (các tâm cách nhau ~1.35 bán kính); hạt ở chân vẫn to dần xuống dưới. Code: `beads()` trong `rig.ts`.
 - **Khớp là bộ phận riêng, nhiều hình:** vai, khuỷu, gối mỗi loại một hình trong 5 hình (Sphere 40% số lần; Square, Diamond, Hexagon, Ring), luôn giống nhau hai bên. Không dùng tam giác. Đoạn tay/chân được cắt ngắn đúng chỗ tựa lên mặt quả cầu bán kính r; hình phẳng có bán kính trong đúng bằng r (`jointPiece()` trong `rig.ts`), nên luôn che kín đầu đoạn khi gập; lỗ của Ring (0,38 r) nhỏ hơn khe giữa hai đầu đoạn. Random một dòng khớp đổi hình của cặp đó, giữ màu.
+- **Khớp xoay theo góc trung bình:** mỗi khớp (vai, khuỷu, hông, gối) xoay đúng nửa đường giữa đoạn trước và đoạn sau nó (gối vuông nằm giữa góc đùi và ống chân); đoạn sau xoay nốt nửa còn lại nên tay chân vẫn chỉ đúng hướng. Điểm gắn bắp tay (lệch tâm vai 2 cm) được xoay ngược lại nên không bị dời. Code: `halfway()` trong `createCharacter()` (`rig.ts`).
 - **Chân:** đùi mảnh như tay, càng xuống càng to, bàn chân loe.
 - **Tỉ lệ:** ở mặc định (Proportions 100%) nhân vật đứng thẳng cao đúng 2.4 đơn vị; chiều dài xương không đổi theo hình dạng. Khối lớn rộng ~0.62 (tầm cỡ thân Orb cũ, anh Nam chọn là tỉ lệ đẹp).
 - **Thân là 1 hoặc 2 khối phẳng** (thay cho thân + hông cố định, 14/10/2026). 8 hình: Circle, Block, Bowl, Dome, Funnel, A-line, Donut, Diamond. 4 kiểu ghép (**Build**): **Single** (một khối lớn), **Pair** (hai khối bằng nhau, cùng hình, hoặc Dome trên Bowl), **Big top** (khối lớn trên khối nhỏ), **Big bottom** (khối nhỏ trên khối lớn). Khối nhỏ không bao giờ là Donut. **Khối dưới không bao giờ là Dome, A-line (trông như váy) hay Funnel (chữ V)**; Pair có Dome trên thì dưới là Bowl (thành hình tròn chia đôi); Funnel và A-line không dùng cho Pair. Seed cũ có các hình này ở dưới mở ra Bowl (thay Dome) hoặc Block (thay A-line, Funnel). Thân 1 khối không là nửa hình tròn. Code: `src/body.ts`, luật trong `topShapes()` / `bottomShapes()` / `pairPartners()` (`model.ts`).
@@ -269,7 +270,7 @@ Lưu ý: FBX và OBJ xuất **khối 3D** của nhân vật ở tư thế đang 
 
 ## 11. Test
 
-`npm test` chạy 31 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
+`npm test` chạy 32 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, khớp xoay nửa đường giữa hai đoạn, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
 
 Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture và giao diện. Sau khi sửa hình hay giao diện, cần mở app xem bằng mắt.
 

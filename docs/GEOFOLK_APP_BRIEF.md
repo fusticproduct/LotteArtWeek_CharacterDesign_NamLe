@@ -670,3 +670,10 @@ Anh Nam: vân giấy trông độ phân giải thấp.
 - Không dùng tam giác cho khớp (với bán kính trong bằng quả cầu nó to gấp đôi). Thay bằng Ring: vòng tròn có lỗ 0,38 r, nhỏ hơn khe giữa hai đầu đoạn tay chân.
 - XMAS chỉ có 6 màu thân: khi hết màu, chọn lại một màu mà không bộ phận kề nào đang có, nên bộ phận kề nhau vẫn luôn khác màu.
 - Anh Nam: Funnel (chữ V) không được làm khối dưới. Khối dưới giờ chỉ là Circle, Block, Bowl, Donut, Diamond. Funnel và A-line không dùng cho Pair. Seed cũ: Dome dưới → Bowl, A-line/Funnel dưới → Block.
+
+## 33. Khớp xoay theo góc trung bình (14/10/2026)
+
+Anh Nam: khớp luôn lấy góc trung bình của đoạn trước và đoạn sau; trước đây gối xoay y như đùi.
+
+- Mỗi khớp (vai, khuỷu, hông, gối) nhận nửa góc gập, đoạn sau nhận nửa còn lại, nên hướng tay chân không đổi (có test).
+- Bắp tay gắn lệch tâm vai 2 cm; vị trí đó được xoay ngược lại theo góc của vai, nên điểm xoay của tay vẫn đứng yên.

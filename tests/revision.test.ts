@@ -76,7 +76,8 @@ it('keeps two-piece bodies joined at the waist at any bend and slider setting, a
  const one=createCharacter(withBody(base,{build:0,top:5,bottom:0}));expect(neckY(one)).toBeCloseTo(neckY(two),9);expect(neckY(two)).toBeCloseTo(.63,9);
  // A Single body takes the waist turn as a whole-body turn; the legs keep their direction.
  one.applyAngles({spine_lower:.4,thigh_L:.1});
- expect(one.map.get('spine_lower')!.rotation.z).toBe(0);expect(one.map.get('root')!.rotation.z).toBeCloseTo(.4,9);expect(one.map.get('root')!.rotation.z+one.map.get('thigh_L')!.rotation.z).toBeCloseTo(.1,9);
+ const turn=(rig:ReturnType<typeof createCharacter>,id:string)=>{const e=rig.map.get(id)!.matrixWorld.elements;return Math.atan2(e[1],e[0]);};
+ expect(one.map.get('spine_lower')!.rotation.z).toBe(0);expect(one.map.get('root')!.rotation.z).toBeCloseTo(.4,9);expect(turn(one,'thigh_L')).toBeCloseTo(.1,9);
  two.applyAngles({spine_lower:.4});expect(two.map.get('spine_lower')!.rotation.z).toBeCloseTo(.4,9);
  one.dispose();two.dispose();
 });
@@ -296,4 +297,12 @@ it('repaints the whole figure from the XMAS and TET sets, keeping neighbours apa
   if(name==='TET')expect(crowded).toBeLessThan(15);
  }
  expect(partColors(generate('x'),'HFCD')(3)).toBe(palette[3].hex);
+});
+
+it('turns every joint halfway between the segment before it and the segment after it, without moving the limbs',()=>{
+ const rig=createCharacter(generate('halfway')),turn=(id:string)=>{const e=rig.map.get(id)!.matrixWorld.elements;return Math.atan2(e[1],e[0]);};
+ rig.applyAngles({thigh_L:.4,shin_L:.6,upperarm_L:1,forearm_L:.5});
+ expect(turn('thigh_L')).toBeCloseTo(.4,9);expect(turn('shin_L')).toBeCloseTo(1,9);expect(turn('knee_L')).toBeCloseTo(.7,9);expect(turn('hip_L')).toBeCloseTo(.2,9);
+ expect(turn('upperarm_L')).toBeCloseTo(1,9);expect(turn('forearm_L')).toBeCloseTo(1.5,9);expect(turn('elbow_L')).toBeCloseTo(1.25,9);expect(turn('shoulder_L')).toBeCloseTo(.5,9);
+ rig.dispose();
 });
