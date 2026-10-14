@@ -13,8 +13,9 @@ import {stageColor} from './themes';
 import type {RisoSettings} from './riso';
 import type {PixelSettings} from './pixelate';
 import type {SpraySettings} from './spray';
+import type {CurtainSettings} from './curtains';
 export interface SceneHandle {rig:CharacterRig;renderer:WebGLRenderer;scene:Scene;camera:Camera;}
-interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;rulesKey:string;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
+interface Props {spec:CharacterSpec;pose:Pose;showRig:boolean;weavePalette:WeavePaletteName;layerOrder:LayerGroup[];proportions:Proportions;dark:boolean;paper:boolean;riso:RisoSettings;pixel:PixelSettings;spray:SpraySettings;curtains:CurtainSettings;rulesKey:string;live:PoseClient|null;resetView:number;onReady:(handle:SceneHandle)=>void;}
 /** World height the default view shows: the figure with arms raised plus a margin. */
 const viewHeight=restHeight*1.5,centerY=restHeight*.56;
 function World(p:Props){
@@ -28,6 +29,7 @@ function World(p:Props){
  useEffect(()=>rig.setRiso(p.riso),[rig,p.riso]);
  useEffect(()=>rig.setPixel(p.pixel),[rig,p.pixel]);
  useEffect(()=>rig.setSpray(p.spray),[rig,p.spray]);
+ useEffect(()=>rig.setCurtains(p.curtains),[rig,p.curtains]);
  // Donut and Ring holes show the stage colour (rig.ts plugFor).
  useEffect(()=>rig.setStage(stageColor(p.weavePalette,p.dark)),[rig,p.weavePalette,p.dark]);
  useEffect(()=>()=>rig.dispose(),[rig]);

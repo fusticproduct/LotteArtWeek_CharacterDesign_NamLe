@@ -11,6 +11,7 @@ import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {createSpray,defaultSpray,type SpraySettings} from './spray';
+import {createCurtains,defaultCurtains,type CurtainSettings} from './curtains';
 import {rules} from './rules';
 import {bodyTypeById,lengthScale,typedProportions} from './bodyTypes';
 import {bodyLayout,bodyRound,hipBelow,shoulderBeside,halfWidthAt,hipY,waistRadius,type BodyLayout} from './body';
@@ -449,7 +450,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)},decorate);
  // Rest height, measured: hips below the body piece and the body type both change it from the nominal 2.4 m.
  let low=Infinity,high=-Infinity;const at=new THREE.Vector3();
- for(const def of bones){if(def.kind==='hair')continue;const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh,position=mesh.geometry.getAttribute('position');mesh.updateMatrixWorld(true);for(let i=0;i<position.count;i++){at.fromBufferAttribute(position,i).applyMatrix4(mesh.matrixWorld);low=Math.min(low,at.y);high=Math.max(high,at.y);}}
+ // (At rest every mesh only moves, never turns, so its box in place gives the same extremes as its vertices.)
+ const box=new THREE.Box3();void at;
+ for(const def of bones){if(def.kind==='hair')continue;const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh;mesh.updateMatrixWorld(true);mesh.geometry.computeBoundingBox();box.copy(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld);low=Math.min(low,box.min.y);high=Math.max(high,box.max.y);}
  group.userData={seed:spec.label,restHeight:Number.isFinite(high-low)?high-low:restHeight,units:'meters',rigVersion:3,proportions,bodyType:type.id};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
@@ -462,6 +465,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const side of ['L','R'])group.getObjectByName(`hip_${side}_mesh`)!.renderOrder=group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder+.3;
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   for(const pixel of pixels)pixel.mesh.renderOrder=pixel.part.renderOrder;
+  // Curtains just behind their forearm: strings under the shapes threaded on them.
+  for(const m of curtains.meshes)m.renderOrder=group.getObjectByName(`forearm_${m.userData.side}_mesh`)!.renderOrder-(m.userData.kind==='bead'?.2:.25);
   for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
@@ -469,6 +474,11 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  };
  // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
  let pixelSettings:PixelSettings=defaultPixel,pixelClock=0;
+ // Curtains on both forearms (curtains.ts): rebuilt when their settings change.
+ let curtainSettings:CurtainSettings=defaultCurtains;
+ const forearms=(['L','R'] as const).map(side=>({bone:map.get(`forearm_${side}`)!,side,length:.28*type.arms}));
+ const makeCurtains=()=>createCurtains(group,forearms,`${spec.label}|curtains`,curtainSettings,colorOf,decorate);
+ let curtains=makeCurtains();
  // Spray-blurred parts (spray.ts): off until setSpray turns them on.
  const sprays=sprayPartsOf(spec).map(id=>createSpray(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,`${spec.label}|${id}|spray`));
  const pixels=pixelPartsOf(spec).map(id=>createPixelPart(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,colorOf(spec.parts[id].color),decorate));
@@ -527,26 +537,28 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{fingers.dispose();dangles.dispose();for(const pixel of pixels)pixel.dispose();for(const spray of sprays)spray.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
- fingers.settle();dangles.settle();
+ const dispose=()=>{fingers.dispose();dangles.dispose();curtains.dispose();for(const pixel of pixels)pixel.dispose();for(const spray of sprays)spray.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ fingers.settle();dangles.settle();curtains.settle();
  // Flow parts slide their colours: each starts at its own phase.
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
  let clock=0;
  /** Advance the moving parts by dt seconds: the flow gradients, the ragdoll fingers and the ragdoll hair. */
- const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);curtains.update(dt);
   // Frame-rate quantised pixel part: redraw its cells only every 1/fps seconds.
   if(pixels.length&&pixelSettings.fps){pixelClock+=dt;if(pixelClock>=1/pixelSettings.fps){pixelClock%=1/pixelSettings.fps;for(const pixel of pixels)pixel.update();}}
  };
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
- const settleFingers=()=>{fingers.settle();dangles.settle();for(const pixel of pixels)pixel.update();};
+ const settleFingers=()=>{fingers.settle();dangles.settle();curtains.settle();for(const pixel of pixels)pixel.update();};
  /** Pixel part settings (pixelate.ts): on/off, cell size, and the rate its cells are redrawn at (0 = with every pose). */
  const setPixel=(s:PixelSettings)=>{pixelSettings=s;pixelClock=0;for(const pixel of pixels)pixel.configure(s);};
+ /** Curtain settings (curtains.ts): on/off and one or random colours; the curtains are rebuilt and re-hung. */
+ const setCurtains=(s:CurtainSettings)=>{if(JSON.stringify(s)===JSON.stringify(curtainSettings))return;curtainSettings=s;curtains.dispose();curtains=makeCurtains();curtains.settle();stackKey='';restack({});};
  /** Spray blur settings (spray.ts) for the two spray parts; a Donut's hole plug hides with its part. */
  const setSpray=(s:SpraySettings)=>{for(const spray of sprays)spray.configure(s,[group.getObjectByName(spray.part.name.replace(/_mesh$/,'_plug'))].filter(o=>!!o) as THREE.Object3D[]);};
  setSpray(defaultSpray);
  // Every part is drawn in three.js's see-through pass, which keeps to renderOrder like the opaque pass does: the spray
  // copies blend for real (spray.ts) and still sit in their part's place among the layers.
  group.traverse(o=>{const m=(o as THREE.Mesh).material;if(m)for(const material of Array.isArray(m)?m:[m])material.transparent=true;});
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setStage,dispose,fingers,hair:dangles,pixels,sprays,tick,updateFingers:fingers.update,settleFingers};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setCurtains,setStage,dispose,fingers,hair:dangles,pixels,sprays,curtains:()=>curtains,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

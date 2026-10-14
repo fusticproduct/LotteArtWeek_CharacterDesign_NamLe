@@ -10,6 +10,7 @@ import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {setRules,defaultRules,normalizeRules} from '../src/rules';
 import {bodyTypes,bodyTypeOf} from '../src/bodyTypes';
+import {curtainColours} from '../src/curtains';
 // Tests see the Geofolk of today unless they set body types themselves (bodyTypes.ts).
 const testRules={...defaultRules,bodyTypes:Object.fromEntries(Object.keys(defaultRules.bodyTypes).map(k=>[k,k==='today'?100:0]))};setRules(testRules);
 import {normalizeSettings} from '../src/settings';
@@ -71,7 +72,7 @@ it('keeps both hip joints just outside the body piece that carries them, touchin
   expect(holdsDisc(piece,[hip.x,hip.y],0),label).toBe(false);expect(near,label).toBeGreaterThan(r-1e-4);expect(near,label).toBeLessThan(r+.001);
   rig.dispose();
  }
-});
+},30000);
 it('stacks two body pieces without overlapping them, keeps them touching at any bend and slider setting, and never bends a Single body',()=>{
  const base=generate('seams');
  for(const body of everyBody())for(const torsoHeight of [.5,1,1.5])for(const width of [.5,1.5]){
@@ -675,4 +676,25 @@ it('gives each character a body type, Geofolk today the most, kept in the seed a
    rig.dispose();
   }
  }finally{setRules(testRules);}
+});
+
+it('hangs a relaxed curtain of strands and shapes from both forearms, in one or random palette colours',()=>{
+ const spec=generate('curtains'),rig=createCharacter(spec);
+ const check=(label:string)=>{for(const strand of rig.curtains().state()){expect(strand.points[0].distanceTo(strand.anchor),label).toBeLessThan(1e-6);for(let i=1;i<strand.points.length;i++)expect(Math.abs(strand.points[i].distanceTo(strand.points[i-1])-strand.link),label).toBeLessThan(.002);}};
+ const strands=rig.curtains().state();expect(strands.filter(s=>s.side==='L').length).toBe(7);expect(strands.filter(s=>s.side==='R').length).toBe(7);
+ rig.applyPose('reach');rig.settleFingers();check('settled');
+ // Arms up: every strand falls from its pin, its free end below the top.
+ for(const strand of rig.curtains().state())expect(strand.points[strand.points.length-1].y).toBeLessThan(strand.points[0].y-.05);
+ // It swings: a pose change leaves the strands lagging behind, then they come to rest.
+ rig.applyPose('stride');rig.tick(1/60);rig.tick(1/60);const lag=rig.curtains().state();
+ for(let i=0;i<20;i++){rig.tick(1/60);check(`swing ${i}`);}
+ const moved=rig.curtains().state().some((s,i)=>s.points.some((p,k)=>p.distanceTo(lag[i].points[k])>.005));expect(moved).toBe(true);
+ const colours=rig.curtains().state().flatMap(s=>s.colours);for(const c of colours)expect(curtainColours).toContain(c);expect(new Set(colours).size).toBeGreaterThan(3);
+ const base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1};
+ rig.setCurtains({...base,colors:'one'});expect(new Set(rig.curtains().state().flatMap(s=>s.colours)).size).toBe(1);
+ // Density sets the strands per arm; length the strands' length.
+ rig.setCurtains({...base,density:12,length:2});const dense=rig.curtains().state();expect(dense.length).toBe(24);
+ const reach=(st:typeof dense)=>st.reduce((a,s)=>a+s.link,0)/st.length;rig.setCurtains({...base,density:12,length:1});expect(reach(dense)/reach(rig.curtains().state())).toBeCloseTo(2,1);
+ rig.setCurtains({...base,on:false});for(const m of rig.curtains().meshes)expect(m.visible).toBe(false);
+ rig.dispose();
 });

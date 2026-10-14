@@ -36,6 +36,12 @@ const rules=s=>{
  if(!s.bodyTypes||!ids.every(id=>Number.isInteger(s.bodyTypes[id])&&s.bodyTypes[id]>=0&&s.bodyTypes[id]<=100)||!ids.some(id=>s.bodyTypes[id]>0))throw new Error('Invalid body types');
  return {bodyTypes:Object.fromEntries(ids.map(id=>[id,s.bodyTypes[id]])),weave:int('weave',0,2),twoTone:Math.round(twoTone*100)/100,checker:int('checker',0,6),checkerApart:s.checkerApart,checkerStyles:s.checkerStyles,flow:int('flow',0,8),flowApart:s.flowApart,touching:s.touching,pixel:int('pixel',0,4),spray:int('spray',0,4)};
 };
+/** Curtain settings (curtains.ts normalizeCurtains). */
+const curtains=s=>{
+ if(!s||typeof s.on!=='boolean'||!['one','random'].includes(s.colors)||!Number.isInteger(s.density)||s.density<2||s.density>16)throw new Error('Invalid curtains');
+ const n=(k,min,max)=>{const v=Number(s[k]);if(!Number.isFinite(v)||v<min||v>max)throw new Error(`Invalid curtains ${k}`);return Math.round(v*100)/100;};
+ return {on:s.on,colors:s.colors,density:s.density,length:n('length',.4,2.5),size:n('size',.4,2.5),spacing:n('spacing',.4,3)};
+};
 const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
 
 const proportions=data=>{
@@ -48,7 +54,7 @@ const settings=data=>{
  if(!Array.isArray(data.layerOrder)||data.layerOrder.length!==groups.length||!groups.every(g=>data.layerOrder.includes(g)))throw new Error('Invalid layer order');
  if(typeof data.paper!=='boolean'||typeof data.darkStage!=='boolean')throw new Error('Invalid switches');
  if(!Number.isInteger(data.patternScale)||data.patternScale<2||data.patternScale>12)throw new Error('Invalid pattern scale');
- return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),spray:spray(data.spray),rules:rules(data.rules),darkStage:data.darkStage,patternScale:data.patternScale}];
+ return [settingsFile,{palette:data.palette,layerOrder:data.layerOrder,paper:data.paper,riso:riso(data.riso),pixel:pixel(data.pixel),spray:spray(data.spray),curtains:curtains(data.curtains),rules:rules(data.rules),darkStage:data.darkStage,patternScale:data.patternScale}];
 };
 
 export function defaultsWriter(){

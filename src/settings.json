@@ -22,14 +22,35 @@
  },
  "pixel": {
   "on": true,
-  "size": 0.023,
+  "size": 0.033,
   "fps": 12
  },
  "spray": {
   "on": true,
   "amount": 0.055
  },
+ "curtains": {
+  "on": true,
+  "colors": "random",
+  "density": 7,
+  "length": 1,
+  "size": 1,
+  "spacing": 1
+ },
  "rules": {
+  "bodyTypes": {
+   "today": 40,
+   "orb": 6,
+   "baby": 6,
+   "lolly": 6,
+   "brick": 6,
+   "wedge": 6,
+   "brute": 6,
+   "pear": 6,
+   "hour": 6,
+   "pole": 6,
+   "strider": 6
+  },
   "weave": 1,
   "twoTone": 0.55,
   "checker": 2,
@@ -43,21 +64,8 @@
   "flow": 3,
   "flowApart": true,
   "touching": true,
-  "pixel": 2,
-  "spray": 3,
-  "bodyTypes": {
-   "today": 40,
-   "orb": 6,
-   "baby": 6,
-   "lolly": 6,
-   "brick": 6,
-   "wedge": 6,
-   "brute": 6,
-   "pear": 6,
-   "hour": 6,
-   "pole": 6,
-   "strider": 6
-  }
+  "pixel": 1,
+  "spray": 1
  },
  "darkStage": true,
  "patternScale": 10
