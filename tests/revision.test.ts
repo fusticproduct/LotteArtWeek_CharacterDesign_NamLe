@@ -590,9 +590,9 @@ it('lets the pixel part be turned off, resized and redrawn at a low frame rate',
 
 it('spray-blurs two random parts when turned on: see-through copies in the part\'s layer, the part itself hidden',()=>{
  expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({on:true,amount:.15});
- for(let i=0;i<10;i++){
+ for(let i=0;i<40;i++){
   const spec=generate(`spray-${i}`),ids=sprayPartsOf(spec);
-  expect(ids.length).toBe(2);expect(new Set(ids).size).toBe(2);for(const id of pixelPartsOf(spec))expect(ids).not.toContain(id);for(const id of ids)expect(isJoint(id),id).toBe(false);
+  expect(ids.length).toBeLessThanOrEqual(2);expect(new Set(ids).size).toBe(ids.length);for(const id of pixelPartsOf(spec))expect(ids).not.toContain(id);for(const id of ids)expect(isJoint(id),id).toBe(false);for(const id of ids)expect([0,flow],`${id} has pattern ${spec.parts[id].pattern}`).toContain(spec.parts[id].pattern);
   const rig=createCharacter(spec);
   for(const spray of rig.sprays){expect(spray.meshes.every(m=>!m.visible)).toBe(true);expect(spray.part.visible).toBe(true);}
   rig.setSpray({on:true,amount:.08});

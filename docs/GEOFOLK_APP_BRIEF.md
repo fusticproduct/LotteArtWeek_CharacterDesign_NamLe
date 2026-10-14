@@ -931,4 +931,4 @@ Anh Nam gửi ảnh các góc nhỏ thò ra chỗ hai hình chồng nhau và mu�
 
 - Anh Nam không thích gradient (Flow) trên đầu: đầu không còn trong danh sách bộ phận Flow. Khi bỏ đầu, có nhân vật chỉ đủ chỗ hợp luật cho 3 gradient; `generate` thử tới 12 cách xếp và giữ cách được nhiều chỗ nhất. Test kiểm tra: ít hơn 4 thì không còn bộ phận nào nhận thêm được.
 - Spray quá nhiễu và hạt nhảy liên tục (alpha hash theo điểm ảnh): nay là 36 bản trong suốt thật, xếp xoắn ốc góc vàng, bán kính theo phân vị Gauss, mỗi bản ~9%, cộng lại 97% ở giữa; hạt nhẹ ±25% gắn theo tọa độ của bộ phận (ô 4 mm) nên đứng yên trên bộ phận. Để bản trong suốt vẫn nằm đúng lớp, mọi vật liệu của nhân vật đều vẽ trong lượt trong suốt của three.js (lượt này cũng xếp theo renderOrder).
-
+- Sau đó: Spray mịn hơn (64 bản), hạt rõ hơn (mỗi bản một lần rút ngẫu nhiên, 10–190% độ đậm, ô 5 mm, vẫn gắn cố định trên bộ phận), và chỉ dùng cho bộ phận màu trơn hoặc gradient: không bao giờ trên khối đan, checker hay two-tone (khối thân trơn thì được).

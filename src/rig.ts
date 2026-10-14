@@ -75,10 +75,13 @@ export const pixelPartsOf=(spec:CharacterSpec)=>{
  const r=rng(`${spec.label}|pixel`),shuffled=(list:BoneDefinition[])=>list.map(b=>({id:b.id,k:r()})).sort((a,b)=>a.k-b.k).map(o=>o.id),segment=(b:BoneDefinition)=>b.kind==='limb'||b.kind==='leg';
  return [...shuffled(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===0)),...shuffled(bones.filter(b=>(b.kind==='hand'||b.kind==='foot')&&spec.parts[b.id].pattern===0)),...shuffled(bones.filter(b=>segment(b)&&spec.parts[b.id].pattern===twoTone))].slice(0,rules().pixel);
 };
-/** The spray-blurred parts (spray.ts; how many: rules.ts spray): heads, body pieces, arm or leg segments, hands or feet, never a pixel part. */
+/**
+ * The spray-blurred parts (spray.ts; how many: rules.ts spray): the head, body pieces, arm or leg segments, hands or
+ * feet, but only plain ones or ones with a gradient (never woven, checker or two-tone; Nam, 2026-10-14), never a pixel part.
+ */
 export const sprayPartsOf=(spec:CharacterSpec)=>{
  const pixels=pixelPartsOf(spec),r=rng(`${spec.label}|spray`);
- const options=bones.filter(b=>['head','torso','pelvis','limb','leg','hand','foot'].includes(b.kind)&&!pixels.includes(b.id)&&!(b.kind==='pelvis'&&spec.parts.spine_lower.variant===single)).map(b=>b.id);
+ const options=bones.filter(b=>['head','torso','pelvis','limb','leg','hand','foot'].includes(b.kind)&&!pixels.includes(b.id)&&!(b.kind==='pelvis'&&spec.parts.spine_lower.variant===single)&&[0,flow].includes(spec.parts[b.id].pattern)).map(b=>b.id);
  return options.map(id=>({id,k:r()})).sort((a,b)=>a.k-b.k).slice(0,rules().spray).map(o=>o.id);
 };
 export const checkerStyles=['Patchwork','Stripes across','Stripes down','Checkerboard'] as const;
