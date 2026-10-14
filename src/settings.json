@@ -22,12 +22,12 @@
  },
  "pixel": {
   "on": true,
-  "size": 0.05,
+  "size": 0.023,
   "fps": 12
  },
  "spray": {
   "on": true,
-  "amount": 0.03
+  "amount": 0.055
  },
  "rules": {
   "weave": 1,
@@ -44,7 +44,20 @@
   "flowApart": true,
   "touching": true,
   "pixel": 2,
-  "spray": 2
+  "spray": 3,
+  "bodyTypes": {
+   "today": 40,
+   "orb": 6,
+   "baby": 6,
+   "lolly": 6,
+   "brick": 6,
+   "wedge": 6,
+   "brute": 6,
+   "pear": 6,
+   "hour": 6,
+   "pole": 6,
+   "strider": 6
+  }
  },
  "darkStage": true,
  "patternScale": 10
