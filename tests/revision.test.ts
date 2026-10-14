@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,jointShapeOf,jointSizeOf,jointSizes} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -326,22 +326,21 @@ it('lays a foot on or near the floor flat, and lets a raised foot follow its shi
  rig.dispose();
 });
 
-it('puts the patchwork on two spots, one upper arm and one shin, never a mirrored pair, never on touching parts, and keeps a spot through rerolls',()=>{
- const base=generate('pw-base'),sides=new Set<string>();
- for(let i=0;i<150;i++){
+it('puts the patchwork on two random limb spots, never a mirrored pair, never on touching parts, and keeps a spot through rerolls',()=>{
+ const base=generate('pw-base'),segments=new Set<string>();
+ for(let i=0;i<200;i++){
   const s=i%3===0?generate(`pw-${i}`,base,new Set(['upperarm_L'])):i%3===1?generate(`pw-${i}`,base,new Set(),['upperarm_L','shin_R','spine_lower','spine_upper'][i%4]):generate(`pw-${i}`);
-  const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id).sort();
-  expect(on.length,`${i}`).toBe(2);expect(on[0].startsWith('shin_')&&on[1].startsWith('upperarm_'),`${i}: ${on}`).toBe(true);
-  // Touching parts are never both patterned: the two body pieces, or a body piece and a thigh (its hip joint is hidden).
-  const textured=(id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern!==twoTone;
-  if(s.parts.spine_lower.variant>0)expect(textured('spine_upper')&&textured('root'),`${i}`).toBe(false);
-  for(const side of ['L','R'])expect(textured(`thigh_${side}`),`${i}`).toBe(false);
-  sides.add(on.map(id=>id.slice(-1)).join(''));
+  const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id);
+  expect(on.length,`${i}`).toBe(2);expect(twinOf(on[0]),`${i}: ${on}`).not.toBe(on[1]);
+  for(const id of on){expect(/^(upperarm|forearm|thigh|shin)_[LR]$/.test(id),`${i}: ${id}`).toBe(true);segments.add(id.split('_')[0]);}
+  // Touching parts are never both patterned: the two body pieces, or a woven body piece and a thigh (its hip joint is hidden).
+  const textured=(id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern!==twoTone,build=s.parts.spine_lower.variant;
+  if(build>0)expect(textured('spine_upper')&&textured('root'),`${i}`).toBe(false);
+  for(const side of ['L','R'])if(textured(`thigh_${side}`))expect(build>0&&!s.parts.root.pattern,`${i}: thigh under a woven piece`).toBe(true);
   expect(decodeSeed(encodeSeed(s)).parts[on[0]].pattern).toBe(patchwork);
  }
- // All four side combinations come up (left arm with right thigh, and so on).
- expect([...sides].sort()).toEqual(['LL','LR','RL','RR']);
- const spot=bones.find(b=>b.id.startsWith('upperarm_')&&base.parts[b.id].pattern===patchwork)!.id;
+ expect([...segments].sort()).toEqual(['forearm','shin','thigh','upperarm']);
+ const spot=bones.find(b=>/^(upperarm|forearm|shin)_/.test(b.id)&&base.parts[b.id].pattern===patchwork)!.id;
  expect(generate('pw-reroll',base,new Set(),spot).parts[spot].pattern).toBe(patchwork);
 });
 

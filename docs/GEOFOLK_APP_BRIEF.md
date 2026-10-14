@@ -719,3 +719,10 @@ Anh Nam: các khớp cỡ khác nhau; cỡ khớp tạo độ thon cho tay chân
 - Ba cỡ S/M/L = ×0,72 / ×1 / ×1,35 bán kính khớp cũ; vai, khuỷu, gối chọn riêng, không bao giờ cả ba cùng cỡ. Variant khớp = hình + 5 × cỡ (15 kiểu). Seed phiên bản 5; seed cũ mở ra cỡ M.
 - Đầu đoạn = 0,91 × khớp ở đầu đó: bắp tay từ vai tới khuỷu, cẳng tay từ khuỷu tới cổ tay (0,058), đùi từ hông (0,064) tới gối, ống chân từ gối loe ra bàn chân (0,118–0,13). Box giờ là lăng trụ vuông thon thay vì hộp bo góc.
 - Bước tiếp theo cho "nhiều tỉ lệ hơn": hệ núm tỉ lệ trong docs/proportion-plan.html, chờ anh trả lời câu hỏi.
+
+## 40. Patchwork: thêm cẳng tay, đùi khi hông trơn (14/10/2026)
+
+Anh Nam: đùi cũng được có hoa văn nhưng chỉ khi hông (khối dưới) không có; cẳng tay cũng được.
+
+- Hai chỗ patchwork chọn ngẫu nhiên trong bắp tay, cẳng tay, ống chân, và đùi (chỉ khi thân 2 khối và khối dưới trơn), không bao giờ là cặp đối xứng. Bắp tay và cẳng tay cùng một tay được, vì có khớp khuỷu ở giữa.
+- Seed: đoạn đang có patchwork giữ nguyên nếu còn hợp lệ; đùi không còn hợp lệ chuyển xuống ống chân cùng bên; thiếu thì lấp theo thứ tự cố định.

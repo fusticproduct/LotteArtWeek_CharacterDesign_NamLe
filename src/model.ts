@@ -110,14 +110,15 @@ export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone'
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
 /**
- * Patchwork (index 6): a checkerboard quilt on two segments at random spots, never a mirrored pair, each its own quilt
- * (Nam, 2026-10-14): one upper arm and one shin. Two parts that touch are never both patterned, there is always a
- * visible joint between them: the upper arm is past the shoulder ball; a thigh touches the body (the hip joint is
- * hidden inside it), so the leg's spot is the shin, past the knee.
+ * Patchwork (index 6): a checkerboard quilt on two limb segments at random spots, never a mirrored pair, each its own
+ * quilt (Nam, 2026-10-14). Two parts that touch are never both patterned, there is always a visible joint between
+ * them: upper arms, forearms and shins may take it; a thigh touches the body (its hip joint is hidden inside), so it
+ * may only when the bottom piece is plain (never with a Single body, which is always woven).
  */
 export const patchwork=6;
-const patchworkSides=(parts:Record<string,PartChoice>,segment:string)=>(['L','R'] as const).filter(side=>parts[`${segment}_${side}`].pattern===patchwork);
-const otherSide=(side:'L'|'R')=>side==='L'?'R':'L';
+/** Fixed order in which spots are kept and filled, so a seed always settles the same way. */
+const spotOrder=['upperarm_L','shin_R','forearm_R','thigh_L','forearm_L','shin_L','upperarm_R','thigh_R'];
+const patchworkSpots=(parts:Record<string,PartChoice>)=>{const plainBelow=parts.spine_lower.variant!==0&&!parts.root.pattern;return spotOrder.filter(id=>!id.startsWith('thigh')||plainBelow);};
 export interface PartChoice {variant:number;color:number;accent:number;pattern:number;}
 export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;}
 /** Preset poses; 'dance' plays the recorded motion in src/dance.ts and rests in the idle pose for exports. */
@@ -171,12 +172,13 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  // always woven; of two pieces, the top one stays woven if both are.
  if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;
  if(build!==single&&top.pattern&&bottom.pattern)bottom.pattern=0;
- // Exactly two patchwork spots, one upper arm and one shin. A spot that has it stays (an older thigh spot moves down to
- // its shin); an older mirrored pair keeps its left arm and right shin; a missing spot goes to the other side.
- const arm=patchworkSides(parts,'upperarm'),shins=patchworkSides(parts,'shin'),leg=shins.length?shins:patchworkSides(parts,'thigh');
- const armSide=arm.length===1?arm[0]:arm.length===2?'L':leg.length===1?otherSide(leg[0]):'L',legSide=leg.length===1?leg[0]:otherSide(armSide);
+ // Exactly two patchwork spots, never a mirrored pair. Spots that may have it stay; a thigh that may not moves down to
+ // its shin; missing spots are filled in the fixed order.
+ const allowed=patchworkSpots(parts),spots:string[]=[],free=(id:string)=>spots.length<2&&!spots.includes(id)&&!spots.includes(twinOf(id)!);
+ for(const id of spotOrder)if(parts[id].pattern===patchwork){const spot=allowed.includes(id)?id:id.replace('thigh','shin');if(free(spot))spots.push(spot);}
+ for(const id of allowed)if(free(id))spots.push(id);
  for(const id of Object.keys(parts))if(parts[id].pattern===patchwork)parts[id].pattern=0;
- parts[`upperarm_${armSide}`].pattern=patchwork;parts[`shin_${legSide}`].pattern=patchwork;
+ for(const id of spots)parts[id].pattern=patchwork;
  return {...spec,parts};
 }
 /**
@@ -301,9 +303,10 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
  // The three joint types never all share one size: one that may change takes another size.
  const sizeIndex=(type:string)=>Math.floor(parts[`${type}_L`].variant/jointShapes.length),types=['shoulder','elbow','knee'];
  if(new Set(types.map(sizeIndex)).size===1){const type=types.find(t=>!frozen.has(`${t}_L`));if(type){const size=(sizeIndex(type)+1+Math.floor(random()*2))%jointSizes.length,shape=parts[`${type}_L`].variant%jointShapes.length;for(const side of ['L','R'])parts[`${type}_${side}`].variant=shape+jointShapes.length*size;}}
- // A rerolled segment keeps its patchwork; a character without any gets one upper arm and one shin, sides at random.
+ // A rerolled segment keeps its patchwork; missing spots are drawn at random from the segments that may take one.
  if(previous&&onlyLinked)for(const id of onlyLinked)if(previous.parts[id].pattern===patchwork)parts[id].pattern=patchwork;
- if(!['upperarm','shin'].some(segment=>patchworkSides(parts,segment).length))for(const segment of ['upperarm','shin']){const id=`${segment}_${random()<.5?'L':'R'}`;if(!frozen.has(id))parts[id].pattern=patchwork;}
+ const allowed=patchworkSpots(parts),spots=allowed.filter(id=>parts[id].pattern===patchwork);
+ while(spots.length<2){const options=allowed.filter(id=>!spots.includes(id)&&!spots.includes(twinOf(id)!)&&!frozen.has(id));if(!options.length)break;const id=options[Math.floor(random()*options.length)];parts[id].pattern=patchwork;spots.push(id);}
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
