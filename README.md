@@ -39,7 +39,7 @@ npm run dev     # chạy app, mở địa chỉ "Local:" mà terminal in ra
 Lệnh khác:
 
 ```sh
-npm test        # 30 test tự động
+npm test        # 31 test tự động
 npm run build   # bản production trong dist/ (phải phục vụ qua HTTP, không mở file trực tiếp)
 npm run preview # xem thử bản build
 ```
@@ -68,7 +68,7 @@ Trên macOS, lần đầu dùng webcam phải cấp quyền Camera cho ứng d�
 | Thanh dưới khung | Bốn tư thế: At ease, Hands up, Step out (ba tư thế này "thở" nhẹ: thân, đầu, tay đung đưa chu kỳ 3.6 s; tắt khi hệ điều hành bật giảm chuyển động) và **Dance** (phát lặp 3 phút nhảy đã ghi từ video mẫu, không cần server hay camera) |
 | Tab **Parts** (phải) | Bộ phận và lớp: danh sách 6 khối lớp (Arms, Head, Body, Neck, Lower body, Legs). Khối Body có dòng **Build** (kiểu ghép thân) và **Top piece** (khối trên, hoặc khối duy nhất); khối Lower body có **Bottom piece** (khối dưới; "None" khi Build là Single) và khớp hông; **khối trên cùng được vẽ phía trước**. Kéo tay nắm ở đầu khối để đổi thứ tự (hoặc chọn tay nắm rồi bấm ↑/↓). Trong khối Arms/Legs, các bộ phận xếp theo thứ tự vẽ cố định (xem mục 7). Mỗi dòng có nút random (đổi **hình** của bộ phận, giữ màu; với dòng khớp thì đổi màu khớp) và nút khóa. "Reset order" trả về thứ tự mặc định |
 | Dưới danh sách | Slider **Pattern scale** (số ô đan, mặc định 6), chọn **Palette** (HFCD / XMAS / TET: đổi màu cả nhân vật, pattern đan và nền đen của sân khấu), **Paper texture** On/Off (vân giấy và đậm nhạt nhẹ trên mọi bộ phận; lưu theo trình duyệt; không đi vào file FBX/OBJ), số bộ phận đang khóa |
-| Tab **Proportions** | 9 slider 50–150% chỉnh cỡ bộ phận cho mọi nhân vật: Head, Top piece width, Seam height (dời chỗ nối hai khối thân lên/xuống; khối kia tự dài ra để chạm), Bottom piece width, Arm thickness, Leg thickness, Hands, Feet, Joints. **Save as default** ghi giá trị hiện tại vào `src/proportions.json` (khi chạy `npm run dev`), thành mặc định chung của dự án cho mọi trình duyệt; bản build tĩnh thì chỉ lưu cho trình duyệt đó. **Reset** trả về mặc định đã lưu; "Set all sliders to 100%" trả về cỡ gốc. Giá trị đang chỉnh lưu theo trình duyệt, không nằm trong seed |
+| Tab **Proportions** | 9 slider 50–150% chỉnh cỡ bộ phận cho mọi nhân vật: Head, Top piece width, Seam height (dời chỗ nối hai khối thân lên/xuống; khối kia tự dài ra để chạm), Bottom piece width (hai slider độ rộng chỉ áp lên khối không tròn), Arm thickness, Leg thickness, Hands, Feet, Joints. **Save as default** ghi giá trị hiện tại vào `src/proportions.json` (khi chạy `npm run dev`), thành mặc định chung của dự án cho mọi trình duyệt; bản build tĩnh thì chỉ lưu cho trình duyệt đó. **Reset** trả về mặc định đã lưu; "Set all sliders to 100%" trả về cỡ gốc. Giá trị đang chỉnh lưu theo trình duyệt, không nằm trong seed |
 | Tab **Live pose** | Bật/tắt bắt chuyển động, trạng thái kết nối, chọn Webcam / Demo video (bấm khi đang tắt cũng bật luôn với nguồn đó), slider **Motion smoothing**, ô xem hình camera |
 
 Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn chân, đùi, ống chân) hiện thành một dòng. Bắp tay và cẳng tay có dòng Left/Right riêng.
@@ -82,13 +82,14 @@ Các cặp trái/phải luôn đi chung (vai, khuỷu, bàn tay, gối, bàn ch�
 - **Màu:** chỉ dùng 18 màu trong `src/palette.json` (trích từ ảnh tham chiếu `public/reference.png`). Hai bộ phận nối liền nhau không trùng màu. Dấu trên mặt luôn màu tối.
 - **Palette XMAS / TET đổi màu cả nhân vật:** HFCD dùng đúng màu trong seed. XMAS (nền xanh `#114DDC`, thân xanh lá, đỏ, trắng, xanh nhạt, vàng) và TET (nền đỏ `#C01E2E`, thân vàng, hồng, đỏ cam, cam, kem, ngọc, xanh lá) lấy mẫu từ ảnh poster của anh Nam. Khi vẽ, mỗi màu nhân vật đang dùng được đổi sang một màu riêng trong bộ, theo vai trò (thân A, cổ B, tay chân C, khớp J, đầu H) với cùng quy tắc phối màu, nên bộ phận kề nhau vẫn khác màu; dấu mặt dùng màu tối của bộ. Seed không đổi, cùng nhân vật luôn ra cùng màu. Nền giấy (sáng) giữ nguyên. Code: `src/themes.ts`.
 - **Bộ màu riêng từng nhân vật:** mỗi nhân vật rút một bộ 5 màu từ 15 màu tươi: 2 màu thân (A, B), 1 màu nhấn (bàn tay, bàn chân, hông), 1 màu khớp, 1 màu đầu. B cùng tông khác độ sáng, đối nhau trên vòng màu, hoặc tương phản sáng tối với A; màu nhấn xa A và B trên vòng màu; màu khớp sáng hoặc tối hẳn hơn A, B. A và B rải lên tay chân theo 1 trong 4 kiểu (tay/chân, đoạn trên/dưới, xen kẽ, trái/phải). Có 55.536 bộ × 4 kiểu rải. Bộ màu không nằm trong seed (seed lưu màu từng bộ phận). Code: `drawScheme()`, `schemeColor()`, `paint()`, `recolor()` trong `model.ts`.
-- **Pattern:** chỉ các khối thân có pattern đan: thân 1 khối đan 70% số lần; thân 2 khối luôn có ít nhất một khối đan. Tay và chân dạng khối liền có thể chia **hai lớp màu** (two-tone). Mọi bộ phận khác một màu.
+- **Pattern:** chỉ các khối thân có pattern đan: thân 1 khối luôn đan; thân 2 khối luôn có ít nhất một khối đan (cả seed cũ). Tay và chân dạng khối liền có thể chia **hai lớp màu** (two-tone). Mọi bộ phận khác một màu.
 - **Không lặp chuỗi hạt:** mỗi tay hoặc chân có tối đa một đoạn dạng hạt (Chain/Stack).
 - **Hạt Chain luôn tròn đều:** mỗi hạt là hình cầu thật, không bị kéo dãn hay ép dẹt theo độ dài đoạn hoặc slider Proportions. Độ dài đoạn quyết định số hạt (các tâm cách nhau ~1.35 bán kính); hạt ở chân vẫn to dần xuống dưới. Code: `beads()` trong `rig.ts`.
 - **Khớp là quả cầu riêng:** vai, khuỷu, gối là bộ phận riêng, chỉ có dạng cầu. Đoạn tay/chân được cắt ngắn đúng chỗ tựa lên mặt cầu, nên khớp luôn nhìn thấy khi gập.
 - **Chân:** đùi mảnh như tay, càng xuống càng to, bàn chân loe.
 - **Tỉ lệ:** ở mặc định (Proportions 100%) nhân vật đứng thẳng cao đúng 2.4 đơn vị; chiều dài xương không đổi theo hình dạng. Khối lớn rộng ~0.62 (tầm cỡ thân Orb cũ, anh Nam chọn là tỉ lệ đẹp).
-- **Thân là 1 hoặc 2 khối phẳng** (thay cho thân + hông cố định, 14/10/2026). 8 hình: Circle, Block, Bowl, Dome, Funnel, A-line, Donut, Diamond. 4 kiểu ghép (**Build**): **Single** (một khối lớn), **Pair** (hai khối bằng nhau, cùng hình hoặc hình lật: Bowl↔Dome, Funnel↔A-line), **Big top** (khối lớn trên khối nhỏ), **Big bottom** (khối nhỏ trên khối lớn). Khối nhỏ không bao giờ là Donut. Hình tròn và donut luôn tròn đều (đường kính = chiều cao chỗ của nó). Code: `src/body.ts`.
+- **Thân là 1 hoặc 2 khối phẳng** (thay cho thân + hông cố định, 14/10/2026). 8 hình: Circle, Block, Bowl, Dome, Funnel, A-line, Donut, Diamond. 4 kiểu ghép (**Build**): **Single** (một khối lớn), **Pair** (hai khối bằng nhau, cùng hình hoặc hình lật: Bowl↔Dome, Funnel↔A-line), **Big top** (khối lớn trên khối nhỏ), **Big bottom** (khối nhỏ trên khối lớn). Khối nhỏ không bao giờ là Donut. **Khối dưới không bao giờ là Dome hay A-line** (trông như váy); Pair có Dome trên thì dưới là Bowl (thành hình tròn chia đôi), A-line trên thì dưới là Funnel (thành hình thoi). Thân 1 khối không là nửa hình tròn. Code: `src/body.ts`, luật trong `topShapes()` / `bottomShapes()` / `pairPartners()` (`model.ts`).
+- **Hình tròn và nửa hình tròn không bao giờ bị kéo méo:** Circle, Donut rộng bằng cao; Bowl, Dome rộng gấp đôi cao (kể cả đầu Dome). Chúng có chiều cao tối đa theo vai trò (khối lớn, khối nhỏ, Pair), khối còn lại tự dài ra để chạm; slider độ rộng không áp lên chúng.
 - **Hai khối luôn dính nhau:** chỗ nối có điểm xoay eo; hai khối chồng lên nhau 0.09 dọc giữa, và **cả hai đều chứa trọn một đĩa bán kính 0.045 quanh điểm xoay**, nên khối trên xoay quanh đó bao nhiêu cũng không hở (có test, cả khi kéo slider). Thân Single không gập ở eo: góc gập chuyển thành góc xoay cả thân, đùi xoay ngược lại để chân giữ hướng.
 - **Vai bám mép khối trên, hông nằm trong khối dưới:** tâm quả cầu vai đặt ngoài mép khối trên 3/4 bán kính ở độ cao vai; khớp hông cách nhau tối đa ±0.105 và luôn nằm trọn trong khối mang nó (khối dưới, hoặc khối duy nhất). Khối có đáy hẹp tự kéo dài xuống cho vừa hông. Cổ, vai và hông giữ nguyên độ cao, nên chiều cao 2.4 không đổi.
 - **Seed:** cùng seed phải ra cùng nhân vật (kể cả pattern đan).
@@ -189,7 +190,7 @@ Trục Y hướng lên, nhân vật quay mặt về +Z, bên trái của nhân v
 
 ```text
 root (khối dưới)              (0, 1.39, 0)
-├─ spine_lower (điểm xoay eo) (0, p, 0)        p = độ cao chỗ nối: Single 0.07, Pair 0.25, Big top 0.12, Big bottom 0.36 (slider Seam height dời p)
+├─ spine_lower (điểm xoay eo) (0, p, 0)        p = độ cao chỗ nối: giữa phần chồng của hai khối; theo Build và cỡ thật của khối tròn (Single 0.07)
 │  └─ spine_upper (khối trên) (0, 0, 0)
 │     ├─ neck                 (0, 0.63 − p, 0)  dài 0.07
 │     │  └─ head              (0, 0.07, 0)      dài 0.31
@@ -268,7 +269,7 @@ Lưu ý: FBX và OBJ xuất **khối 3D** của nhân vật ở tư thế đang 
 
 ## 11. Test
 
-`npm test` chạy 30 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
+`npm test` chạy 31 test: bộ màu riêng từng nhân vật, seed khứ hồi, seed cũ và seed phiên bản 1, màu kề nhau không trùng, đối xứng trái/phải qua random và khóa, pattern đúng chỗ, không lặp chuỗi hạt, bo mép trên và dưới, khớp hông nằm trọn trong khối thân, hai khối thân luôn dính nhau ở eo (mọi Build, mọi slider), hình tròn/nửa tròn không méo, không có váy ở dưới, Build/Pair qua random và khóa, seed phiên bản 1–2 sang 3, chiều cao 2.4, bộ xương và trọng số, giải góc từ landmark, làm mượt theo hướng màn hình, thứ tự lớp trong tay/chân và theo độ sâu, slider tỉ lệ và vai bám mép khối trên, tư thế chỉ xoay trong mặt phẳng, xuất FBX/OBJ, palette XMAS/TET đổi màu cả nhân vật mà bộ phận kề nhau vẫn khác màu.
 
 Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture và giao diện. Sau khi sửa hình hay giao diện, cần mở app xem bằng mắt.
 
@@ -278,7 +279,7 @@ Test chạy trong Node, không có canvas, nên không phủ phần vẽ texture
 |---|---|
 | Thêm/sửa một hình | Hình phẳng: thêm đường viền vào `headOutlines` hoặc `markOutlines` trong `rig.ts`, hình khối thân vào `shapeOutline()` trong `body.ts` (dựng bằng `paper()` trong `geometry.ts`, tự bo góc nhọn). Khối 3D: `geometry.ts` và hàm tương ứng trong `rig.ts` (`legGeometry`, `armGeometry`, `footGeometry`, `geometryFor`). Thêm tên vào `variants` trong `model.ts` |
 | Đổi luật random, đối xứng, pattern | `generate()` và `normalizeSpec()` trong `model.ts`; luật phối màu ở `drawScheme()` / `schemeColor()` |
-| Đổi tỉ lệ cơ thể | mảng `bones` trong `model.ts` (đổi vị trí sẽ ảnh hưởng test chiều cao); cỡ khối thân, độ cao chỗ nối theo Build: `widths`, `seams` trong `body.ts` |
+| Đổi tỉ lệ cơ thể | mảng `bones` trong `model.ts` (đổi vị trí sẽ ảnh hưởng test chiều cao); cỡ khối thân theo Build: `topShare`, `widths`, `caps` trong `body.ts` |
 | Đổi luật ghép thân | `bodyBuilds`, `pairPartners`, `buildWeights` trong `model.ts`; `drawBuild()`, `fitBody()` |
 | Đổi tư thế có sẵn | `poseRotation()` trong `model.ts`; nhịp thở trong `breathe()` (`motion.ts`) |
 | Đổi điệu Dance | Trích landmark từ video bằng `scripts/extract_landmarks.py`, rồi `npx vite-node scripts/bake-dance.ts <landmarks.json>` ghi lại `src/dance.json` (đi qua đúng bộ giải, làm mượt và xếp lớp của Live pose; bước quay quá 0.9 rad/khung bị chặn vì là MediaPipe đọc nhầm) |

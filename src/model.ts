@@ -52,10 +52,18 @@ export const single=0,pair=1,bigTop=2,bigBottom=3,donut=6;
 const buildWeights=[.25,.3,.25,.2];
 /** Mirrored partner of a body shape (Bowl <-> Dome, Funnel <-> A-line); the others mirror onto themselves. */
 export const mirrorShape=(v:number)=>v===2?3:v===3?2:v===4?5:v===5?4:v;
-/** Bottom shapes a Pair may use under a top shape: the same shape or its mirror (two funnels, or an hourglass). */
-export const pairPartners=(top:number)=>[...new Set([top,mirrorShape(top)])];
-/** The small piece of Big top / Big bottom is never a Donut (its hole would shrink to a dot). */
-const smallShapes=bodyShapes.map((_,i)=>i).filter(i=>i!==donut);
+/** Dome and A-line read as a skirt when they sit below, so they are never a bottom piece (Nam, 2026-10-14). */
+const skirts=[3,5],allShapes=bodyShapes.map((_,i)=>i);
+/** Bottom shapes a Pair may use under a top shape: the same shape or its mirror, never a skirt (a Dome over a Bowl makes a split circle, an A-line over a Funnel a diamond). */
+export const pairPartners=(top:number)=>[...new Set([top,mirrorShape(top)])].filter(v=>!skirts.includes(v));
+/** Top shapes a Pair may use over a bottom shape. */
+const pairTops=(bottom:number)=>allShapes.filter(top=>pairPartners(top).includes(bottom));
+/**
+ * Shapes each piece may take in a build. No skirt below; no Donut as the small piece (its hole would shrink to a dot);
+ * a Single body is never a half circle (one true half circle that tall would be 1.5 m wide).
+ */
+export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&(v===2||v===3))&&!(build===bigBottom&&v===donut));
+export const bottomShapes=(build:number)=>allShapes.filter(v=>!skirts.includes(v)&&!(build===bigTop&&v===donut));
 export const variants:Record<SlotKind,string[]>={
  // Head, body pieces and face mark are flat 2D shapes (seed version 3); the other parts are still turned 3D shapes.
  head:['Circle','Triangle','Hexagon','Down triangle','Square','Dome'],
@@ -128,10 +136,15 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
   if(patternedKinds.includes(b.kind)&&p.pattern===twoTone)p.pattern=0;
   parts[b.id]=p;
  }
- const build=parts.spine_lower.variant;
- if(build===pair&&!pairPartners(parts.spine_upper.variant).includes(parts.root.variant))parts.root.variant=parts.spine_upper.variant;
- if(build===bigTop&&parts.root.variant===donut)parts.root.variant=0;
- if(build===bigBottom&&parts.spine_upper.variant===donut)parts.spine_upper.variant=0;
+ // The build's shape rules, applied the same way every time (also to decoded seeds): a skirt below becomes its
+ // mirror, a small Donut or a Single half circle becomes a Circle, a Pair's bottom follows its top.
+ const build=parts.spine_lower.variant,top=parts.spine_upper,bottom=parts.root;
+ if(build!==single&&skirts.includes(bottom.variant))bottom.variant=mirrorShape(bottom.variant);
+ if(build===bigTop&&bottom.variant===donut)bottom.variant=0;
+ if(!topShapes(build).includes(top.variant))top.variant=0;
+ if(build===pair&&!pairPartners(top.variant).includes(bottom.variant))bottom.variant=pairPartners(top.variant)[0];
+ // There is always a woven piece: a Single body is always woven, and of two pieces at least one is.
+ if(!top.pattern&&(build===single||!bottom.pattern))top.pattern=1;
  return {...spec,parts};
 }
 /**
@@ -194,9 +207,9 @@ function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>num
   for(const id of group)parts[id].color=c;
  }
 }
-/** A build that fits the body pieces that cannot change (locked or kept): a Pair needs partner shapes, a small piece is never a Donut. */
+/** A build that fits the body pieces that cannot change (locked or kept): their shapes must be allowed in it, and a Pair needs partner shapes. */
 function drawBuild(random:()=>number,bottom?:number,top?:number){
- const fits=[true,bottom===undefined||top===undefined||pairPartners(top).includes(bottom),bottom!==donut,top!==donut];
+ const fits=[0,1,2,3].map(b=>(top===undefined||topShapes(b).includes(top))&&(b===single||bottom===undefined||bottomShapes(b).includes(bottom))&&(b!==pair||top===undefined||bottom===undefined||pairPartners(top).includes(bottom)));
  const total=buildWeights.reduce((sum,w,i)=>sum+(fits[i]?w:0),0);let r=random()*total;
  for(let i=0;i<4;i++){if(!fits[i])continue;r-=buildWeights[i];if(r<0)return i;}
  return single;
@@ -207,15 +220,16 @@ function drawBuild(random:()=>number,bottom?:number,top?:number){
  */
 function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<string>,only:Set<string>|undefined,random:()=>number){
  const build=parts.spine_lower.variant,top=parts.spine_upper,bottom=parts.root,pick=<T,>(a:T[])=>a[Math.floor(random()*a.length)];
+ // A shape the build does not allow is redrawn, unless the user locked it.
+ if(!topShapes(build).includes(top.variant)&&!locked.has('spine_upper'))top.variant=pick(topShapes(build));
+ if(build!==single&&!bottomShapes(build).includes(bottom.variant)&&!locked.has('root'))bottom.variant=pick(bottomShapes(build));
  if(build===pair&&!pairPartners(top.variant).includes(bottom.variant)){
-  const bottomLeads=locked.has('root')||(!locked.has('spine_upper')&&!!only?.has('root'));
-  if(bottomLeads)top.variant=pick(pairPartners(bottom.variant));else bottom.variant=pick(pairPartners(top.variant));
+  const bottomLeads=locked.has('root')||(!locked.has('spine_upper')&&!!only?.has('root')),tops=pairTops(bottom.variant);
+  if(bottomLeads&&tops.length)top.variant=pick(tops);else bottom.variant=pick(pairPartners(top.variant));
  }
- if(build===bigTop&&bottom.variant===donut&&!locked.has('root'))bottom.variant=pick(smallShapes);
- if(build===bigBottom&&top.variant===donut&&!locked.has('spine_upper'))top.variant=pick(smallShapes);
- // Patterns: a Single body is woven 70% of the time; of two pieces, one or both are woven.
+ // Patterns: a Single body is always woven; of two pieces, one or both are woven.
  const woven=()=>1+Math.floor(random()*4),r=random(),free=(id:string)=>!frozen.has(id);
- if(build===single){if(free('spine_upper'))top.pattern=r<.7?woven():0;if(free('root'))bottom.pattern=0;return;}
+ if(build===single){if(free('spine_upper')||!top.pattern)top.pattern=woven();if(free('root'))bottom.pattern=0;return;}
  if(free('spine_upper'))top.pattern=r<.65?woven():0;
  if(free('root'))bottom.pattern=r>=.3?woven():0;
  // Two plain pieces (e.g. after a Single becomes a Pair) get a weave on a piece the user has not locked.

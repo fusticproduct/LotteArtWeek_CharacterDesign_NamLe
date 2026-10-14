@@ -638,3 +638,11 @@ Anh Nam: bỏ hông và thân cố định, dễ đoán; thay bằng 3 kiểu (�
 - Pattern: thân 1 khối đan 70% số lần; thân 2 khối luôn có ít nhất một khối đan.
 - Seed phiên bản 3. Seed phiên bản 1–2 mở thành Big top với hình gần nhất.
 - Làm trên nhánh `feature/body-pieces`; `main` giữ bản gốc.
+
+## 29. Khối thân: không váy, không kéo méo, luôn có hoa văn (14/10/2026)
+
+Anh Nam xem bản đầu (Big bottom: vòm có hoa văn trên một vòm tím, cả hai bị kéo cao):
+
+- Khối dưới không bao giờ là Dome hay A-line (trông như váy). Pair có Dome trên thì dưới là Bowl (hình tròn chia đôi); A-line trên thì dưới là Funnel (hình thoi). Seed cũ có váy ở dưới mở ra hình lật của nó.
+- Hình tròn, donut, nửa hình tròn không bao giờ bị kéo: tròn rộng bằng cao, nửa tròn rộng gấp đôi cao. Mỗi hình có chiều cao tối đa theo vai trò (khối lớn 0.8 / 0.45, khối nhỏ 0.56 / 0.3, Pair 0.8 / 0.45); khối còn lại tự dài ra để hai khối vẫn chồng nhau đúng 0.09. Thân 1 khối không là nửa tròn. Slider độ rộng chỉ áp lên khối không tròn. Đầu Dome thành nửa hình tròn thật (bán kính 0.3).
+- Luôn có hoa văn: thân 1 khối luôn đan; thân 2 khối có ít nhất một khối đan (áp cả cho seed cũ).

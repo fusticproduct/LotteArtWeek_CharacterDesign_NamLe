@@ -136,7 +136,8 @@ const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:Array.from({length:6},(_,i)=>{const a=Math.PI/2+i*Math.PI/3;return [.158*Math.cos(a),.155+.155*Math.sin(a)] as Point2;}),markY:.155},
  {outline:[[-.2,.31],[.2,.31],[0,-.02]],markY:.215},
  {outline:[[-.145,0],[.145,0],[.145,.31],[-.145,.31]],markY:.155},
- {outline:ellipse2d(0,0,.19,.31,0,Math.PI,40),markY:.12},
+ // A true half circle (never stretched): radius 0.3 keeps the top at the rest height and the flat base on the neck.
+ {outline:ellipse2d(0,.01,.3,.3,0,Math.PI,48),markY:.13},
 ];
 const box2d=(w:number,h:number):Point2[]=>[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]];
 /** Face marks, centred on the mark point: Dot, Dash, Triangle, Twin dots, Ring, Bar. */

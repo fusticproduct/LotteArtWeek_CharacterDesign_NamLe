@@ -2,8 +2,8 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners} from '../src/model';
-import {bodyLayout,holdsDisc,seamMargin,shoulderY} from '../src/body';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes} from '../src/model';
+import {bodyLayout,holdsDisc,seamMargin,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
 import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius} from '../src/rig';
@@ -31,7 +31,7 @@ it('produces subdivided beveled round surfaces with finite normals and exact bou
 });
 
 /** Every valid body: each build with each top shape and the bottom shapes it allows. */
-const everyBody=()=>[0,1,2,3].flatMap(build=>variants.torso.flatMap((_,top)=>(build===0?[0]:build===1?pairPartners(top):variants.pelvis.map((_,i)=>i)).filter(bottom=>!(build===2&&bottom===6)&&!(build===3&&top===6)).map(bottom=>({build,top,bottom}))));
+const everyBody=()=>[0,1,2,3].flatMap(build=>topShapes(build).flatMap(top=>(build===0?[0]:build===1?pairPartners(top):bottomShapes(build)).map(bottom=>({build,top,bottom}))));
 const withBody=(spec:ReturnType<typeof generate>,{build,top,bottom}:{build:number;top:number;bottom:number})=>({...spec,parts:{...spec.parts,spine_lower:{...spec.parts.spine_lower,variant:build},spine_upper:{...spec.parts.spine_upper,variant:top},root:{...spec.parts.root,variant:bottom}}});
 it('keeps both hip joints inside the body piece that carries them, for every body',()=>{
  const base=generate('hip-coverage');
@@ -68,6 +68,21 @@ it('keeps two-piece bodies joined at the waist at any bend and slider setting, a
  two.applyAngles({spine_lower:.4});expect(two.map.get('spine_lower')!.rotation.z).toBeCloseTo(.4,9);
  one.dispose();two.dispose();
 });
+it('never stretches a circle, donut or half circle, at any slider setting, and never puts a skirt shape below',()=>{
+ const base=generate('round');
+ for(const body of everyBody())for(const torsoHeight of [.5,1,1.5])for(const width of [.5,1.5]){
+  const layout=bodyLayout(withBody(base,body),{...defaultProportions,torsoHeight,torsoWidth:width,pelvis:width});
+  for(const [piece,shape] of [[layout.top,body.top],[layout.bottom,body.bottom]] as const){
+   if(!piece||!(isRound(shape)||isHalf(shape)))continue;
+   const xs=piece.outline.map(p=>p[0]),ys=piece.outline.map(p=>p[1]),w=Math.max(...xs)-Math.min(...xs),h=Math.max(...ys)-Math.min(...ys);
+   expect(w/h,`${JSON.stringify(body)} h${torsoHeight} w${width}`).toBeCloseTo(isRound(shape)?1:2,2);
+  }
+ }
+ for(const build of [1,2,3])for(const skirt of [3,5])expect(bottomShapes(build)).not.toContain(skirt);
+ // A seed with a skirt below opens with its mirror (Dome → Bowl, A-line → Funnel); a Single half circle becomes a Circle.
+ const s=generate('skirt');s.parts.spine_lower.variant=2;s.parts.root.variant=3;s.parts.spine_upper.variant=1;expect(decodeSeed(encodeSeed(s)).parts.root.variant).toBe(2);
+ s.parts.spine_lower.variant=0;s.parts.spine_upper.variant=2;expect(decodeSeed(encodeSeed(s)).parts.spine_upper.variant).toBe(0);
+});
 it('generates every build, pairs equal or mirrored shapes, and keeps the pair through rerolls and locks',()=>{
  const seen=new Set<number>();let s=generate('builds-0');
  for(let i=0;i<300;i++){
@@ -75,7 +90,8 @@ it('generates every build, pairs equal or mirrored shapes, and keeps the pair th
   const build=s.parts.spine_lower.variant;seen.add(build);
   if(build===1)expect(pairPartners(s.parts.spine_upper.variant),`${i}`).toContain(s.parts.root.variant);
   if(build===2)expect(s.parts.root.variant).not.toBe(6);if(build===3)expect(s.parts.spine_upper.variant).not.toBe(6);
-  if(build>0)expect(s.parts.spine_upper.pattern+s.parts.root.pattern,`${i}: one piece is woven`).toBeGreaterThan(0);
+  if(build>0)expect(s.parts.spine_upper.pattern+s.parts.root.pattern,`${i}: one piece is woven`).toBeGreaterThan(0);else expect(s.parts.spine_upper.pattern,`${i}: a Single body is woven`).toBeGreaterThan(0);
+  expect(topShapes(build),`${i}`).toContain(s.parts.spine_upper.variant);if(build>0)expect(bottomShapes(build),`${i}: no skirt below`).toContain(s.parts.root.variant);
  }
  expect([...seen].sort()).toEqual([0,1,2,3]);
  // A locked bottom piece stays put; the top piece follows it into a pair.
