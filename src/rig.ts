@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
-import {drawWeave,weaveDensity,type WeavePaletteName} from './weave';
+import {drawWeave,drawPatchwork,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors} from './themes';
 import {bodyLayout,halfWidthAt,shoulderY,hipY,seamMargin,bodyTop,type BodyLayout} from './body';
 
@@ -52,14 +52,16 @@ export function drawOrder(order:LayerGroup[],depth:LayerDepth=defaultDepth):stri
  };
  return [...order].reverse().flatMap(g=>blocks[g]);
 }
+/** World size (m) of one patchwork tile: 24 units of 3.5 cm, so a limb is about four units across. */
+export const patchworkTile=patchworkUnits*.035;
 /** World size (m) of one weave tile for a pattern-scale value: higher scale = more, smaller cells. */
 export const weaveTileSize=(density:number)=>weaveDensity/(density*2)*.64;
 const weaveCache=new Map<string,HTMLCanvasElement>();
-function weaveCanvas(seed:string,palette:WeavePaletteName){
- const key=`${palette}|${seed}`;let canvas=weaveCache.get(key);
+function weaveCanvas(seed:string,palette:WeavePaletteName,draw:(canvas:HTMLCanvasElement,seed:string,palette:WeavePaletteName)=>unknown=drawWeave,size=2048){
+ const key=`${size}|${palette}|${seed}`;let canvas=weaveCache.get(key);
  if(!canvas){
   // 2048 px so the threads stay sharp when zoomed in; the cache keeps the last 12 cloths.
-  canvas=document.createElement('canvas');canvas.width=canvas.height=2048;drawWeave(canvas,seed,palette);
+  canvas=document.createElement('canvas');canvas.width=canvas.height=size;draw(canvas,seed,palette);
   weaveCache.set(key,canvas);if(weaveCache.size>12)weaveCache.delete(weaveCache.keys().next().value!);
  }
  return canvas;
@@ -67,7 +69,13 @@ function weaveCanvas(seed:string,palette:WeavePaletteName){
 /** `colorOf` gives the hex of a palette index in the chosen palette (see themes.ts). */
 function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalette:WeavePaletteName,colorOf:(index:number)=>string) {
  const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
- if(p.pattern===twoTone&&!isBeaded(b,p.variant)&&typeof document!=='undefined'){
+ if(p.pattern===patchwork&&typeof document!=='undefined'){
+  // Patchwork quilt, mapped flat in metres like the weave; the left and right segment share one quilt.
+  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id.replace(/_[LR]$/,'')}|patchwork`,weavePalette,drawPatchwork,1024));
+  texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;texture.repeat.set(1/patchworkTile,1/patchworkTile);
+  material.map=texture;material.color.setRGB(1,1,1);
+ }
+ else if(p.pattern===twoTone&&!isBeaded(b,p.variant)&&typeof document!=='undefined'){
   // Two colour layers along the segment: V runs along its length on every lathe, box and pill shape.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
   const ctx=canvas.getContext('2d')!,split=[.38,.5,.62][(p.color+p.accent)%3];
@@ -139,7 +147,7 @@ function addPaper(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry
 }
 /** Front-projected UVs in metres: the pattern stays undistorted on any silhouette. */
 function planarUV(g:THREE.BufferGeometry){
- const position=g.getAttribute('position'),uv=g.getAttribute('uv');
+ const position=g.getAttribute('position');if(!g.getAttribute('uv'))g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(position.count*2),2));const uv=g.getAttribute('uv');
  for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i),position.getY(i));
  return g;
 }
@@ -279,7 +287,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  bones.forEach((def,index)=>{
-  const choice=spec.parts[def.id],geometry=geometryFor(def,choice,spec,proportions,body),count=geometry.getAttribute('position').count;
+  const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):shaped,count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
   for(let i=0;i<count;i++){indices[i*4]=index;weights[i*4]=1;}
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));

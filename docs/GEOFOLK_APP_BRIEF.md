@@ -682,3 +682,11 @@ Anh Nam: khớp luôn lấy góc trung bình của đoạn trước và đoạn 
 
 - Anh Nam lúc đầu muốn bàn chân luôn phẳng trên sàn, rồi đổi: chỉ khi gần sàn mới hút phẳng, có một khoảng chuyển để khi người nhảy thì nhân vật nhảy tự do. Làm: sàn là đế của bàn chân thấp hơn; bàn chân cách sàn dưới 5 cm nằm phẳng, trên 20 cm xoay theo ống chân, ở giữa chuyển mượt (smoothstep). Bộ giải Live pose vẫn đưa bàn chân ngang; rig quyết định.
 - Thân 1 khối không còn A-line hay Funnel: nửa dưới của chúng chính là cái váy / chữ V không được ở dưới. Thân 1 khối giờ là Circle, Block, Donut hoặc Diamond.
+
+## 35. Hoa văn patchwork (14/10/2026)
+
+Anh Nam gửi ảnh tham chiếu (lưới ô cờ nhiều màu: khối bàn cờ và khối sọc xen nhau, nhiều ô hồng nhạt/trắng): thêm một hoa văn như vậy, theo palette, luôn trên 2 bộ phận cách bộ phận mang hoa văn đan đúng một bộ phận.
+
+- Hoa văn: tấm 24 × 24 ô (ô 3,5 cm, tấm 0,84 m, lặp liền mép), chia hàng và cột thành khối 2 hoặc 3 ô; mỗi khối là bàn cờ hai màu (45%), sọc ngang (27%), sọc dọc (25%) hoặc một màu. Màu lấy từ bảng màu đan của palette đang chọn (HFCD/XMAS/TET); màu nhạt là các màu sáng của bảng cộng vài màu đậm pha trắng. Trải phẳng theo mét như hoa văn đan; hai bên trái/phải dùng chung một tấm.
+- Vị trí: đúng một cặp. Khối trên đan → hai bắp tay (cách một khớp vai); khối dưới đan → hai đùi (cách một khớp hông); thân 1 khối mang cả vai lẫn hông nên chọn một trong hai. Cặp đang có giữ nguyên qua random/khóa; seed cũ được thêm cặp này khi mở.
+- Seed: pattern 6 = Patchwork.

@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork} from '../src/model';
 import {bodyLayout,holdsDisc,seamMargin,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
@@ -123,9 +123,9 @@ it('mirrors hands, feet and joints (shape + colour) and leg shapes across left/r
  }
 });
 it('keeps texture patterns on the body pieces only, also for older seeds',()=>{
- for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind))expect([0,twoTone].includes(s.parts[b.id].pattern)&&(s.parts[b.id].pattern===0||['limb','leg'].includes(b.kind)),b.id).toBe(true);}
+ for(let i=0;i<60;i++){const s=generate(`pattern-${i}`);for(const b of bones)if(!['torso','pelvis'].includes(b.kind))expect([0,twoTone,patchwork].includes(s.parts[b.id].pattern)&&(s.parts[b.id].pattern===0||['limb','leg'].includes(b.kind)),b.id).toBe(true);}
  const legacy=generate('legacy');legacy.parts.thigh_L.pattern=2;legacy.parts.hand_R.variant=3;
- const restored=decodeSeed(encodeSeed(legacy));expect(restored.parts.thigh_L.pattern).toBe(0);expect(restored.parts.hand_R).toEqual(restored.parts.hand_L);
+ const restored=decodeSeed(encodeSeed(legacy));expect([0,patchwork]).toContain(restored.parts.thigh_L.pattern);expect(restored.parts.hand_R).toEqual(restored.parts.hand_L);
 });
 it('builds every torso, pelvis, leg and foot variant as finite closed geometry',()=>{
  for(let v=0;v<9;v++){const spec=generate('shapes');for(const b of bones)spec.parts[b.id].variant=v%variants[b.kind].length;const rig=createCharacter(spec);
@@ -317,4 +317,18 @@ it('lays a foot on or near the floor flat, and lets a raised foot follow its shi
  rig.applyAngles({thigh_L:.05,shin_L:.25,thigh_R:-.05});
  expect(turn('foot_L')).toBeCloseTo(0,6);expect(turn('foot_R')).toBeCloseTo(0,6);
  rig.dispose();
+});
+
+it('puts the patchwork on exactly one left/right pair of segments, one part away from a woven body piece',()=>{
+ const base=generate('pw-base');let upper=0;
+ for(let i=0;i<150;i++){
+  const s=i%3===0?generate(`pw-${i}`,base,new Set(['upperarm_L'])):i%3===1?generate(`pw-${i}`,base,new Set(),['upperarm_L','thigh_R','spine_lower','spine_upper'][i%4]):generate(`pw-${i}`);
+  const on=bones.filter(b=>s.parts[b.id].pattern===patchwork).map(b=>b.id).sort(),segment=on[0]?.split('_')[0];
+  expect(on,`${i}`).toEqual([`${segment}_L`,`${segment}_R`]);expect(['upperarm','thigh']).toContain(segment);if(segment==='upperarm')upper++;
+  // Past the shoulders lies the top piece, past the hips the bottom piece; a Single body carries both.
+  const woven=(id:string)=>s.parts[id].pattern>0&&s.parts[id].pattern<twoTone;
+  if(s.parts.spine_lower.variant>0)expect(woven(segment==='upperarm'?'spine_upper':'root'),`${i}`).toBe(true);
+  expect(decodeSeed(encodeSeed(s)).parts[on[0]].pattern).toBe(patchwork);
+ }
+ expect(upper).toBeGreaterThan(20);expect(upper).toBeLessThan(130);
 });

@@ -141,3 +141,34 @@ export function drawWeave(canvas:HTMLCanvasElement,seed:string,paletteName:Weave
  addTexture(ctx,W,H,r);
  return {cols,rows};
 }
+
+/** Units per side of one patchwork tile; blocks are 2 or 3 units, so a tile repeats without seams. */
+export const patchworkUnits=24;
+/** Splits n units into a random run of 2s and 3s (never leaving a single unit). */
+function blockRuns(r:Rng,n:number){const out:number[]=[];let left=n;while(left>0){const s=left===4?2:left<=3?left:r()<.55?3:2;out.push(s);left-=s;}return out;}
+const lightness=(c:string)=>{const v=hexRgb(c);return (Math.max(...v)+Math.min(...v))/510;};
+/**
+ * Patchwork (Nam, 2026-10-14): a quilt of small blocks, each a two-colour checkerboard or a run of bars across or
+ * down, in the palette's colours with plenty of pale ones (from the palette, plus a few strong colours washed out).
+ * Rows and columns are runs of 2- and 3-unit blocks.
+ */
+export function drawPatchwork(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName){
+ const src=weavePalettes[paletteName],r=rngFrom(seed),ctx=canvas.getContext('2d')!,u=canvas.width/patchworkUnits,all=[...src.main,...src.secondary,...src.accent];
+ const strong=all.filter(c=>lightness(c)<.8),pale=[...all.filter(c=>lightness(c)>=.8),...shuffle(r,strong).slice(0,3).map(c=>mix(c,'#FFFFFF',.7))];
+ const colour=()=>pick(r,strong),soft=()=>pick(r,pale);
+ const cell=(x:number,y:number,w:number,h:number,c:string)=>{const x0=Math.round(x*u),y0=Math.round(y*u);ctx.fillStyle=c;ctx.fillRect(x0,y0,Math.round((x+w)*u)-x0,Math.round((y+h)*u)-y0);};
+ const rows=blockRuns(r,patchworkUnits),cols=blockRuns(r,patchworkUnits);
+ let y=0;
+ for(const h of rows){
+  let x=0;
+  for(const w of cols){
+   const kind=r(),a=colour(),b=r()<.65?soft():colour(),c=r()<.4?colour():a;
+   if(kind<.45){for(let j=0;j<h;j++)for(let i=0;i<w;i++)cell(x+i,y+j,1,1,(i+j)%2?b:a);}
+   else if(kind<.72){for(let j=0;j<h;j++)cell(x,y+j,w,1,j%2?b:j===2?c:a);}
+   else if(kind<.97){for(let i=0;i<w;i++)cell(x+i,y,1,h,i%2?b:i===2?c:a);}
+   else cell(x,y,w,h,a);
+   x+=w;
+  }
+  y+=h;
+ }
+}
