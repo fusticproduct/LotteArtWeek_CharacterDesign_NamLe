@@ -646,3 +646,12 @@ Anh Nam xem bản đầu (Big bottom: vòm có hoa văn trên một vòm tím, c
 - Khối dưới không bao giờ là Dome hay A-line (trông như váy). Pair có Dome trên thì dưới là Bowl (hình tròn chia đôi); A-line trên thì dưới là Funnel (hình thoi). Seed cũ có váy ở dưới mở ra hình lật của nó.
 - Hình tròn, donut, nửa hình tròn không bao giờ bị kéo: tròn rộng bằng cao, nửa tròn rộng gấp đôi cao. Mỗi hình có chiều cao tối đa theo vai trò (khối lớn 0.8 / 0.45, khối nhỏ 0.56 / 0.3, Pair 0.8 / 0.45); khối còn lại tự dài ra để hai khối vẫn chồng nhau đúng 0.09. Thân 1 khối không là nửa tròn. Slider độ rộng chỉ áp lên khối không tròn. Đầu Dome thành nửa hình tròn thật (bán kính 0.3).
 - Luôn có hoa văn: thân 1 khối luôn đan; thân 2 khối có ít nhất một khối đan (áp cả cho seed cũ).
+
+## 30. Khớp nhiều hình (14/10/2026)
+
+Anh Nam: khớp lúc nào cũng tròn; muốn đa dạng hình, nhưng luôn đối xứng về hình và màu.
+
+- Vai, khuỷu, gối mỗi loại chọn một trong 5 hình: Sphere (40%), Square, Diamond, Hexagon, Triangle. Trái/phải luôn cùng hình; mọi khớp vẫn chung một màu.
+- Hình phẳng có bán kính trong bằng bán kính quả cầu cũ, nên đầu các đoạn tay chân (tựa trên quả cầu) luôn nằm trong hình ở mọi góc gập. Tam giác vì vậy to gấp đôi quả cầu.
+- Random dòng vai/khuỷu/gối: đổi hình của cặp đó, giữ màu. Random dòng Hip joints (bị thân che): đổi màu mọi khớp. Khóa một dòng khớp vẫn khóa tất cả khớp.
+- Seed phiên bản 4; seed phiên bản 1–3 mở ra khớp tròn như lúc được tạo.

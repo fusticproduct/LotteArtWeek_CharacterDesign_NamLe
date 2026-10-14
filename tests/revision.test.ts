@@ -6,7 +6,7 @@ import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,p
 import {bodyLayout,holdsDisc,seamMargin,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
 import {solveAngles,smoothPose,toLocal,updateLayers,initialLayerState} from '../src/pose';
-import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius} from '../src/rig';
+import {createCharacter,drawOrder,defaultLayerOrder,normalizeLayerOrder,shoulderRadius,jointOutline} from '../src/rig';
 import {breathe,danceFrame,presetAngles} from '../src/motion';
 import {danceBones,danceFps} from '../src/dance';
 import danceData from '../src/dance.json';
@@ -22,8 +22,18 @@ it('middle-button dragging pans without changing distance, while wheel still zoo
  expect(camera.position.distanceTo(before)).toBeGreaterThan(.1);expect(controls.target.distanceTo(target)).toBeGreaterThan(.1);expect(camera.position.distanceTo(controls.target)).toBeCloseTo(distance,6);
  element.dispatchEvent(event('wheel',200,200,{deltaY:-100}));expect(camera.position.distanceTo(controls.target)).toBeLessThan(distance);controls.dispose();
 });
-it('keeps shoulders spherical for new, locked and legacy seeded characters',()=>{
- for(let i=0;i<50;i++){const spec=generate(`shoulder-${i}`);expect(spec.parts.shoulder_L.variant).toBe(0);expect(spec.parts.shoulder_R.variant).toBe(0);spec.parts.shoulder_L.variant=3;expect(decodeSeed(encodeSeed(spec)).parts.shoulder_L.variant).toBe(0);expect(generate('locked',spec,new Set(['shoulder_L'])).parts.shoulder_L.variant).toBe(0);}
+it('gives shoulders, elbows and knees one of five shapes, mirrored left/right, that cover the segment ends, and opens older seeds with spheres',()=>{
+ const seen=new Set<number>();
+ for(let i=0;i<80;i++){const spec=generate(`joint-${i}`);for(const part of ['shoulder','elbow','knee']){expect(spec.parts[`${part}_R`].variant).toBe(spec.parts[`${part}_L`].variant);seen.add(spec.parts[`${part}_L`].variant);}expect(decodeSeed(encodeSeed(spec)).parts.elbow_L.variant).toBe(spec.parts.elbow_L.variant);}
+ expect([...seen].sort()).toEqual([0,1,2,3,4]);
+ // Every flat shape holds the whole ball, so segment ends seated on the ball stay covered at any bend.
+ for(let v=1;v<5;v++)expect(holdsDisc({outline:jointOutline(v,.07)},[0,0],.07*.999),`shape ${v}`).toBe(true);
+ // Rerolling the elbow row changes the elbows only, and keeps the shared joint colour; the hip row recolours all joints.
+ const before=generate('joint-reroll');let after=before;for(let i=0;i<12&&after.parts.elbow_L.variant===before.parts.elbow_L.variant;i++)after=generate(`jr-${i}`,before,new Set(),'elbow_L');
+ expect(after.parts.elbow_L.variant).not.toBe(before.parts.elbow_L.variant);expect(after.parts.knee_L).toEqual(before.parts.knee_L);expect(after.parts.elbow_L.color).toBe(before.parts.elbow_L.color);
+ expect(generate('jr-hip',before,new Set(),'hip_L').parts.knee_L.color).not.toBe(before.parts.knee_L.color);
+ // A version-3 seed opens with spheres, as it was drawn.
+ const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;const v3=encodeSeed(spec).replace('~4','~3');expect(decodeSeed(v3).parts.knee_L.variant).toBe(0);
  for(const id of ['thigh_L','thigh_R','shin_L','shin_R'])expect(bones.find(b=>b.id===id)!.length).toBeCloseTo(.4*1.5);
 });
 it('produces subdivided beveled round surfaces with finite normals and exact bounds',()=>{
@@ -196,10 +206,10 @@ it('restacks limbs from camera depth only after the cue holds for a few frames',
  // A one-frame blip the other way does not flip it back.
  state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
 });
-it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 3',()=>{
+it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 4',()=>{
  const spec=generate('legacy-torso');spec.parts.root.variant=5;spec.parts.spine_lower.variant=0;
  const packed=encodeSeed(spec).split('~')[1],at=(id:string)=>bones.findIndex(b=>b.id===id),swap=(p:string,id:string,v:number)=>p.slice(0,2+at(id)*4)+v.toString(36)+p.slice(3+at(id)*4);
- expect(packed[0]).toBe('3');
+ expect(packed[0]).toBe('4');
  // Version 1 → 2: Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; then onto the body shapes: Bowl, Block, Donut, Funnel.
  for(const [old,now] of [[0,2],[7,1],[9,6],[10,4]]){const v1='1'+swap(packed,'spine_upper',old).slice(1);const s=decodeSeed(`legacy-torso~${v1}`);expect(s.parts.spine_upper.variant).toBe(now);expect(s.parts.spine_lower.variant).toBe(2);}
  // Version 2: Orb torso → Circle; pelvis Diamond → Diamond, Puck → Block, Tire → Donut (a small piece, so it becomes a Circle).

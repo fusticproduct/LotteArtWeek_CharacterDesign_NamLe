@@ -88,7 +88,10 @@ export const proportionRange={min:.5,max:1.5};
 export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]);return [k,Number.isFinite(v)?Math.min(proportionRange.max,Math.max(proportionRange.min,v)):1];})) as Proportions;
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */
 export const studioProportions=normalizeProportions(savedProportions);
-export const variantNames=(bone:BoneDefinition)=>/^(shoulder|elbow|knee)_/.test(bone.id)?['Sphere']:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
+/** Shapes of the visible ball joints (Nam, 2026-10-14). Flat shapes are as wide inside as the ball, so they still cover the segment ends. */
+export const jointShapes=['Sphere','Square','Diamond','Hexagon','Triangle'];
+const isBallJoint=(id:string)=>/^(shoulder|elbow|knee)_/.test(id);
+export const variantNames=(bone:BoneDefinition)=>isBallJoint(bone.id)?jointShapes:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
 /** Name shown for a part; a Single body has no bottom piece. */
 export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone'] as const;
@@ -237,7 +240,8 @@ function fitBody(parts:Record<string,PartChoice>,frozen:Set<string>,locked:Set<s
 }
 export function generate(label:string, previous?:CharacterSpec, locked:Set<string>=new Set(), only?:string):CharacterSpec {
  const random=rng(label),parts:Record<string,PartChoice>={};
- const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(linkedIds(only)):undefined;
+ // Locking a joint locks every joint (they share one colour); rerolling a ball joint row changes only that pair's shape.
+ const lockedLinked=new Set([...locked].flatMap(linkedIds)),onlyLinked=only?new Set(isBallJoint(only)?[only,twinOf(only)!]:linkedIds(only)):undefined;
  const frozen=new Set(bones.filter(b=>previous&&(lockedLinked.has(b.id)||(onlyLinked&&!onlyLinked.has(b.id)))).map(b=>b.id));
  // Shapes and patterns first; colours come from the scheme below.
  for(const b of bones){
@@ -249,7 +253,8 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   // Never pair two beaded segments on the same limb.
   const pair=pairedSegment(b.id),pairChoice=pair?(parts[pair]??(frozen.has(pair)?previous?.parts[pair]:undefined)):undefined;
   const options=variantNames(b).map((_,i)=>i).filter(i=>!(pairChoice&&isBeaded(b,i)&&isBeaded(boneById(pair!),pairChoice.variant)));
-  let variant=b.id==='spine_lower'?drawBuild(random,frozen.has('root')?previous!.parts.root.variant:undefined,frozen.has('spine_upper')?previous!.parts.spine_upper.variant:undefined):options[Math.floor(random()*options.length)];
+  // Ball joints: a sphere 40% of the time (the poster's dots), otherwise one of the flat shapes.
+  let variant=isBallJoint(b.id)?(random()<.4?0:1+Math.floor(random()*(jointShapes.length-1))):b.id==='spine_lower'?drawBuild(random,frozen.has('root')?previous!.parts.root.variant:undefined,frozen.has('spine_upper')?previous!.parts.spine_upper.variant:undefined):options[Math.floor(random()*options.length)];
   if(b.id.endsWith('_R')&&mirrorsShape(b.id)&&parts[twin!])variant=parts[twin!].variant;
   parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
@@ -257,7 +262,8 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
  if(previous&&onlyLinked){
   // Rerolling one part changes its shape and keeps the colours; the joints have no other shape, so they get a new joint colour.
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
-  if(isJoint(only!)){const joints=[...onlyLinked],near=joints.flatMap(adjacent).filter(id=>!isJoint(id)).map(id=>parts[id].color),pool=vibrant.filter(c=>!near.includes(c)&&c!==parts[only!].color);const c=pool[Math.floor(random()*pool.length)];if(c!==undefined)for(const id of joints)parts[id].color=c;}
+  // The hip joints are hidden in the body, so their row gives the joints a new colour instead.
+  if(only!.startsWith('hip_')){const joints=[...onlyLinked],near=joints.flatMap(adjacent).filter(id=>!isJoint(id)).map(id=>parts[id].color),pool=vibrant.filter(c=>!near.includes(c)&&c!==parts[only!].color);const c=pool[Math.floor(random()*pool.length)];if(c!==undefined)for(const id of joints)parts[id].color=c;}
  }
  else paint(parts,frozen,random);
  return normalizeSpec({version:1,label,parts,density:previous?.density??3});
@@ -268,9 +274,10 @@ export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:str
  paint(parts,new Set(bones.filter(b=>lockedLinked.has(b.id)).map(b=>b.id)),rng(`${spec.label}|colours|${salt}`));
  return normalizeSpec({...spec,parts});
 }
-export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~3${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~4${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
 /**
- * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark, 3 = body pieces and builds.
+ * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark, 3 = body pieces and builds,
+ * 4 = joint shapes (older seeds open with sphere joints, as they were drawn).
  * A version-1 torso maps to the nearest version-2 one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
  * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index. Older torsos and pelvises
  * then map onto the body catalogue as a Big top build (big torso over a small pelvis, like before):
@@ -285,17 +292,18 @@ export function decodeSeed(input:string):CharacterSpec {
  const [label,packed,...rest]=seed.split('~');
  const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2);
  const version=packed?.[0];
- if(rest.length||!label||!order||!['1','2','3'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ if(rest.length||!label||!order||!['1','2','3','4'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
  const density=parseInt(packed[1],36);if(density<2||density>12)throw new Error('Invalid pattern scale in seed.');
  // Joints missing from older seeds are derived from the label so they stay deterministic.
  const fallback=generate(label),parts:Record<string,PartChoice>=Object.fromEntries(bones.filter(b=>!order.includes(b)).map(b=>[b.id,fallback.parts[b.id]]));
  order.forEach((b,i)=>{
   let [variant,c,accent,pattern]=packed.slice(2+i*4,6+i*4).split('').map(x=>parseInt(x,36));
-  const old=version!=='3',count=old&&b.kind==='torso'?(version==='1'?legacyTorso.length:torsoV3.length):old&&b.kind==='pelvis'?pelvisV3.length:variants[b.kind].length;
+  const old=version==='1'||version==='2',count=old&&b.kind==='torso'?(version==='1'?legacyTorso.length:torsoV3.length):old&&b.kind==='pelvis'?pelvisV3.length:Math.max(variants[b.kind].length,variantNames(b).length);
   if(variant>=count||c>=palette.length||accent>=palette.length||pattern>=patterns.length)throw new Error('This seed contains an unknown part.');
   if(old&&b.kind==='torso')variant=torsoV3[version==='1'?legacyTorso[variant]:variant];
   if(old&&b.kind==='pelvis')variant=pelvisV3[variant];
   if(old&&b.id==='spine_lower')variant=bigTop;
+  if(version!=='4'&&isBallJoint(b.id))variant=0;
   parts[b.id]={variant,color:c,accent,pattern};
  });
  return normalizeSpec({version:1,label,parts,density});
