@@ -12,7 +12,7 @@ import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {createSpray,defaultSpray,type SpraySettings} from './spray';
 import {rules} from './rules';
-import {bodyLayout,hipBelow,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
+import {bodyLayout,hipBelow,shoulderBeside,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -229,8 +229,8 @@ function planarUV(g:THREE.BufferGeometry){
 const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.map(([g,y])=>{g.translate(0,y,0);return g;}));
 /** Corner rounding of the flat (2D) parts, in metres. */
 const paperRound=.022,markRound=.007;
-/** Shoulder ball centre: three quarters of its radius outside the top piece's edge at shoulder height, so the arms always hang from the body whatever its shape or size. */
-export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>halfWidthAt(layout.top.outline,shoulderY)+shoulderBall*.75;
+/** Shoulder ball centre: just outside the top piece at shoulder height, touching it (body.ts shoulderBeside), so the arms hang from the body whatever its shape or size and the joint is never drawn over it. */
+export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>shoulderBeside(layout.top,shoulderY,shoulderBall);
 /** Radius of a ball joint for a character: the type's base radius, its size and the Joints slider. */
 export const jointRadius=(spec:CharacterSpec,type:'shoulder'|'elbow'|'knee',prop:Proportions=defaultProportions)=>({shoulder:shoulderRadius,elbow:elbowRadius,knee:kneeRadius})[type]*jointSizeOf(spec.parts[`${type}_L`].variant)*prop.joints;
 /** A segment's end is this fraction of the joint it meets, so the joint covers it and the segment tapers from joint to joint. */

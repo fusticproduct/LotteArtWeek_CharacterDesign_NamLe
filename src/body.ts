@@ -66,6 +66,15 @@ export const hipBelow=(piece:Piece,x:number,r:number)=>{
  while(inPolygon(piece.outline,[x,y])||edgeDistance(piece.outline,[x,y])<r-1e-6)y-=.0005;
  return y;
 };
+/**
+ * Shoulder joints sit outside the top piece too (Nam, 2026-10-14): at height y, as close to the piece as they can go
+ * while a disc of radius r stays clear of its outline, so the joint just touches the piece's side. Returns x (> 0).
+ */
+export const shoulderBeside=(piece:Piece,y:number,r:number)=>{
+ let x=halfWidthAt(piece.outline,y)+r;
+ while(inPolygon(piece.outline,[x,y])||edgeDistance(piece.outline,[x,y])<r-1e-6)x+=.0005;
+ return x;
+};
 export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;}
 /**
  * Pieces of a character's body. The top piece hangs from the neck, the bottom piece stands on the body's bottom line,

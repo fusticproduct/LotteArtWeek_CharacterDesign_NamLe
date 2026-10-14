@@ -914,3 +914,6 @@ Anh Nam: pixel hóa 2 bộ phận, không bao giờ là khớp; liệt kê toàn
 - `src/RulesPanel.tsx`: bảng ở cuối trang; đổi luật thì nhân vật được `normalizeSpec` lại ngay; luật chỉ ảnh hưởng hình vẽ (pixel, spray, kiểu checker) thì sân khấu dựng lại rig.
 - `pixelPartsOf`: đoạn trơn, rồi bàn tay/chân trơn, rồi đoạn two-tone, mỗi nhóm xáo theo tên nhân vật, lấy đủ số theo luật.
 
+## 66. Khớp vai ngoài thân (14/10/2026)
+
+Anh Nam: khớp vai cũng không được chạm (đè) lên thân, như khớp đùi. `shoulderBeside(piece, y, r)` (body.ts): từ mép thân ở độ cao vai đẩy ra một bán kính, rồi tiếp tục ra ngoài từng 0,5 mm tới khi đĩa khớp cách mọi cạnh ít nhất r. Trước đây tâm khớp chỉ cách mép 3/4 bán kính nên khớp đè lên thân.

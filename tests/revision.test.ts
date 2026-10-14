@@ -239,7 +239,7 @@ it('reads version-1 and version-2 seeds onto the body catalogue as a Big top bui
  // An index past the old catalogues is still rejected.
  expect(()=>decodeSeed(`legacy-torso~1${swap(packed,'spine_upper',11).slice(1)}`)).toThrow();expect(()=>decodeSeed(`legacy-torso~2${swap(packed,'root',6).slice(1)}`)).toThrow();
 });
-it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder on the top piece edge',()=>{
+it('scales parts from the Proportions tab without changing bone lengths, and keeps each shoulder just outside the top piece edge',()=>{
  const extent=(rig:ReturnType<typeof createCharacter>,id?:string)=>{let lo=Infinity,hi=-Infinity;for(const b of bones){if(id&&b.id!==id)continue;const mesh=rig.group.getObjectByName(`${b.id}_mesh`) as SkinnedMesh,p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const y=new Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).y;lo=Math.min(lo,y);hi=Math.max(hi,y);}}return hi-lo;};
  const side=new MeshBasicMaterial({side:DoubleSide}),spec=generate('proportions');spec.parts.hair.variant=0;const base=createCharacter(spec),bigHead=createCharacter(spec,'HFCD',undefined,{...defaultProportions,head:1.2});
  expect(extent(bigHead)-extent(base)).toBeCloseTo(.31*.2,4);
@@ -252,8 +252,8 @@ it('scales parts from the Proportions tab without changing bone lengths, and kee
   // Top piece edge at shoulder height, found by a ray coming in from the side (top piece space = spine_upper space).
   const torso=new Mesh((rig.group.getObjectByName('spine_upper_mesh') as SkinnedMesh).geometry,side);torso.updateMatrixWorld(true);
   const edge=new Raycaster(new Vector3(2,rig.map.get('shoulder_L')!.position.y,0),new Vector3(-1,0,0)).intersectObject(torso)[0].point.x;
-  // The shoulder ball is centred just outside the edge, so it always overlaps the torso.
-  const x=rig.map.get('shoulder_L')!.position.x,ball=jointRadius(spec,'shoulder');expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeGreaterThan(.03);expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeLessThan(ball);
+  // The shoulder ball sits outside the edge, touching it: never over the torso (a sloped side leaves a little more room).
+  const x=rig.map.get('shoulder_L')!.position.x,ball=jointRadius(spec,'shoulder');expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeGreaterThan(ball-.003);expect(x-edge,`build ${build}, top ${v} at ${torsoWidth}`).toBeLessThan(ball*2.2);
   expect(rig.map.get('shoulder_R')!.position.x).toBeCloseTo(-x,9);rig.dispose();
  }
  base.dispose();bigHead.dispose();thick.dispose();side.dispose();
