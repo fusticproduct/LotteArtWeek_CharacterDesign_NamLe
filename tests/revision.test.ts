@@ -690,7 +690,11 @@ it('hangs a relaxed curtain of strands and shapes from both forearms, in one or 
  for(let i=0;i<20;i++){rig.tick(1/60);check(`swing ${i}`);}
  const moved=rig.curtains().state().some((s,i)=>s.points.some((p,k)=>p.distanceTo(lag[i].points[k])>.005));expect(moved).toBe(true);
  const colours=rig.curtains().state().flatMap(s=>s.colours);for(const c of colours)expect(curtainColours).toContain(c);expect(new Set(colours).size).toBeGreaterThan(3);
- const none={head:false,torso:false,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false},base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1,places:{...none,forearms:true}};
+ const none={head:false,torso:false,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false},base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1,stiffness:0,places:{...none,forearms:true}};
+ // Stiffness: after the same swing, stiff strands bend less than loose ones.
+ const bendAfterSwing=(stiffness:number)=>{rig.setCurtains({...base,stiffness});rig.applyPose('reach');rig.settleFingers();rig.applyPose('stride');for(let i=0;i<8;i++)rig.tick(1/60);
+  return rig.curtains().state().reduce((sum,st)=>{let b=0;for(let i=2;i<st.points.length;i++){const u=st.points[i-1].clone().sub(st.points[i-2]).normalize(),w=st.points[i].clone().sub(st.points[i-1]).normalize();b+=Math.acos(Math.min(1,u.dot(w)));}return sum+b;},0);};
+ expect(bendAfterSwing(1)).toBeLessThan(bendAfterSwing(0)*.6);
  rig.setCurtains({...base,colors:'one'});expect(new Set(rig.curtains().state().flatMap(s=>s.colours)).size).toBe(1);
  // Density sets the strands per arm; length the strands' length.
  rig.setCurtains({...base,density:12,length:2});const dense=rig.curtains().state();expect(dense.length).toBe(24);

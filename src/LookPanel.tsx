@@ -74,6 +74,7 @@ export default function LookPanel(p:Props){
      <Slider id="curtain-density" label="Strands per place" value={curtains.density} {...curtainRanges.density} step={1} show={v=>String(v)} onChange={v=>p.onCurtains({...curtains,density:v})}/>
      <Slider id="curtain-length" label="Length" value={curtains.length} {...curtainRanges.length} step={.05} show={pct} onChange={v=>p.onCurtains({...curtains,length:v})}/>
      <Slider id="curtain-size" label="Shape size" value={curtains.size} {...curtainRanges.size} step={.05} show={pct} onChange={v=>p.onCurtains({...curtains,size:v})}/>
+     <Slider id="curtain-stiffness" label="Stiffness" value={curtains.stiffness} {...curtainRanges.stiffness} step={.05} show={v=>v?pct(v):'loose'} onChange={v=>p.onCurtains({...curtains,stiffness:v})}/>
      <Slider id="curtain-spacing" label="Shape spacing" value={curtains.spacing} {...curtainRanges.spacing} step={.05} show={pct} onChange={v=>p.onCurtains({...curtains,spacing:v})}/>
     </div>}
    </Group>

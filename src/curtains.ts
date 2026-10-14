@@ -11,21 +11,22 @@ import {rng,palette} from './model';
  */
 /**
  * `density`: strands per forearm; `length`, `size` and `spacing` scale the strands' length, the shapes' size and the
- * gap between shapes (1 = 18–32 cm strands, 2.2–3.4 cm shapes about 4.5 cm apart).
+ * gap between shapes (1 = 18–32 cm strands, 2.2–3.4 cm shapes about 4.5 cm apart). `stiffness` 0 is a loose rope; up to
+ * 1 the strands resist bending (each link leans toward the line of the one above) and swing less.
  */
 /** Where curtains can hang (checkboxes in the Look tab). */
 export const curtainPlaces=['head','torso','pelvis','upperarms','forearms','thighs','shins'] as const;
 export type CurtainPlace=typeof curtainPlaces[number];
 export const curtainPlaceNames:Record<CurtainPlace,string>={head:'Head',torso:'Top piece',pelvis:'Bottom piece',upperarms:'Upper arms',forearms:'Forearms',thighs:'Thighs',shins:'Shins'};
-export interface CurtainSettings {on:boolean;colors:'one'|'random';density:number;length:number;size:number;spacing:number;places:Record<CurtainPlace,boolean>;}
-export const defaultCurtains:CurtainSettings={on:true,colors:'random',density:7,length:1,size:1,spacing:1,places:{head:true,torso:true,pelvis:false,upperarms:false,forearms:true,thighs:false,shins:false}};
-export const curtainRanges={density:{min:2,max:40},length:{min:.4,max:2.5},size:{min:.4,max:2.5},spacing:{min:.4,max:3}};
+export interface CurtainSettings {on:boolean;colors:'one'|'random';density:number;length:number;size:number;spacing:number;stiffness:number;places:Record<CurtainPlace,boolean>;}
+export const defaultCurtains:CurtainSettings={on:true,colors:'random',density:7,length:1,size:1,spacing:1,stiffness:0,places:{head:true,torso:true,pelvis:false,upperarms:false,forearms:true,thighs:false,shins:false}};
+export const curtainRanges={density:{min:2,max:40},length:{min:.4,max:2.5},size:{min:.4,max:2.5},spacing:{min:.4,max:3},stiffness:{min:0,max:1}};
 export const normalizeCurtains=(value:unknown):CurtainSettings=>{
  const v=(value??{}) as Partial<CurtainSettings>,num=(k:keyof typeof curtainRanges)=>{const n=Number(v[k]),r=curtainRanges[k];return Number.isFinite(n)?Math.min(r.max,Math.max(r.min,k==='density'?Math.round(n):n)):defaultCurtains[k];};
  // (Older settings had arms/torso/head switches.)
  const old=v as Partial<Record<'arms'|'torso'|'head',boolean>>,given=(v.places??{}) as Partial<Record<CurtainPlace,boolean>>;
  const places=Object.fromEntries(curtainPlaces.map(p=>[p,typeof given[p]==='boolean'?given[p]:p==='forearms'&&typeof old.arms==='boolean'?old.arms:(p==='torso'||p==='head')&&typeof old[p]==='boolean'?old[p]:defaultCurtains.places[p]])) as Record<CurtainPlace,boolean>;
- return {on:v.on!==false,colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing'),places};
+ return {on:v.on!==false,colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing'),stiffness:num('stiffness'),places};
 };
 type Point2=[number,number];
 /** Bead outlines around (0, 0), pointing along +y (the strand's direction): circle, square, triangle, diamond, hexagon. */
@@ -39,7 +40,7 @@ const beadShapes:((r:number)=>Point2[])[]=[
 export const curtainShapeNames=['Circle','Square','Triangle','Diamond','Hexagon'];
 /** Palette colours a curtain may take: every colour but the paper white and the darks. */
 export const curtainColours=palette.map((_,i)=>i).filter(i=>!['neutral','dark'].includes(palette[i].family));
-const gravity=-9.8,damping=.985,step=1/60,passes=12,links=9,ribbon=.006,smooth=3;
+const gravity=-9.8,step=1/60,passes=12,links=9,ribbon=.006,smooth=3;
 interface Bead {t:number;r:number;shape:number;colour:number;}
 interface Strand {bone:THREE.Bone;side:string;anchor:THREE.Vector3;link:number;pos:THREE.Vector3[];prev:THREE.Vector3[];colour:number;beads:Bead[];}
 interface Layer {colour:number;kind:'string'|'bead';side:string;mesh:THREE.Mesh;positions:Float32Array;count:number;}
@@ -83,6 +84,8 @@ export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:stri
  }
  const groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),anchor=new THREE.Vector3(),velocity=new THREE.Vector3(),dir=new THREE.Vector3();
  const toGroup=(bone:THREE.Bone)=>{group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();return frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
+ // Stiffness: a bending pull per pass, and a little more damping so a stiff strand swings less.
+ const bend=settings.stiffness*.45,damping=.985-.035*settings.stiffness;
  const simulate=(dt:number)=>{
   for(const s of strands){
    anchor.copy(s.anchor).applyMatrix4(toGroup(s.bone));s.pos[0].copy(anchor);s.prev[0].copy(anchor);
@@ -91,6 +94,8 @@ export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:stri
    for(let pass=0;pass<passes;pass++)for(let i=1;i<s.pos.length;i++){
     const a=s.pos[i-1],b=s.pos[i];dir.subVectors(b,a);const d=dir.length()||1e-9,fix=(d-s.link)/d;
     if(i===1)b.addScaledVector(dir,-fix);else{a.addScaledVector(dir,fix/2);b.addScaledVector(dir,-fix/2);}
+    // Bending: this point leans toward the straight continuation of the link above it.
+    if(bend>0&&i>=2){dir.subVectors(s.pos[i-1],s.pos[i-2]).setLength(s.link).add(s.pos[i-1]);b.lerp(dir,bend);}
    }
    // Then one pass from the pin down sets every link to its exact length (a sudden arm move cannot stretch the rope).
    for(let i=1;i<s.pos.length;i++){dir.subVectors(s.pos[i],s.pos[i-1]);const d=dir.length();if(d>1e-9)s.pos[i].copy(s.pos[i-1]).addScaledVector(dir,s.link/d);}

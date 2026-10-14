@@ -42,7 +42,7 @@ const curtains=s=>{
  const n=(k,min,max)=>{const v=Number(s[k]);if(!Number.isFinite(v)||v<min||v>max)throw new Error(`Invalid curtains ${k}`);return Math.round(v*100)/100;};
  const places=['head','torso','pelvis','upperarms','forearms','thighs','shins'];
  if(!s.places||!places.every(p=>typeof s.places[p]==='boolean'))throw new Error('Invalid curtain places');
- return {on:s.on,colors:s.colors,density:s.density,length:n('length',.4,2.5),size:n('size',.4,2.5),spacing:n('spacing',.4,3),places:Object.fromEntries(places.map(p=>[p,s.places[p]]))};
+ return {on:s.on,colors:s.colors,density:s.density,length:n('length',.4,2.5),size:n('size',.4,2.5),spacing:n('spacing',.4,3),stiffness:n('stiffness',0,1),places:Object.fromEntries(places.map(p=>[p,s.places[p]]))};
 };
 const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
 

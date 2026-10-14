@@ -959,3 +959,6 @@ Anh Nam thấy kiểu Leaves giống tai thỏ: chuyển thành kiểu nghỉ (s
 - Rèm gắn được vào đầu, khối trên, khối dưới, bắp tay, cẳng tay, đùi, ống chân (ô tích). Ở khối thân, các sợi ghim dọc mép nửa trên của khối (lần theo đường viền, mỗi 1 cm), vẽ trên khối như tua áo; ở đầu, ghim dọc mép nửa dưới của đầu và vẽ sau toàn bộ cơ thể như tóc. Các sợi chia đều theo chiều dài đường ghim. Số sợi mỗi chỗ tối đa 40.
 - Giao diện: bảng bên phải bị tràn (nút Save all as default đè lên bảng Rules). Mọi tùy chọn hình ảnh chuyển sang tab mới **Look** (`src/LookPanel.tsx`): nhóm thu gọn được (Patterns, Colour & print, Effects, Curtains), cuộn bên trong bảng, Save all as default và Reset cố định ở đáy. Tab Parts chỉ còn danh sách bộ phận và dòng khóa.
 
+## 73. Độ cứng của rèm (14/10/2026)
+
+Anh Nam muốn thanh chỉnh độ cứng cho rèm. **Stiffness** 0–100% (mặc định 0, dây thả lỏng như trước): mỗi lượt ràng buộc kéo từng điểm về phía đường thẳng nối tiếp đoạn phía trên (tối đa 45%/lượt), và giảm chấn tăng nhẹ (0,985 → 0,95) nên sợi cứng đung đưa ít hơn. Test: sau cùng một cú vung, sợi cứng cong ít hơn 60% so với sợi thả lỏng.
