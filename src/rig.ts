@@ -321,16 +321,17 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   const material=materialFor(def,choice,spec,weavePalette,colorOf,proportions);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
  });
- // Finger balls in the hand's accent colour, their own (fingers.ts); drawn just under their hand.
- const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:colorOf(spec.parts[`hand_${side}`].accent)})),proportions.fingers,proportions.fingerStiffness);
- // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, in the foot's accent colour. They
- // always touch without overlapping, one diameter apart and centred on the foot; the Toes slider widens the row.
+ // Fingers and toes are circles of one size and one colour (the hands' accent), sized by the Fingers & toes slider.
+ const digitRadius=.028*proportions.fingers,digitColor=colorOf(spec.parts.hand_L.accent);
+ const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:digitColor})),digitRadius,proportions.fingerStiffness);
+ // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, the same size and colour as the
+ // fingers. They always touch without overlapping, one diameter apart and centred on the foot.
  const toes=(['L','R'] as const).map(side=>{
   const foot=group.getObjectByName(`foot_${side}_mesh`) as THREE.SkinnedMesh,bone=map.get(`foot_${side}`)!,index=bones.findIndex(b=>b.id===`foot_${side}`);
-  foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,width=box.max.x-box.min.x,r=width/10*proportions.toes;
+  foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,r=digitRadius;
   const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d((box.min.x+box.max.x)/2+(i-2)*2*r,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:index),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
-  const material=new THREE.MeshBasicMaterial({color:colorOf(spec.parts[`foot_${side}`].accent),depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
+  const material=new THREE.MeshBasicMaterial({color:digitColor,depthTest:false,depthWrite:false});addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return mesh;
  });

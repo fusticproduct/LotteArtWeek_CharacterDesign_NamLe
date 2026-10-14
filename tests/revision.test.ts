@@ -360,37 +360,39 @@ it('tapers every arm and leg segment from the size of the joint at one end to th
  }
 });
 
-it('hangs one ragdoll circle per finger, five per hand, in their own colour, never inside the hand or overlapping each other',()=>{
- const spec=generate('fingers'),rig=createCharacter(spec);
+it('arcs five touching ragdoll finger circles around each hand, never inside it, the same size and colour as the toes',()=>{
+ const spec=generate('fingers'),rig=createCharacter(spec),r=rig.fingers.radius;
  expect(rig.fingers.meshes.length).toBe(10);
+ const toe=rig.group.getObjectByName('toes_L') as SkinnedMesh;toe.geometry.computeBoundingBox();
+ expect(toe.geometry.boundingBox!.max.y-toe.geometry.boundingBox!.min.y).toBeCloseTo(2*r,3);
  for(const finger of rig.fingers.meshes){
   expect(finger.renderOrder).toBeLessThan(rig.group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder);
+  expect((finger.material as MeshBasicMaterial).color.getHexString()).toBe((toe.material as MeshBasicMaterial).color.getHexString());
   expect((finger.material as MeshBasicMaterial).color.getHexString()).not.toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.color].hex}).color.getHexString());
  }
- const check=(label:string)=>{const all=rig.fingers.state();all.forEach((f,i)=>{
-  expect(f.pos.distanceTo(f.centre),`${label}: ${i} inside the hand`).toBeGreaterThan(rig.fingers.handRadius+f.radius-1e-6);
-  expect(f.pos.distanceTo(f.pin),`${label}: ${i} off its tether`).toBeLessThan(f.radius*tether+1e-6);
-  for(let j=i+1;j<all.length;j++)if(Math.floor(i/5)===Math.floor(j/5))expect(f.pos.distanceTo(all[j].pos),`${label}: ${i}/${j}`).toBeGreaterThan(f.radius+all[j].radius-.003);
+ const check=(label:string)=>{for(const h of rig.fingers.state())h.pos.forEach((p,i)=>{
+  expect(p.distanceTo(h.centre),`${label}: ${i} inside the hand`).toBeGreaterThan(rig.fingers.handRadius+r-1e-6);
+  expect(p.distanceTo(h.pin[i]),`${label}: ${i} off its tether`).toBeLessThan(r*tether+.003);
+  if(i)expect(p.distanceTo(h.pos[i-1]),`${label}: ${i} touches ${i-1}`).toBeCloseTo(2*r,2);
+  for(let j=i+2;j<5;j++)expect(p.distanceTo(h.pos[j]),`${label}: ${i}/${j}`).toBeGreaterThan(2*r-.003);
  });};
  rig.applyPose('idle');rig.settleFingers();check('idle');
- // At rest a finger sits close to its spot on the rim.
- for(const f of rig.fingers.state())expect(f.pos.distanceTo(f.pin)).toBeLessThan(f.radius*1.6);
  rig.applyPose('reach');for(let i=0;i<30;i++){rig.tick(1/60);check(`swing ${i}`);}
  rig.dispose();expect(rig.group.getObjectByName('finger_L')).toBeUndefined();
 });
 
-it('puts five toes along each sole over the foot, in the foot accent colour, and sizes fingers and toes from the sliders',()=>{
+it('puts five touching toes along each sole over the foot, and sizes fingers and toes together from one slider',()=>{
  const spec=generate('toes'),rig=createCharacter(spec);
  for(const side of ['L','R']){
   const toes=rig.group.getObjectByName(`toes_${side}`) as SkinnedMesh,foot=rig.group.getObjectByName(`foot_${side}_mesh`) as SkinnedMesh;
   expect(toes.renderOrder).toBeGreaterThan(foot.renderOrder);
-  expect((toes.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:palette[spec.parts[`foot_${side}`].accent].hex}).color.getHexString());
+  expect((toes.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.accent].hex}).color.getHexString());
  }
  // The figure stands on its toes' lowest point.
  rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
  expect(low).toBeCloseTo(0,2);
- const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5,toes:1.5});
- expect(big.fingers.state()[2].radius).toBeCloseTo(rig.fingers.state()[2].radius*1.5,6);
+ const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5});
+ expect(big.fingers.radius).toBeCloseTo(rig.fingers.radius*1.5,6);
  // Bigger toes widen the row by the same factor, so the circles still touch without overlapping.
  const size=(r:ReturnType<typeof createCharacter>)=>{const g=(r.group.getObjectByName('toes_L') as SkinnedMesh).geometry;g.computeBoundingBox();const b=g.boundingBox!;return [b.max.x-b.min.x,b.max.y-b.min.y];};
  expect(size(big)[1]/size(rig)[1]).toBeCloseTo(1.5,1);expect(size(rig)[0]/size(rig)[1]).toBeCloseTo(5,1);expect(size(big)[0]/size(big)[1]).toBeCloseTo(5,1);

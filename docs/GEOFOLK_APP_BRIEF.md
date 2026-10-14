@@ -788,3 +788,9 @@ Anh Nam: thêm lưu mặc định cho mọi cài đặt.
 
 - Nút "Save all as default" (tab Proportions) lưu các tỉ lệ cùng Checker scale, Flow speed vào src/proportions.json, và palette, thứ tự lớp, Paper texture, nền đen/giấy vào src/settings.json. Server dev ghi hai file và kiểm tra từng giá trị theo khoảng của nó (trước đây chỉ nhận các khoá đã có trong file, nên Fingers, Toes, Checker scale, Flow speed không lưu được). Bản build tĩnh lưu cho trình duyệt đó.
 - Trình duyệt chưa có giá trị riêng thì bắt đầu từ các mặc định này; Reset đưa mọi cài đặt về mặc định đã lưu.
+
+## 50. Ngón tay và ngón chân cùng cỡ, cùng màu; ngón tay chạm nhau (14/10/2026)
+
+- Một bán kính chung 2,8 cm × slider "Fingers & toes" (gộp slider Fingers và Toes) cho mọi hình tròn ngón tay, ngón chân; một màu chung (màu phụ của bàn tay).
+- 5 ngón tay xếp vòng cung ôm mép ngoài bàn tay, mỗi ngón chạm ngón cạnh (tâm cách nhau một đường kính, góc 2·asin(r/(R+r))). Vật lý giữ: ngón cạnh nhau luôn chạm, không ngón nào trong tay, không chồng nhau (12 vòng giải mỗi bước).
+- Flow speed được âm (-300% đến 300%): màu trôi ngược chiều.

@@ -86,9 +86,9 @@ export const restHeight=2.4;
  * Global look proportions (Proportions tab): 1 = the studio default. Kept per browser like the weave palette,
  * not in the seed. Bone lengths never change; only the parts' size, and the shoulders follow the torso edge.
  */
-export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','toes','checker','flowSpeed'] as const;
+export const proportionKeys=['head','torsoWidth','torsoHeight','pelvis','arms','legs','hands','feet','joints','fingers','fingerStiffness','checker','flowSpeed'] as const;
 export type Proportions=Record<typeof proportionKeys[number],number>;
-export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,toes:1,checker:1,flowSpeed:1};
+export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,pelvis:1,arms:1,legs:1,hands:1,feet:1,joints:1,fingers:1,fingerStiffness:1,checker:1,flowSpeed:1};
 export const proportionRange={min:.5,max:1.5};
 /**
  * Pattern look settings kept with the proportions (per browser, in the undo history) but shown under Pattern scale in
