@@ -78,7 +78,8 @@ export const variants:Record<SlotKind,string[]>={
  leg:['Taper','Bell','Stack','Chain','Octagon','Pill'],
  hand:['Sphere','Cube','Ring','Cone','Octagon','Capsule'],
  foot:['Flare','Dome','Wedge','Puck','Bell','Octagon'],
- face:['Dot','Dash','Triangle','Twin dots','Ring','Bar'],
+ // Face marks are always filled shapes, never outlines (Nam, 2026-10-14): the old Ring is now a Diamond.
+ face:['Dot','Dash','Triangle','Twin dots','Diamond','Bar'],
 };
 export const restHeight=2.4;
 /**

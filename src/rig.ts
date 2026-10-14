@@ -168,13 +168,13 @@ const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:ellipse2d(0,.01,.3,.3,0,Math.PI,48),markY:.13},
 ];
 const box2d=(w:number,h:number):Point2[]=>[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]];
-/** Face marks, centred on the mark point: Dot, Dash, Triangle, Twin dots, Ring, Bar. */
+/** Face marks, centred on the mark point, always filled: Dot, Dash, Triangle, Twin dots, Diamond, Bar. */
 const markOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
  [{outline:ellipse2d(0,0,.03,.03,0,Math.PI*2,32)}],
  [{outline:box2d(.026,.09)}],
  [{outline:[[-.04,.025],[.04,.025],[0,-.04]]}],
  [{outline:ellipse2d(-.04,0,.022,.022,0,Math.PI*2,28)},{outline:ellipse2d(.04,0,.022,.022,0,Math.PI*2,28)}],
- [{outline:ellipse2d(0,0,.035,.035,0,Math.PI*2,32),holes:[ellipse2d(0,0,.017,.017,0,Math.PI*2,24)]}],
+ [{outline:[[0,-.044],[.034,0],[0,.044],[-.034,0]]}],
  [{outline:box2d(.09,.024)}],
 ];
 /**

@@ -185,7 +185,7 @@ Seed phiên bản `1` và `2` vẫn mở được, thành Build **Big top** (th�
 | Thigh / Shin | Taper, Bell, Stack, Chain, Octagon, Pill |
 | Hand | Sphere, Cube, Ring, Cone, Octagon, Capsule |
 | Foot | Flare, Dome, Wedge, Puck, Bell, Octagon |
-| Face mark (phẳng) | Dot, Dash, Triangle, Twin dots, Ring, Bar |
+| Face mark (phẳng, luôn là hình đặc) | Dot, Dash, Triangle, Twin dots, Diamond, Bar (Diamond thay Ring cũ) |
 
 ## 7. Bộ xương (26 bone)
 
