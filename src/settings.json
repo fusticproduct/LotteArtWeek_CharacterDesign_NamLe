@@ -22,24 +22,46 @@
  },
  "pixel": {
   "on": true,
-  "size": 0.033,
+  "size": 0.058,
   "fps": 12
  },
  "spray": {
   "on": true,
-  "amount": 0.055
+  "amount": 0.115,
+  "pick": "chosen",
+  "places": {
+   "head": true,
+   "hair": true,
+   "torso": false,
+   "pelvis": false,
+   "upperarms": false,
+   "forearms": false,
+   "hands": false,
+   "thighs": false,
+   "shins": false,
+   "feet": false
+  }
+ },
+ "digits": {
+  "fingers": true,
+  "shape": "random"
+ },
+ "face": {
+  "style": "minimal",
+  "colour": true
  },
  "curtains": {
   "on": true,
+  "look": "random",
   "colors": "random",
-  "density": 40,
-  "length": 1.15,
-  "size": 0.55,
-  "spacing": 1,
+  "density": 18,
+  "length": 1.1,
+  "size": 0.75,
+  "spacing": 1.35,
   "stiffness": 0,
   "places": {
    "head": false,
-   "torso": true,
+   "torso": false,
    "pelvis": true,
    "upperarms": false,
    "forearms": false,
@@ -48,15 +70,25 @@
   }
  },
  "rules": {
+  "colours": 4,
+  "curtainLooks": {
+   "none": 50,
+   "hair": 5,
+   "body": 5,
+   "shirt": 10,
+   "earring": 10,
+   "pants": 10,
+   "longShirt": 10
+  },
   "bodyTypes": {
    "today": 40,
    "orb": 6,
    "baby": 6,
-   "lolly": 6,
-   "brick": 6,
-   "wedge": 6,
-   "brute": 6,
-   "pear": 6,
+   "lolly": 0,
+   "brick": 0,
+   "wedge": 0,
+   "brute": 0,
+   "pear": 0,
    "hour": 6,
    "pole": 6,
    "strider": 6
@@ -78,5 +110,5 @@
   "spray": 1
  },
  "darkStage": true,
- "patternScale": 10
+ "patternScale": 8
 }

@@ -100,10 +100,12 @@ export const hairStyles:HairStyle[]=[
  {name:'Helmet',group:'Helmet',back:[roundBox(50,64,100,94,42)],cap:cap(cy-12)},
  {name:'Halo',group:'Hair',back:[piece([...arc(-.15,Math.PI+.15,66,cx,104),...arc(Math.PI+.15,-.15,50,cx,116)])]},
  {name:'Plume',group:'Helmet',back:[],front:[half(cx,100,44)],dangles:[{anchor:[cx,62],angle:0,rope:12,radii:[15,13,11],accent:[true,true,true]}]},
- {name:'Bucket',group:'Hat',back:[],front:[piece([[60,92],[68,52],[132,52],[140,92]]),inlay([[60,92],[62.4,80],[137.6,80],[140,92]]),piece([[44,104],[56,92],[144,92],[156,104]])]},
+ // Retired (Trung Bao, 2026-10-14): read as a fedora; old seeds open with the Nón lá.
+ {name:'Bucket',group:'Hat',back:[],retired:'Nón lá'},
  {name:'Blocks',group:'Robot',back:[],retired:'Slab'},
  // Winter headwear: a top hat resting on the head, a band round its crown.
- {name:'Top hat',group:'Hat',sits:true,back:[box(64,30,72,54),inlay([[64,64],[136,64],[136,76],[64,76]]),roundBox(44,82,112,10,5)]},
+ // Retired (Trung Bao, 2026-10-14): old seeds open with the Beanie.
+ {name:'Top hat',group:'Hat',back:[],retired:'Beanie'},
  {name:'Ball top',group:'Hair',back:[],cap:cap(cy-18),dangles:[{anchor:[cx,70],angle:0,rope:20,radii:[32],accent:[false]}]},
  {name:'Knight',group:'Robot',back:[],retired:'Visor'},
  // Retired: Nam saw bunny ears in it.
@@ -123,8 +125,9 @@ export const hairStyles:HairStyle[]=[
  // and every corner sharp so the triangles' points meet the square's corners exactly.
  back:[inlay([[62,16],[138,16],[138,92],[62,92]],false),inlay([[62,16],[cx,54],[62,92]]),inlay([[138,16],[138,92],[cx,54]])]},
  // Ragdoll: a star on an antenna above a cap (the punk heads).
- {name:'Asterisk',group:'Robot',back:[],retired:'Star'},
- {name:'Star',group:'Robot',back:[],cap:cap(cy-14),dangles:[{anchor:[cx,72],angle:0,rope:6,radii:[7,7,23],accent:[false,false,true],tip:star(23)}]},
+ {name:'Asterisk',group:'Robot',back:[],retired:'Antenna'},
+ // Retired (Trung Bao, 2026-10-14): old seeds open with the Antenna.
+ {name:'Star',group:'Robot',back:[],retired:'Antenna'},
  // Punk: a block with a zigzag top; big spikes with a headband.
  {name:'Mohawk',group:'Hair',back:[symmetric([[76,100],[72,30],[84,44],[91,12],[cx,32]])]},
  {name:'Punk',group:'Hair',back:Array.from({length:5},(_,i)=>spike(Math.PI*(.12+.76*i/4),r*.8,r*1.8,.3)),band:{top:86,bottom:100,grow:3}},
@@ -132,6 +135,9 @@ export const hairStyles:HairStyle[]=[
  {name:'Shades',group:'Hat',back:[],cover:false,front:[roundBox(58,72,38,22,8,true),roundBox(104,72,38,22,8,true),box(94,78,12,7,true)]},
  // A wide dotted mushroom hat.
  {name:'Mushroom',group:'Hat',back:[],front:[half(cx,100,58),circle(cx,66,9,true),circle(75,86,8,true),circle(125,86,8,true),circle(82,58,7,true),circle(118,58,7,true)]},
+ // Nón lá (Trung Bao, 2026-10-14): the Vietnamese conical hat, a wide shallow cone over the head with a band in the
+ // accent colour laid flush along its rim. The last free index: seeds keep one base-36 digit per style (36 at most).
+ {name:'Nón lá',group:'Hat',back:[],front:[piece([[16,96],[184,96],[cx,32]]),inlay([[100-84*52/64,84],[100+84*52/64,84],[100+84*58/64,90],[100-84*58/64,90]])]},
 ];
 export const hairStyleNames=hairStyles.map(s=>s.name);
 /** The style a seed's index stands for today: itself, or a retired style's stand-in. */

@@ -1,17 +1,18 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,faceted,mergeGeometries,paper,ellipse2d,type Point2} from './geometry';
-import {rng,bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
+import {rng,bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,hipShapeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
 import {partColors,stageColor} from './themes';
 import {defaultRiso,risoBlends,type RisoSettings} from './riso';
-import {createFingers} from './fingers';
+import {createFingers,defaultDigits,digitOutline,digitShapes,type DigitSettings,type DigitShape} from './fingers';
 import {hairStyles,placeHair} from './hair';
+import {defaultFace,faceColourOf,faceOf,minimalFaces,type FaceSettings,type FaceStyle} from './faces';
 import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
-import {createSpray,defaultSpray,type SpraySettings} from './spray';
-import {createCurtains,defaultCurtains,type CurtainSettings} from './curtains';
+import {createSpray,defaultSpray,sprayPlaces,sprayPlaceBones,type Spray,type SpraySettings} from './spray';
+import {createCurtains,curtainsFor,defaultCurtains,type CurtainSettings} from './curtains';
 import {rules} from './rules';
 import {bodyTypeById,lengthScale,typedProportions} from './bodyTypes';
 import {bodyLayout,bodyRound,hipBelow,shoulderBeside,halfWidthAt,hipY,waistRadius,type BodyLayout} from './body';
@@ -104,11 +105,22 @@ export const patchworkTile=patchworkUnits*.035;
 /** World size (m) of one weave tile for a pattern-scale value: higher scale = more, smaller cells. */
 export const weaveTileSize=(density:number)=>weaveDensity/(density*2)*.64;
 const weaveCache=new Map<string,HTMLCanvasElement>();
-function weaveCanvas(seed:string,palette:WeavePaletteName,draw:(canvas:HTMLCanvasElement,seed:string,palette:WeavePaletteName)=>unknown=drawWeave,size=2048){
- const key=`${size}|${palette}|${seed}`;let canvas=weaveCache.get(key);
+/** The character's own colours (hex) while the colour budget is on (rules.ts colours below 8): patterns keep to them. */
+const ownColours=(spec:CharacterSpec,colorOf:(index:number)=>string)=>rules().colours>=8?undefined:[...new Set(bones.filter(b=>b.kind!=='face').map(b=>colorOf(spec.parts[b.id].color)))];
+/** The palette indices the character wears while the colour budget is on (curtains keep to them). */
+const ownIndices=(spec:CharacterSpec)=>rules().colours>=8?undefined:[...new Set(bones.filter(b=>b.kind!=='face').map(b=>spec.parts[b.id].color))];
+type PatternDraw=(canvas:HTMLCanvasElement,seed:string,palette:WeavePaletteName,own?:readonly string[])=>unknown;
+/**
+ * Pixels per side of a woven body piece's texture: 2048 in the studio (sharp when zoomed in); a view that shows many
+ * small figures (the Parade) asks for less, which makes each character much faster to build.
+ */
+let weaveSize=2048;
+export const setWeaveTextureSize=(px:number)=>{weaveSize=px;};
+function weaveCanvas(seed:string,palette:WeavePaletteName,draw:PatternDraw=(c,s,p,o)=>drawWeave(c,s,p,weaveDensity,o),size=2048,own?:readonly string[]){
+ const key=`${size}|${palette}|${seed}|${own?.join()??''}`;let canvas=weaveCache.get(key);
  if(!canvas){
   // 2048 px so the threads stay sharp when zoomed in; the cache keeps the last 12 cloths.
-  canvas=document.createElement('canvas');canvas.width=canvas.height=size;draw(canvas,seed,palette);
+  canvas=document.createElement('canvas');canvas.width=canvas.height=size;draw(canvas,seed,palette,own);
   weaveCache.set(key,canvas);if(weaveCache.size>12)weaveCache.delete(weaveCache.keys().next().value!);
  }
  return canvas;
@@ -118,7 +130,7 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
  const material=new THREE.MeshBasicMaterial({color:colorOf(p.color),depthTest:false,depthWrite:false});
  if(p.pattern===flow&&typeof document!=='undefined'){
   // Flow: a looping colour strip mapped along the part's own flow direction (see flowUV); tick() slides it.
-  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|flow`,weavePalette,drawFlow,512));
+  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|flow`,weavePalette,drawFlow,512,ownColours(spec,colorOf)));
   texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=THREE.RepeatWrapping;texture.repeat.set(1/flowSpan,1);
   material.map=texture;material.color.setRGB(1,1,1);
  }
@@ -126,7 +138,7 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
   // Mapped flat in metres like the weave; each of the two spots has its own look: the patchwork quilt, or stripes or
   // checks in two of the character's colours (one period of them per texture, repeated).
   const style=checkerStyleOf(spec,b.id);let texture:THREE.CanvasTexture,period=patchworkTile;
-  if(style===0)texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,1024));
+  if(style===0)texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|patchwork`,weavePalette,drawPatchwork,Math.min(1024,weaveSize),ownColours(spec,colorOf)));
   else{
    const [a,c]=checkerColours(spec,b.id,colorOf),canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d')!;
    ctx.fillStyle=a;ctx.fillRect(0,0,256,256);ctx.fillStyle=c;
@@ -147,7 +159,7 @@ function materialFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,weavePalet
  }
  else if(p.pattern&&patternedKinds.includes(b.kind)&&typeof document!=='undefined'){
   // Basket weave, mapped flat in metres (see planarUV) so it reads as printed cloth, not a wrapped texture.
-  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|${p.color}|${p.accent}|${p.pattern}`,weavePalette));
+  const texture=new THREE.CanvasTexture(weaveCanvas(`${spec.label}|${b.id}|${p.color}|${p.accent}|${p.pattern}`,weavePalette,undefined,weaveSize,ownColours(spec,colorOf)));
   texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=8;
   const tile=weaveTileSize(spec.density);texture.repeat.set(1/tile,1/tile);
   material.map=texture;material.color.setRGB(1,1,1);
@@ -246,6 +258,8 @@ function hairOn(spec:CharacterSpec,prop:Proportions){
  const outline=head.outline.map(([x,y])=>[x*prop.head,(y+lift)*prop.head] as Point2),markTop=(head.markY+.05)*prop.head;
  return placeHair(hairStyles[spec.parts.hair.variant]??hairStyles[0],outline,markTop,prop.hair);
 }
+/** A unit outline scaled evenly so it spans 0 → 0.31 in height, centred on x = 0. */
+function fitHead(points:Point2[]):Point2[]{const ys=points.map(p=>p[1]),lo=Math.min(...ys),k=.31/(Math.max(...ys)-lo);return points.map(([x,y])=>[x*k,(y-lo)*k] as Point2);}
 /** Flat head silhouettes, 0 → 0.31 above the neck; `markY` is where the face mark sits on each. */
 export const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:ellipse2d(0,.155,.155,.155),markY:.16},
@@ -255,16 +269,13 @@ export const headOutlines:{outline:Point2[];markY:number}[]=[
  {outline:[[-.145,0],[.145,0],[.145,.31],[-.145,.31]],markY:.155},
  // A true half circle (never stretched): radius 0.3 keeps the top at the rest height and the flat base on the neck.
  {outline:ellipse2d(0,.01,.3,.3,0,Math.PI,48),markY:.13},
-];
-const box2d=(w:number,h:number):Point2[]=>[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]];
-/** Face marks, centred on the mark point, always filled: Dot, Dash, Triangle, Twin dots, Diamond, Bar. */
-const markOutlines:{outline:Point2[];holes?:Point2[][]}[][]=[
- [{outline:ellipse2d(0,0,.03,.03,0,Math.PI*2,32)}],
- [{outline:box2d(.026,.09)}],
- [{outline:[[-.04,.025],[.04,.025],[0,-.04]]}],
- [{outline:ellipse2d(-.04,0,.022,.022,0,Math.PI*2,28)},{outline:ellipse2d(.04,0,.022,.022,0,Math.PI*2,28)}],
- [{outline:[[0,-.044],[.034,0],[0,.044],[-.034,0]]}],
- [{outline:box2d(.09,.024)}],
+ // More basic shapes (Trung Bao, 2026-10-14), all 0 → 0.31 like the others: a pentagon point up, an octagon flat on
+ // top, a diamond on its point, a trapezoid wide at the base, and a pill (a tall stadium).
+ {outline:fitHead(Array.from({length:5},(_,i)=>{const a=Math.PI/2+i*Math.PI*2/5;return [Math.cos(a),Math.sin(a)] as Point2;})),markY:.14},
+ {outline:fitHead(Array.from({length:8},(_,i)=>{const a=Math.PI/8+i*Math.PI/4;return [Math.cos(a),Math.sin(a)] as Point2;})),markY:.155},
+ {outline:[[0,0],[.19,.155],[0,.31],[-.19,.155]],markY:.15},
+ {outline:[[-.19,0],[.19,0],[.11,.31],[-.11,.31]],markY:.14},
+ {outline:[...ellipse2d(0,.195,.115,.115,0,Math.PI,24),...ellipse2d(0,.115,.115,.115,Math.PI,Math.PI*2,24)],markY:.16},
 ];
 /**
  * Flat joint shapes (Square, Diamond, Hexagon, Ring) with an inner radius r: the segment ends that sit flush on a
@@ -335,7 +346,7 @@ function plugFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportio
  if(b.kind==='pelvis')return plug(body.bottom?.holes,paperRound);
  const joint=/^(shoulder|elbow|knee)_/.exec(b.id)?.[1] as 'shoulder'|'elbow'|'knee'|undefined;
  if(joint&&jointShapeOf(p.variant)!==0)return plug(jointPiece(jointShapeOf(p.variant),jointRadius(spec,joint,prop)).holes,paperRound*.5);
- if(b.id.startsWith('hip_')){const shape=jointShapeOf(spec.parts[`shoulder_${b.id.slice(-1)}`].variant);if(shape!==0)return plug(jointPiece(shape,jointRadius(spec,'knee',prop)).holes,paperRound*.5);}
+ if(b.id.startsWith('hip_'))return plug(jointPiece(hipShapeOf(spec),jointRadius(spec,'knee',prop)).holes,paperRound*.5);
  return null;
 }
 function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry {
@@ -360,8 +371,9 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:jointRadius(spec,b.id.startsWith('knee')?'knee':b.id.startsWith('elbow')?'elbow':'shoulder',prop);
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
   // Hip joints (Nam, 2026-10-14) sit just outside the body piece that carries them, behind it, over the thigh's top end.
-  // They take the shoulders' shape (and, as joint type 0, their colour) at the knees' size, which fits the thigh.
-  if(hip){const shape=jointShapeOf(spec.parts[`shoulder_${b.id.slice(-1)}`].variant),k=jointRadius(spec,'knee',prop);g=shape===0?sphere(k):paper([jointPiece(shape,k)],paperRound*.5);}
+  // They take the shoulders' shape (and, as joint type 0, their colour) at the knees' size, which fits the thigh, but
+  // never a round one (hipShapeOf: Trung Bao, 2026-10-14).
+  if(hip)g=paper([jointPiece(hipShapeOf(spec),jointRadius(spec,'knee',prop))],paperRound*.5);
   else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow')){const shape=jointShapeOf(v);g=shape===0?sphere(r):paper([jointPiece(shape,r)],paperRound*.5);}
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
   if(b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
@@ -385,7 +397,8 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   const front=hairOn(spec,prop).front.filter(p=>!p.accent);g=front.length?paper(front.map(p=>({outline:p.points,sharp:p.sharp})),paperRound):sphere(.001).translate(0,.15,0);
  } else {
   // The face-mark bone sits at a fixed height; move the mark to where it reads best on the chosen head.
-  g=paper(markOutlines[v],markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
+  // Face marks (faces.ts minimalFaces), centred on the mark point, always filled.
+  g=paper((minimalFaces[v]??minimalFaces[0]).pieces,markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
  }
  return g;
 }
@@ -426,15 +439,33 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const fingers=createFingers(group,(['L','R'] as const).map(side=>({side,bone:map.get(`hand_${side}`)!,color:digitColor})),digitRadius,proportions.fingerStiffness,decorate);
  // Toes (Nam, 2026-10-14): five flat circles along each sole, drawn over the foot, the same size and colour as the
  // fingers. They always touch without overlapping, one diameter apart and centred on the foot.
- const toes=(['L','R'] as const).map(side=>{
+ // One set of toes per shape (fingers.ts digitShapes), made at rest so they bind like the rest; setDigits shows one.
+ const toeSets=digitShapes.map(shape=>(['L','R'] as const).map(side=>{
   const foot=group.getObjectByName(`foot_${side}_mesh`) as THREE.SkinnedMesh,bone=map.get(`foot_${side}`)!,index=bones.findIndex(b=>b.id===`foot_${side}`);
   foot.geometry.computeBoundingBox();const box=foot.geometry.boundingBox!,r=digitRadius;
-  const geometry=paper(Array.from({length:5},(_,i)=>({outline:ellipse2d((box.min.x+box.max.x)/2+(i-2)*2*r,box.min.y+r*.15,r,r,0,Math.PI*2,32)})),.002,.02),count=geometry.getAttribute('position').count;
+  const geometry=paper(Array.from({length:5},(_,i)=>({outline:digitOutline(shape,r,Math.PI/2,shape==='circle'?32:24).map(([x,y])=>[x+(box.min.x+box.max.x)/2+(i-2)*2*r,y+box.min.y+r*.15] as Point2)})),.002,.02),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:index),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
   const material=new THREE.MeshBasicMaterial({color:digitColor,depthTest:false,depthWrite:false});decorate(material,geometry);
-  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side};mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`toes_${side}`;mesh.userData={side,shape};mesh.visible=shape==='circle';mesh.position.copy(bone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
   return mesh;
- });
+ }));
+ const toes=toeSets.flat();
+ // Faces (faces.ts): the face mark's mesh shows one library at a time. Each library's face is made the first time it is
+ // asked for, at the mark's place on the head, with a material of its own (the paper look is measured on its shape);
+ // swapping the mesh's shape keeps its place among the layers, and exports take whichever face is showing.
+ const faceMesh=group.getObjectByName('face_mark_mesh') as THREE.SkinnedMesh,faceIndex=bones.findIndex(b=>b.id==='face_mark'),markColour=colorOf(spec.parts.face_mark.color);
+ const faces=new Map<FaceStyle,{geometry:THREE.BufferGeometry;material:THREE.MeshBasicMaterial}>([['minimal',{geometry:faceMesh.geometry,material:faceMesh.material as THREE.MeshBasicMaterial}]]);
+ const faceFor=(style:FaceStyle)=>{
+  let made=faces.get(style);
+  if(!made){
+   const geometry=paper(faceOf(spec,style).pieces,markRound,.02),count=geometry.getAttribute('position').count;
+   geometry.scale(proportions.head,proportions.head,proportions.head);geometry.translate(0,headOutlines[spec.parts.head.variant].markY*proportions.head-bones[faceIndex].headPosition[1],0);
+   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:faceIndex),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
+   const material=new THREE.MeshBasicMaterial({color:markColour,depthTest:false,depthWrite:false,transparent:true});decorate(material,geometry);
+   made={geometry,material};faces.set(style,made);
+  }
+  return made;
+ };
  // Hair (hair.ts) besides the front in the hair colour: behind the head in the hair colour and the accent, and the
  // front's accent pieces (a visor, a stripe, rivets); all ride on the hair bone.
  const hairBone=map.get('hair')!,hairIndex=bones.findIndex(b=>b.id==='hair'),placed=hairOn(spec,proportions);
@@ -467,18 +498,18 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   for(const pixel of pixels)pixel.mesh.renderOrder=pixel.part.renderOrder;
   // Curtains just behind their forearm: strings under the shapes threaded on them.
   // (just behind a limb segment, just over a body piece; the head's behind everything, like long hair)
-  for(const m of curtains.meshes){const bead=m.userData.kind==='bead',key=m.userData.side as string,over=(id:string)=>group.getObjectByName(`${id}_mesh`)!.renderOrder+(bead?.35:.3);m.renderOrder=key==='torso'?over('spine_upper'):key==='pelvis'?over('root'):key==='head'?(bead?-9.9:-10):group.getObjectByName(`${key}_mesh`)!.renderOrder-(bead?.2:.25);}
-  for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;
+  for(const m of curtains.meshes){const bead=m.userData.kind==='bead',key=m.userData.side as string,over=(id:string)=>group.getObjectByName(`${id}_mesh`)!.renderOrder+(bead?.35:.3);m.renderOrder=key==='torso'?over('spine_upper'):key==='pelvis'?over(body.bottom?'root':'spine_upper'):key==='head'?(bead?-9.9:-10):group.getObjectByName(`${key}_mesh`)!.renderOrder-(bead?.2:.25);}
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
   for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
+  for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;
  };
  // The pixel part (pixelate.ts): its own mesh is hidden; the cells are redrawn whenever the pose changes.
  let pixelSettings:PixelSettings=defaultPixel,pixelClock=0;
  // Curtains (curtains.ts), wherever their settings place them: along a limb segment (15–85% of its length), round
  // the upper half of a body piece's edge (drawn over it, like a shirt's fringe), or round the lower half of the head's
  // edge (drawn behind the whole body, like hair).
- let curtainSettings:CurtainSettings=defaultCurtains;
+ let curtainSettings:CurtainSettings=curtainsFor(spec.label,defaultCurtains,rules().curtainLooks);
  /** The part of an outline above (or below) its middle height, traced along the edge in 1 cm steps, as a path. */
  const halfEdge=(outline:Point2[],upper:boolean,toBone:(p:Point2)=>THREE.Vector3)=>{
   const ys=outline.map(p=>p[1]),mid=(Math.min(...ys)+Math.max(...ys))/2,dense:Point2[]=[];
@@ -493,17 +524,22 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const mounts=()=>{const on=curtainSettings.places,limbs=(part:string)=>(['L','R'] as const).map(side=>along(`${part}_${side}`));return [
   ...(on.head?[{key:'head',bone:map.get('head')!,path:halfEdge(headShape.outline,false,([x,y])=>new THREE.Vector3(x*proportions.head,(y+headLift)*proportions.head,0))}]:[]),
   ...(on.torso?[{key:'torso',bone:map.get('spine_upper')!,path:halfEdge(body.top.outline,true,([x,y])=>new THREE.Vector3(x,y-body.pivot,0))}]:[]),
-  ...(on.pelvis&&body.bottom?[{key:'pelvis',bone:map.get('root')!,path:halfEdge(body.bottom.outline,true,([x,y])=>new THREE.Vector3(x,y,0))}]:[]),
+  // A Single body has no bottom piece: its curtain hangs from the lower half of the one piece instead (Trung Bao's Pants
+  // and Earring looks, 2026-10-14).
+  ...(on.pelvis?[body.bottom?{key:'pelvis',bone:map.get('root')!,path:halfEdge(body.bottom.outline,true,([x,y])=>new THREE.Vector3(x,y,0))}:{key:'pelvis',bone:map.get('spine_upper')!,path:halfEdge(body.top.outline,false,([x,y])=>new THREE.Vector3(x,y-body.pivot,0))}]:[]),
   ...(on.upperarms?limbs('upperarm'):[]),...(on.forearms?limbs('forearm'):[]),...(on.thighs?limbs('thigh'):[]),...(on.shins?limbs('shin'):[]),
  ];};
- const makeCurtains=()=>createCurtains(group,mounts(),`${spec.label}|curtains`,curtainSettings,colorOf,decorate);
+ const makeCurtains=()=>createCurtains(group,mounts(),`${spec.label}|curtains`,curtainSettings,colorOf,decorate,ownIndices(spec));
  let curtains=makeCurtains();
- // Spray-blurred parts (spray.ts): off until setSpray turns them on.
- const sprays=sprayPartsOf(spec).map(id=>createSpray(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,`${spec.label}|${id}|spray`));
+ // Spray-blurred parts (spray.ts): made the first time setSpray asks for a part, then kept (off) for the rig's life.
+ const sprays:Spray[]=[],sprayOf=new Map<THREE.Mesh,Spray>();
+ /** A bone's meshes for the spray: its part, and for the hair its back pieces, accents and ragdoll dangles too. */
+ const sprayMeshes=(id:string)=>[group.getObjectByName(`${id}_mesh`) as THREE.Mesh,...(id==='hair'?[...hairExtra,...dangles.meshes]:[])];
+ const sprayFor=(mesh:THREE.Mesh,i:number)=>{let spray=sprayOf.get(mesh);if(!spray){spray=createSpray(group,mesh,`${spec.label}|${mesh.name.replace(/_mesh$/,'')}${i?`|${i}`:''}|spray`);sprayOf.set(mesh,spray);sprays.push(spray);}return spray;};
  const pixels=pixelPartsOf(spec).map(id=>createPixelPart(group,group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh,colorOf(spec.parts[id].color),decorate));
  restack({});
  // Stand the figure on the floor: translate so the lowest posed vertex sits at y = 0.
- const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const [mesh,id] of [...bones.map(def=>[group.getObjectByName(`${def.id}_mesh`),def.id]),...toes.map(t=>[t,`foot_${t.userData.side}`])] as [THREE.SkinnedMesh,string][]){const positions=mesh.geometry.getAttribute('position'),matrix=map.get(id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
+ const ground=()=>{group.position.y=0;group.updateMatrixWorld(true);let minY=Infinity;const vertex=new THREE.Vector3();for(const [mesh,id] of [...bones.map(def=>[group.getObjectByName(`${def.id}_mesh`),def.id]),...toes.filter(t=>t.visible).map(t=>[t,`foot_${t.userData.side}`])] as [THREE.SkinnedMesh,string][]){const positions=mesh.geometry.getAttribute('position'),matrix=map.get(id)!.matrixWorld;for(let i=0;i<positions.count;i+=3){vertex.fromBufferAttribute(positions,i).applyMatrix4(matrix);minY=Math.min(minY,vertex.y);}}group.position.y=-minY;group.updateMatrixWorld(true);skeleton.update();};
  /**
   * A Single body is one piece, so it cannot bend at the waist: the waist turn goes to the whole body instead, and the
   * thighs turn back by the same amount so the legs keep their direction.
@@ -556,7 +592,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
- const dispose=()=>{fingers.dispose();dangles.dispose();curtains.dispose();for(const pixel of pixels)pixel.dispose();for(const spray of sprays)spray.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
+ const dispose=()=>{for(const f of faces.values())if(f.geometry!==faceMesh.geometry){f.geometry.dispose();f.material.dispose();}fingers.dispose();dangles.dispose();curtains.dispose();for(const pixel of pixels)pixel.dispose();for(const spray of sprays)spray.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
  fingers.settle();dangles.settle();curtains.settle();
  // Flow parts slide their colours: each starts at its own phase.
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
@@ -569,15 +605,38 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
  const settleFingers=()=>{fingers.settle();dangles.settle();curtains.settle();for(const pixel of pixels)pixel.update();};
  /** Pixel part settings (pixelate.ts): on/off, cell size, and the rate its cells are redrawn at (0 = with every pose). */
- const setPixel=(s:PixelSettings)=>{pixelSettings=s;pixelClock=0;for(const pixel of pixels)pixel.configure(s);};
- /** Curtain settings (curtains.ts): on/off and one or random colours; the curtains are rebuilt and re-hung. */
- const setCurtains=(s:CurtainSettings)=>{if(JSON.stringify(s)===JSON.stringify(curtainSettings))return;curtainSettings=s;curtains.dispose();curtains=makeCurtains();curtains.settle();stackKey='';restack({});};
- /** Spray blur settings (spray.ts) for the two spray parts; a Donut's hole plug hides with its part. */
- const setSpray=(s:SpraySettings)=>{for(const spray of sprays)spray.configure(s,[group.getObjectByName(spray.part.name.replace(/_mesh$/,'_plug'))].filter(o=>!!o) as THREE.Object3D[]);};
- setSpray(defaultSpray);
+ const setPixel=(s:PixelSettings)=>{pixelSettings=s;pixelClock=0;for(const pixel of pixels)pixel.configure(s);setSpray(spraySettings);};
+ /** Curtain settings (curtains.ts): on/off, the character's look or custom ones; the curtains are rebuilt and re-hung. */
+ const setCurtains=(given:CurtainSettings)=>{const s=curtainsFor(spec.label,given,rules().curtainLooks);if(JSON.stringify(s)===JSON.stringify(curtainSettings))return;curtainSettings=s;curtains.dispose();curtains=makeCurtains();curtains.settle();stackKey='';restack({});};
+ /**
+  * Spray blur settings (spray.ts): the random spray parts, or the chosen places (a pixel part stays pixel while
+  * Pixel parts is on); a Donut's hole plug hides with its part.
+  */
+ let spraySettings:SpraySettings=defaultSpray;
+ /** Finger and toe shape and the fingers on or off (fingers.ts); `random` takes the character's own shape. */
+ const setDigits=(s:DigitSettings)=>{
+  const shape:DigitShape=s.shape==='random'?digitShapes[Math.floor(rng(`${spec.label}|digits`)()*digitShapes.length)]:s.shape;
+  for(const toe of toes)toe.visible=toe.userData.shape===shape;fingers.configure(shape,s.fingers);ground();skeleton.update();
+ };
+ function setSpray(s:SpraySettings){
+  spraySettings=s;
+  const ids=s.pick==='chosen'?sprayPlaces.filter(p=>s.places[p]).flatMap(p=>sprayPlaceBones[p]).filter(id=>!(pixelSettings.on&&pixels.some(px=>px.part.name===`${id}_mesh`))):sprayPartsOf(spec);
+  // Copies are made only once the spray is on (64 per part, most of a character's meshes), so a rig with the spray off
+  // builds fast.
+  const wanted=new Set(s.on?ids.flatMap(id=>sprayMeshes(id).map((mesh,i)=>sprayFor(mesh,i))):[]);
+  for(const spray of sprays)spray.configure({on:s.on&&wanted.has(spray),amount:s.amount},(spray.part.name.endsWith('_mesh')?[group.getObjectByName(spray.part.name.replace(/_mesh$/,'_plug'))]:[]).filter(o=>!!o) as THREE.Object3D[]);
+  // A pixel part hides its own mesh whatever the spray did to it.
+  for(const pixel of pixels)if(pixelSettings.on)pixel.part.visible=false;
+ }
+ /**
+  * Face settings (faces.ts): which library's face shows, in the dark mark colour or in a colour of the character's own
+  * palette (the one that stands out most on its head).
+  */
+ const setFace=(s:FaceSettings)=>{const f=faceFor(s.style);faceMesh.geometry=f.geometry;faceMesh.material=f.material;f.material.color.set(s.colour?faceColourOf(spec,colorOf,markColour):markColour);};
+ setSpray(defaultSpray);setDigits(defaultDigits);setFace(defaultFace);
  // Every part is drawn in three.js's see-through pass, which keeps to renderOrder like the opaque pass does: the spray
  // copies blend for real (spray.ts) and still sit in their part's place among the layers.
  group.traverse(o=>{const m=(o as THREE.Mesh).material;if(m)for(const material of Array.isArray(m)?m:[m])material.transparent=true;});
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setCurtains,setStage,dispose,fingers,hair:dangles,pixels,sprays,curtains:()=>curtains,tick,updateFingers:fingers.update,settleFingers};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setRiso,setPixel,setSpray,setDigits,setCurtains,setFace,setStage,dispose,fingers,hair:dangles,pixels,sprays,curtains:()=>curtains,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

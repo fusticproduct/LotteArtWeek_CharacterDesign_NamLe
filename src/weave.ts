@@ -45,8 +45,16 @@ const rgbHex=(c:number[])=>'#'+c.map(v=>clamp(Math.round(v),0,255).toString(16).
 const mix=(a:string,b:string,t:number)=>{const A=hexRgb(a),B=hexRgb(b);return rgbHex(A.map((v,i)=>v+(B[i]-v)*t));};
 const tone=(a:string,d:number)=>mix(a,d>=0?'#FFFFFF':'#000000',Math.abs(d));
 
-function buildPalette(r:Rng,name:WeavePaletteName):Palette{
+/**
+ * The colours a pattern may use: the palette's, or, under the colour budget (rules.ts colours; Trung Bao, 2026-10-14),
+ * only the character's own (`own`, hex), with a lighter and a paler tone of each, so a woven piece stays in the family.
+ */
+function sourceOf(name:WeavePaletteName,own?:readonly string[]){
  const src=weavePalettes[name];
+ return own?.length?{bg:src.bg,main:[...own],secondary:own.map(c=>tone(c,.22)),accent:own.map(c=>mix(c,'#FFFFFF',.62))}:src;
+}
+function buildPalette(r:Rng,name:WeavePaletteName,own?:readonly string[]):Palette{
+ const src=sourceOf(name,own);
  const bg=pick(r,[...src.bg,...src.main,...src.secondary,...src.accent]);
  const main=shuffle(r,src.main.filter(c=>c!==bg)).slice(0,Math.min(4,Math.max(1,src.main.length-1)));
  const secondary=shuffle(r,src.secondary.filter(c=>c!==bg)).slice(0,Math.min(4,Math.max(1,src.secondary.length-1)));
@@ -111,9 +119,9 @@ function addTexture(ctx:CanvasRenderingContext2D,W:number,H:number,r:Rng){
 }
 
 /** Draws one weave tile. `seed` fixes every random choice; returns the number of columns/rows drawn. */
-export function drawWeave(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName,density=weaveDensity){
+export function drawWeave(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName,density=weaveDensity,own?:readonly string[]){
  const ctx=canvas.getContext('2d')!,W=canvas.width,H=canvas.height,r=rngFrom(seed);
- const formation=pick(r,FORMATIONS),palette=buildPalette(r,paletteName),{cols,rows}=chooseCounts(r,density,formation);
+ const formation=pick(r,FORMATIONS),palette=buildPalette(r,paletteName,own),{cols,rows}=chooseCounts(r,density,formation);
  ctx.clearRect(0,0,W,H);ctx.fillStyle=palette.bg;ctx.fillRect(0,0,W,H);
  const cellW=W/cols,cellH=H/rows,baseCell=Math.min(cellW,cellH);
  const vWidths=lineWidths(r,cols,cellW,'v',formation),hWidths=lineWidths(r,rows,cellH,'h',formation);
@@ -146,8 +154,8 @@ export function drawWeave(canvas:HTMLCanvasElement,seed:string,paletteName:Weave
  * Flow gradient (Nam, 2026-10-14): 2 or 3 of the palette's strong colours in a loop (first, second, [third,] back to the
  * first), drawn as a strip that repeats without a seam, so sliding it along a part keeps the colours moving.
  */
-export function drawFlow(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName){
- const src=weavePalettes[paletteName],r=rngFrom(seed),ctx=canvas.getContext('2d')!,strong=[...src.main,...src.secondary].filter(c=>lightness(c)<.85);
+export function drawFlow(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName,own?:readonly string[]){
+ const src=sourceOf(paletteName,own),r=rngFrom(seed),ctx=canvas.getContext('2d')!,bright=[...src.main,...src.secondary].filter(c=>lightness(c)<.85),strong=bright.length>=2?bright:[...src.main,...src.secondary];
  const colours=shuffle(r,strong).slice(0,r()<.5?2:3),gradient=ctx.createLinearGradient(0,0,canvas.width,0);
  colours.forEach((c,i)=>gradient.addColorStop(i/colours.length,c));gradient.addColorStop(1,colours[0]);
  ctx.fillStyle=gradient;ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -162,9 +170,9 @@ const lightness=(c:string)=>{const v=hexRgb(c);return (Math.max(...v)+Math.min(.
  * down, in the palette's colours with plenty of pale ones (from the palette, plus a few strong colours washed out).
  * Rows and columns are runs of 2- and 3-unit blocks.
  */
-export function drawPatchwork(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName){
- const src=weavePalettes[paletteName],r=rngFrom(seed),ctx=canvas.getContext('2d')!,u=canvas.width/patchworkUnits,all=[...src.main,...src.secondary,...src.accent];
- const strong=all.filter(c=>lightness(c)<.8),pale=[...all.filter(c=>lightness(c)>=.8),...shuffle(r,strong).slice(0,3).map(c=>mix(c,'#FFFFFF',.7))];
+export function drawPatchwork(canvas:HTMLCanvasElement,seed:string,paletteName:WeavePaletteName,own?:readonly string[]){
+ const src=sourceOf(paletteName,own),r=rngFrom(seed),ctx=canvas.getContext('2d')!,u=canvas.width/patchworkUnits,all=[...src.main,...src.secondary,...src.accent];
+ const solid=all.filter(c=>lightness(c)<.8),strong=solid.length?solid:all,pale=[...all.filter(c=>lightness(c)>=.8),...shuffle(r,strong).slice(0,3).map(c=>mix(c,'#FFFFFF',.7))];
  const colour=()=>pick(r,strong),soft=()=>pick(r,pale);
  const cell=(x:number,y:number,w:number,h:number,c:string)=>{const x0=Math.round(x*u),y0=Math.round(y*u);ctx.fillStyle=c;ctx.fillRect(x0,y0,Math.round((x+w)*u)-x0,Math.round((y+h)*u)-y0);};
  const rows=blockRuns(r,patchworkUnits),cols=blockRuns(r,patchworkUnits);

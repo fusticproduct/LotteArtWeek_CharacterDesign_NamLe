@@ -75,7 +75,7 @@ export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&v>=
 export const bottomShapes=(build:number)=>allShapes.filter(v=>!skirts.includes(v)&&!(build===bigTop&&v===donut));
 export const variants:Record<SlotKind,string[]>={
  // Head, body pieces and face mark are flat 2D shapes (seed version 3); the other parts are still turned 3D shapes.
- head:['Circle','Triangle','Hexagon','Down triangle','Square','Dome'],
+ head:['Circle','Triangle','Hexagon','Down triangle','Square','Dome','Pentagon','Octagon','Diamond','Trapezoid','Pill'],
  torso:bodyShapes,
  pelvis:bodyShapes,
  connector:['Sphere','Bead','Cylinder','Capsule'],
@@ -83,8 +83,10 @@ export const variants:Record<SlotKind,string[]>={
  leg:['Taper','Bell','Stack','Chain','Octagon','Pill'],
  hand:['Sphere','Cube','Ring','Cone','Octagon','Capsule'],
  foot:['Flare','Dome','Wedge','Puck','Bell','Octagon'],
- // Face marks are always filled shapes, never outlines (Nam, 2026-10-14): the old Ring is now a Diamond.
- face:['Dot','Dash','Triangle','Twin dots','Diamond','Bar'],
+ // Face marks are always filled shapes, never outlines (Nam, 2026-10-14): the old Ring is now a Diamond. Then more
+ // single shapes and symmetrical pairs (Trung Bao, 2026-10-14), added after the first six so seeds keep theirs
+ // (faces.ts minimalFaces draws them, in this order).
+ face:['Dot','Dash','Triangle','Twin dots','Diamond','Bar','Square','Dome','Bowl','Hexagon','Plus','Star','Pill','Arc','Chevron','Twin dashes','Twin squares','Twin diamonds','Twin triangles','Twin domes','Twin bowls','Twin bars','Twin slants','Twin stars','Twin pills'],
  hair:hairStyleNames,
 };
 export const restHeight=2.4;
@@ -115,12 +117,17 @@ export const jointShapes=['Sphere','Square','Diamond','Hexagon','Ring'];
  */
 export const jointSizes=[.72,1,1.35],jointSizeNames=['S','M','L'];
 export const jointShapeOf=(v:number)=>v%jointShapes.length,jointSizeOf=(v:number)=>jointSizes[Math.floor(v/jointShapes.length)]??1;
+/**
+ * The hip joints' shape (Trung Bao, 2026-10-14: the joints above the thighs are never round): the shoulders' shape,
+ * unless that is the Sphere or the Ring; then a Square, a Diamond or a Hexagon, drawn from the character's name.
+ */
+export const hipShapeOf=(spec:CharacterSpec)=>{const shape=jointShapeOf(spec.parts.shoulder_L.variant);return shape===0||shape===4?1+Math.floor(rng(`${spec.label}|hips`)()*3):shape;};
 const jointVariants=jointSizeNames.flatMap(size=>jointShapes.map(shape=>`${shape} ${size}`));
 const isBallJoint=(id:string)=>/^(shoulder|elbow|knee)_/.test(id);
 export const variantNames=(bone:BoneDefinition)=>isBallJoint(bone.id)?jointVariants:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
 /** Name shown for a part; a Single body has no bottom piece. */
-/** Hip joints take the shoulders' shape (rig.ts), so their row names that shape. */
-export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id.startsWith('hip_')?jointShapes[jointShapeOf(spec.parts[`shoulder_${bone.id.slice(-1)}`].variant)]:bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
+/** Hip joints take the shoulders' shape unless it is round (hipShapeOf, rig.ts), so their row names their own shape. */
+export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id.startsWith('hip_')?jointShapes[hipShapeOf(spec)]:bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone','Patchwork','Flow'] as const;
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
@@ -234,7 +241,9 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  * Not stored in the seed: the seed keeps each part's colour.
  */
 export const schemeLayouts=['arms-legs','upper-lower','alternate','sides'] as const;
-export interface Scheme {A:number;B:number;C:number;J:number[];H:number;R:number;layout:typeof schemeLayouts[number];}
+export interface Scheme {A:number;B:number;C:number;J:number[];H:number;R:number;layout:typeof schemeLayouts[number];
+ /** The character's colours under the colour budget (rules.ts colours); absent when the budget is off (8). */
+ set?:number[];}
 /** Pinned roles: locked hands/feet (accent), locked joint pairs (by type) and a locked head keep their colour. */
 export interface PinnedScheme {C?:number;J?:(number|undefined)[];H?:number;R?:number;}
 /** Joint type of a joint bone: 0 shoulders (and the hidden hips), 1 elbows, 2 knees. */
@@ -264,7 +273,27 @@ export function drawScheme(random:()=>number,pinned:PinnedScheme={}):Scheme{
  const H=pinned.H??pick(either(vibrant.filter(c=>![A,B,...J].includes(c)),vibrant.filter(c=>![A,B].includes(c))));
  // Hair: its own colour, away from the head's on the colour wheel.
  const R=pinned.R??pick(either(vibrant.filter(c=>c!==H&&hueGap(c,H)>=60),vibrant.filter(c=>c!==H)));
- return {A,B,C,J,H,R,layout:pick(schemeLayouts)};
+ return withinBudget({A,B,C,J,H,R,layout:pick(schemeLayouts)},rules().colours,random,pinned);
+}
+/**
+ * The colour budget (Trung Bao, 2026-10-14, after his reference crowd): a character keeps to `n` colours (4–8; 8 is the
+ * full scheme above). The set is the two body colours and the accent, then the scheme's own picks for the joints, the
+ * head and the hair, in that order, until it holds n. Every role then takes a colour from the set and touching parts
+ * still differ: shoulders and hips (they touch the torso, the limbs and the pelvis) take a colour outside A, B and C;
+ * elbows and knees anything but the limb colours; the head anything but the neck's B; the hair anything but the head's.
+ * The face mark stays dark, outside the budget. Locked parts keep their colours, which may add to the set.
+ */
+function withinBudget(s:Scheme,n:number,random:()=>number,pinned:PinnedScheme):Scheme{
+ if(n>=8)return s;
+ const pick=<T,>(a:readonly T[])=>a[Math.floor(random()*a.length)],add=(set:number[],c:number|undefined)=>{if(c!==undefined&&!set.includes(c))set.push(c);};
+ const set=[s.A,s.B,s.C];for(const c of [s.J[0],s.H,s.J[1],s.R,s.J[2]])if(set.length<n)add(set,c);
+ for(const c of [...(pinned.J??[]),pinned.H,pinned.R])add(set,c);
+ const outside=set.filter(c=>![s.A,s.B,s.C].includes(c)),jointPool=set.filter(c=>c!==s.A&&c!==s.B),fresh=(pool:number[],used:number[])=>{const f=pool.filter(c=>!used.includes(c));return pick(f.length?f:pool);};
+ const J0=pinned.J?.[0]??outside[0]??s.J[0],J1=pinned.J?.[1]??fresh(jointPool,[J0]),J2=pinned.J?.[2]??fresh(jointPool,[J0,J1]);
+ add(set,J0);
+ const H=pinned.H??fresh(set.filter(c=>c!==s.B),[s.A,J0,J1,J2]);
+ const hairPool=set.filter(c=>c!==H),R=pinned.R??pick(hairPool.filter(c=>hueGap(c,H)>=60).length?hairPool.filter(c=>hueGap(c,H)>=60):hairPool);
+ return {...s,J:[J0,J1,J2],H,R,set};
 }
 /** Colour and two-tone accent of a part under a scheme. Neighbours always differ: limbs A/B, joints J (by type), hands, feet and pelvis C, neck and waist B, head H, torso A. */
 export function schemeColor(id:string,s:Scheme):[number,number]{
@@ -285,6 +314,7 @@ export function schemeColor(id:string,s:Scheme):[number,number]{
 const adjacent=(id:string)=>bones.filter(n=>n.id===boneById(id).parent||n.parent===id).map(n=>n.id);
 /** Colours every part that is not frozen from a fresh scheme that fits around the frozen (locked) parts. */
 function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>number){
+ let set:number[]|undefined;
  const kept=(id:string)=>frozen.has(id)?parts[id].color:undefined,pinned:PinnedScheme={};
  for(const id of ['hand_L','foot_L'])pinned.C??=kept(id);
  pinned.J=['shoulder_L','elbow_L','knee_L'].map(kept);pinned.H=kept('head');pinned.R=kept('hair');
@@ -292,12 +322,14 @@ function paint(parts:Record<string,PartChoice>,frozen:Set<string>,random:()=>num
  // Usually the first scheme fits; with many locks, try a few more before patching single parts.
  let scheme=drawScheme(random,pinned);for(let i=0;i<60&&clashes(scheme);i++)scheme=drawScheme(random,pinned);
  for(const b of bones)if(!frozen.has(b.id))[parts[b.id].color,parts[b.id].accent]=schemeColor(b.id,scheme);
+ set=scheme.set;
  for(const b of bones){
   if(frozen.has(b.id)||b.kind==='face')continue;
   const group=mirrorsFully(b.id)?linkedIds(b.id):[b.id];
   const near=group.flatMap(adjacent).filter(id=>!group.includes(id)).map(id=>parts[id].color);
   if(!near.includes(parts[b.id].color))continue;
-  const pool=vibrant.filter(c=>!near.includes(c)),c=pool[Math.floor(random()*pool.length)];
+  // A clash with a locked part: another colour, from the character's own set when the budget allows.
+  const own=(set??[]).filter(c=>!near.includes(c)),pool=own.length?own:vibrant.filter(c=>!near.includes(c)),c=pool[Math.floor(random()*pool.length)];
   for(const id of group)parts[id].color=c;
  }
 }

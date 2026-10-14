@@ -18,15 +18,15 @@ import {rng,palette} from './model';
 export const curtainPlaces=['head','torso','pelvis','upperarms','forearms','thighs','shins'] as const;
 export type CurtainPlace=typeof curtainPlaces[number];
 export const curtainPlaceNames:Record<CurtainPlace,string>={head:'Head',torso:'Top piece',pelvis:'Bottom piece',upperarms:'Upper arms',forearms:'Forearms',thighs:'Thighs',shins:'Shins'};
-export interface CurtainSettings {on:boolean;colors:'one'|'random';density:number;length:number;size:number;spacing:number;stiffness:number;places:Record<CurtainPlace,boolean>;}
-export const defaultCurtains:CurtainSettings={on:true,colors:'random',density:7,length:1,size:1,spacing:1,stiffness:0,places:{head:true,torso:true,pelvis:false,upperarms:false,forearms:true,thighs:false,shins:false}};
+export interface CurtainSettings {on:boolean;look:'random'|'custom';colors:'one'|'random';density:number;length:number;size:number;spacing:number;stiffness:number;places:Record<CurtainPlace,boolean>;}
+export const defaultCurtains:CurtainSettings={on:true,look:'random',colors:'random',density:7,length:1,size:1,spacing:1,stiffness:0,places:{head:true,torso:true,pelvis:false,upperarms:false,forearms:true,thighs:false,shins:false}};
 export const curtainRanges={density:{min:2,max:40},length:{min:.4,max:2.5},size:{min:.4,max:2.5},spacing:{min:.4,max:3},stiffness:{min:0,max:1}};
 export const normalizeCurtains=(value:unknown):CurtainSettings=>{
  const v=(value??{}) as Partial<CurtainSettings>,num=(k:keyof typeof curtainRanges)=>{const n=Number(v[k]),r=curtainRanges[k];return Number.isFinite(n)?Math.min(r.max,Math.max(r.min,k==='density'?Math.round(n):n)):defaultCurtains[k];};
  // (Older settings had arms/torso/head switches.)
  const old=v as Partial<Record<'arms'|'torso'|'head',boolean>>,given=(v.places??{}) as Partial<Record<CurtainPlace,boolean>>;
  const places=Object.fromEntries(curtainPlaces.map(p=>[p,typeof given[p]==='boolean'?given[p]:p==='forearms'&&typeof old.arms==='boolean'?old.arms:(p==='torso'||p==='head')&&typeof old[p]==='boolean'?old[p]:defaultCurtains.places[p]])) as Record<CurtainPlace,boolean>;
- return {on:v.on!==false,colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing'),stiffness:num('stiffness'),places};
+ return {on:v.on!==false,look:v.look==='custom'?'custom':'random',colors:v.colors==='one'?'one':'random',density:num('density'),length:num('length'),size:num('size'),spacing:num('spacing'),stiffness:num('stiffness'),places};
 };
 type Point2=[number,number];
 /** Bead outlines around (0, 0), pointing along +y (the strand's direction): circle, square, triangle, diamond, hexagon. */
@@ -56,8 +56,10 @@ const onPath=(path:THREE.Vector3[],t:number)=>{
  for(let i=0;i<lengths.length;i++){if(left<=lengths[i]||i===lengths.length-1)return path[i].clone().lerp(path[i+1],lengths[i]?Math.min(1,left/lengths[i]):0);left-=lengths[i];}
  return path[0].clone();
 };
-export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:string,settings:CurtainSettings,colorOf:(index:number)=>string,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void){
- const one=curtainColours[Math.floor(rng(`${seed}|colour`)()*curtainColours.length)];
+/** `allowed`: palette indices to draw from (the character's own, under the colour budget); all the curtain colours otherwise. */
+export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:string,settings:CurtainSettings,colorOf:(index:number)=>string,decorate?:(material:THREE.MeshBasicMaterial,geometry:THREE.BufferGeometry)=>void,allowed?:number[]){
+ const pool=allowed?.length?allowed:curtainColours;
+ const one=pool[Math.floor(rng(`${seed}|colour`)()*pool.length)];
  const n=settings.density;
  const strands:Strand[]=mounts.flatMap(arm=>{
   // Pinned evenly along the mount's path. An even hem (Nam, 2026-10-14): every strand of a mount ends on the same line
@@ -66,7 +68,7 @@ export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:stri
   const pins=Array.from({length:n},(_,i)=>onPath(arm.path,(i+.5)/n)),hem=Math.min(...pins.map(a=>a.y))-.25*settings.length;
   return pins.map((anchor,i)=>{
   // Each strand draws from its own stream, so changing one setting does not reshuffle the others; one shape cloned along it.
-  const r=rng(`${seed}|${arm.key}|${i}`),pick=()=>curtainColours[Math.floor(r()*curtainColours.length)];
+  const r=rng(`${seed}|${arm.key}|${i}`),pick=()=>pool[Math.floor(r()*pool.length)];
   const length=anchor.y-hem,shape=Math.floor(r()*beadShapes.length),size=(.011+.006*r())*settings.size,count=Math.max(1,Math.round(length/(.045*settings.spacing)));
   const colour=settings.colors==='one'?one:pick();
   return {bone:arm.bone,side:arm.key,anchor,link:length/links,
@@ -88,7 +90,13 @@ export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:stri
   l.mesh=new THREE.Mesh(geometry,material);l.mesh.name=`curtain_${l.side}`;l.mesh.userData={side:l.side,kind:l.kind};l.mesh.frustumCulled=false;l.mesh.visible=settings.on;group.add(l.mesh);
  }
  const groupInverse=new THREE.Matrix4(),frame=new THREE.Matrix4(),anchor=new THREE.Vector3(),velocity=new THREE.Vector3(),dir=new THREE.Vector3();
- const toGroup=(bone:THREE.Bone)=>{group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();return frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
+ /**
+  * The figure does not move during one update or a settle, so its matrices are brought up to date once (`still`) and
+  * every step reads them as they are: recomputing the whole figure per step was most of a character's build time.
+  */
+ let frozen=false;
+ const still=<T,>(f:()=>T):T=>{group.updateMatrixWorld(true);frozen=true;try{return f();}finally{frozen=false;}};
+ const toGroup=(bone:THREE.Bone)=>{if(!frozen)group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();return frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
  // Stiffness: a bending pull per pass, and a little more damping so a stiff strand swings less.
  const bend=settings.stiffness*.45,damping=.985-.035*settings.stiffness;
  const simulate=(dt:number)=>{
@@ -135,15 +143,44 @@ export function createCurtains(group:THREE.Group,mounts:CurtainMount[],seed:stri
  };
  let pending=0;
  /** Advance by dt seconds (fixed steps, at most four per call) and redraw. */
- const update=(dt:number)=>{if(!settings.on)return;pending=Math.min(pending+dt,4*step);while(pending>=step){simulate(step);pending-=step;}draw();};
+ const update=(dt:number)=>{if(!settings.on)return;still(()=>{pending=Math.min(pending+dt,4*step);while(pending>=step){simulate(step);pending-=step;}draw();});};
  /** Hang every strand straight down from its pin, then let it swing out for a second and a half: a still pose for pictures. */
- const settle=()=>{
+ const settle=()=>still(()=>{
   for(const s of strands){anchor.copy(s.anchor).applyMatrix4(toGroup(s.bone));s.pos.forEach((v,i)=>{v.set(anchor.x,anchor.y-i*s.link,0);s.prev[i].copy(v);});}
   for(let i=0;i<90;i++)simulate(step);draw();
- };
+ });
  const dispose=()=>{for(const l of layers.values()){l.mesh.geometry.dispose();(l.mesh.material as THREE.Material).dispose();group.remove(l.mesh);}};
  /** For the tests: each strand's points and link length, in the group's space. */
  const state=()=>strands.map(s=>({side:s.side,link:s.link,points:s.pos.map(v=>v.clone()),anchor:s.anchor.clone().applyMatrix4(toGroup(s.bone)),colours:[s.colour,...s.beads.map(b=>b.colour)]}));
  return {meshes:[...layers.values()].map(l=>l.mesh),update,settle,dispose,state};
 }
 export type Curtains=ReturnType<typeof createCurtains>;
+/**
+ * Curtain looks (Trung Bao, 2026-10-14): presets made from his settings. With look `random` each character wears one,
+ * drawn from its label by the shares in the Rules panel (rules.ts curtainLooks), so Generate rerolls it; most get none.
+ * `custom` uses the Look tab's own settings. Long shirt has no reference yet: the Shirt, longer.
+ */
+type LookValues=Omit<CurtainSettings,'on'|'look'>;
+const only=(...on:CurtainPlace[])=>Object.fromEntries(curtainPlaces.map(p=>[p,on.includes(p)])) as Record<CurtainPlace,boolean>;
+export const curtainLooks:{id:string;name:string;values:LookValues|null}[]=[
+ {id:'none',name:'None',values:null},
+ {id:'hair',name:'Hair',values:{colors:'random',density:9,length:.4,size:.65,stiffness:0,spacing:.85,places:only('head')}},
+ {id:'body',name:'Body',values:{colors:'random',density:9,length:2.5,size:.65,stiffness:0,spacing:.85,places:only('torso')}},
+ {id:'shirt',name:'Shirt',values:{colors:'random',density:23,length:.7,size:.95,stiffness:0,spacing:1.45,places:only('torso')}},
+ {id:'earring',name:'Earring',values:{colors:'random',density:18,length:1.3,size:.75,stiffness:0,spacing:1.35,places:only('pelvis')}},
+ {id:'pants',name:'Pants',values:{colors:'random',density:18,length:1.1,size:.75,stiffness:0,spacing:1.35,places:only('pelvis')}},
+ {id:'longShirt',name:'Long shirt',values:{colors:'random',density:23,length:1.6,size:.95,stiffness:0,spacing:1.45,places:only('torso')}},
+];
+/** The look a character wears: a weighted draw from its label. */
+export function curtainLookOf(label:string,weights:Record<string,number>){
+ const total=curtainLooks.reduce((a,l)=>a+(weights[l.id]??0),0);if(total<=0)return curtainLooks[0];
+ let x=rng(`${label}|curtain look`)()*total;
+ for(const look of curtainLooks){x-=weights[look.id]??0;if(x<0)return look;}
+ return curtainLooks[0];
+}
+/** The settings the curtains are drawn with: the custom ones, or the character's look. */
+export function curtainsFor(label:string,s:CurtainSettings,weights:Record<string,number>):CurtainSettings{
+ if(!s.on||s.look==='custom')return s;
+ const look=curtainLookOf(label,weights);
+ return look.values?{...s,...look.values}:{...s,on:false};
+}

@@ -2,15 +2,16 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Box3,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {partName,bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
+import {partName,hipShapeOf,bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
 import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {setRules,defaultRules,normalizeRules} from '../src/rules';
-import {bodyTypes,bodyTypeOf} from '../src/bodyTypes';
-import {curtainColours,normalizeCurtains} from '../src/curtains';
+import {bodyTypes,bodyTypeOf,bodyTypeById,liveBodyTypes} from '../src/bodyTypes';
+import {defaultDigits,digitOutline,digitShapes,normalizeDigits} from '../src/fingers';
+import {curtainColours,normalizeCurtains,curtainLooks,curtainLookOf,curtainsFor,defaultCurtains} from '../src/curtains';
 // Tests see the Geofolk of today unless they set body types themselves (bodyTypes.ts).
 const testRules={...defaultRules,bodyTypes:Object.fromEntries(Object.keys(defaultRules.bodyTypes).map(k=>[k,k==='today'?100:0]))};setRules(testRules);
 import {normalizeSettings} from '../src/settings';
@@ -265,6 +266,8 @@ it('scales parts from the Proportions tab without changing bone lengths, and kee
  base.dispose();bigHead.dispose();thick.dispose();side.dispose();
 });
 it('gives each joint type its own colour, the same on both sides and apart from its neighbours, and locks or rerolls a joint pair together',()=>{
+ // The full scheme (colour budget off, rules.ts colours 8).
+ setRules({...testRules,colours:8});try{
  expect(linkedIds('elbow_L')).toEqual(['elbow_L','elbow_R']);expect(isJoint('knee_R')).toBe(true);
  let s=generate('joints-0'),distinct=0;
  for(let i=0;i<120;i++){
@@ -277,6 +280,20 @@ it('gives each joint type its own colour, the same on both sides and apart from 
  }
  // Shoulders, elbows and knees almost always get three different colours.
  expect(distinct).toBeGreaterThan(100);
+ }finally{setRules(testRules);}
+});
+it('keeps each character to its colour budget, touching parts apart, the face mark dark',()=>{
+ for(const n of [4,5,6]){
+  setRules({...testRules,colours:n});
+  try{for(let i=0;i<120;i++){
+   const s=generate(`budget-${n}-${i}`),own=new Set(bones.filter(b=>b.kind!=='face').map(b=>s.parts[b.id].color));
+   expect(own.size,`${n}/${i}`).toBeLessThanOrEqual(n);
+   for(const b of bones){if(b.kind==='face')continue;expect(own.has(s.parts[b.id].accent),`${n}/${i} ${b.id} accent`).toBe(true);if(b.parent&&bones.find(x=>x.id===b.parent)!.kind!=='face')expect(s.parts[b.id].color,`${n}/${i} ${b.id}`).not.toBe(s.parts[b.parent].color);}
+   // The pelvis and the torso piece touch (the waist ball sits behind them): never one colour.
+   expect(s.parts.root.color).not.toBe(s.parts.spine_upper.color);expect(s.parts.hair.color).not.toBe(s.parts.head.color);
+  }}finally{setRules(testRules);}
+ }
+ expect(normalizeRules({colours:2}).colours).toBe(4);expect(normalizeRules({colours:12}).colours).toBe(8);expect(normalizeRules({}).colours).toBe(4);
 });
 it('plays the recorded Dance as a smooth loop and breathes gently around the presets',()=>{
  const count=atob(danceData.layers).length;expect(count/danceFps).toBeGreaterThan(60);
@@ -289,6 +306,8 @@ it('plays the recorded Dance as a smooth loop and breathes gently around the pre
  for(const pose of ['idle','reach','stride'] as const){const calm=presetAngles(pose);for(const t of [0,.7,1.9,3.1]){const a=breathe(pose,t);for(const id of Object.keys(calm))expect(Math.abs(a[id]-calm[id])).toBeLessThan(.04);}}
 });
 it('paints each character with its own scheme (up to eight colours, with the hair), keeps locked colours, and recolours without changing shapes',()=>{
+ // The full scheme (colour budget off, rules.ts colours 8).
+ setRules({...testRules,colours:8});try{
  const roles=(s:ReturnType<typeof generate>)=>new Set(bones.filter(b=>b.kind!=='face').map(b=>s.parts[b.id].color));
  const seen=new Set<string>();
  for(let i=0;i<200;i++){
@@ -305,6 +324,7 @@ it('paints each character with its own scheme (up to eight colours, with the hai
  expect(again.parts.knee_R.color).toBe(base.parts.knee_L.color);
  // Rerolling one part changes only its shape.
  const shape=generate('scheme-shape',base,new Set(),'head');expect(shape.parts.head.color).toBe(base.parts.head.color);
+ }finally{setRules(testRules);}
 });
 
 it('repaints the whole figure from the XMAS and TET sets, keeping neighbours apart and the face mark dark',()=>{
@@ -402,7 +422,7 @@ it('puts five touching toes along each sole over the foot, and sizes fingers and
   expect((toes.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:palette[spec.parts.hand_L.accent].hex}).color.getHexString());
  }
  // The figure stands on its toes' lowest point.
- rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
+ rig.applyPose('idle');let low=Infinity;const v=new Vector3();for(const o of rig.group.children)if(o instanceof SkinnedMesh&&o.visible){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);o.applyBoneTransform(i,v);v.applyMatrix4(o.matrixWorld);low=Math.min(low,v.y);}}
  expect(low).toBeCloseTo(0,2);
  const big=createCharacter(spec,'HFCD',undefined,{...defaultProportions,fingers:1.5});
  expect(big.fingers.radius).toBeCloseTo(rig.fingers.radius*1.5,6);
@@ -447,7 +467,7 @@ it('scales the patchwork cells with Checker scale and the flow speed with Flow s
  const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,checker:2});expect(rig.group.getObjectByName(`${spot}_mesh`)).toBeDefined();rig.dispose();
 });
 
-it('places every hair style on every head: caps and helmets stay above the face mark, the back sits behind the head, in its own colour',()=>{
+it('places every hair style on every head: caps and helmets stay above the face mark (in every face set), the back sits behind the head, in its own colour',()=>{
  for(let head=0;head<variants.head.length;head++)for(let style=0;style<hairStyles.length;style++){
   if(hairStyles[style].retired)continue;
   const spec=generate('hair');spec.parts.head.variant=head;spec.parts.hair.variant=style;const rig=createCharacter(spec),label=`head ${head}, ${hairStyles[style].name}`;
@@ -457,7 +477,8 @@ it('places every hair style on every head: caps and helmets stay above the face 
   const extreme=(m:SkinnedMesh,pick:(a:number,b:number)=>number,start:number)=>{const p=m.geometry.getAttribute('position'),v=new Vector3();let y=start;for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);y=pick(y,v.y);}return y;};
   // (A style whose front is all accent, like Shades, keeps only a hidden speck in the hair colour.)
   front.geometry.computeBoundingBox();const speck=front.geometry.boundingBox!.max.x-front.geometry.boundingBox!.min.x<.01;
-  if(!speck)expect(extreme(front,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));
+  if(!speck)for(const style of ['minimal','expressive','eyes'] as const){rig.setFace({style,colour:false});mark.updateMatrixWorld(true);expect(extreme(front,Math.min,Infinity),`${label}, ${style} face`).toBeGreaterThan(extreme(mark,Math.max,-Infinity));}
+  rig.setFace({style:'minimal',colour:false});
   const accent=rig.group.getObjectByName('hair_front_accent') as SkinnedMesh|undefined;
   if(accent){expect(extreme(accent,Math.min,Infinity),label).toBeGreaterThan(extreme(mark,Math.max,-Infinity));expect(accent.renderOrder,label).toBeGreaterThan(front.renderOrder);expect(accent.renderOrder,label).toBeLessThan(mark.renderOrder);}
   for(const dangle of rig.hair.meshes)expect(dangle.renderOrder,label).toBeLessThan(headMesh.renderOrder);
@@ -490,7 +511,7 @@ it('keeps every hair style symmetrical, and every helmet covers the top of every
 
 it('swings ragdoll hair as the head moves, never stretching or overlapping, and brings it back to rest',()=>{
  const named=(name:string)=>hairStyles.findIndex(s=>s.name===name);
- for(const name of ['Antenna','Plume','Star','Ball top']){
+ for(const name of ['Antenna','Plume','Ball top']){
   const spec=generate('dangles');spec.parts.hair.variant=named(name);const rig=createCharacter(spec);
   const check=(label:string)=>{for(const chain of rig.hair.state()){let from=chain.anchor,reach=chain.rope;chain.balls.forEach((b,i)=>{expect(b.pos.distanceTo(from),`${name} ${label} ${i}`).toBeCloseTo(reach,4);from=b.pos;reach=b.r+(chain.balls[i+1]?.r??0);});}};
   expect(rig.hair.meshes.length,name).toBeGreaterThan(0);check('rest');
@@ -593,7 +614,7 @@ it('lets the pixel part be turned off, resized and redrawn at a low frame rate',
 });
 
 it('spray-blurs two random parts when turned on: see-through copies in the part\'s layer, the part itself hidden',()=>{
- expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({on:true,amount:.15});
+ expect(normalizeSpray(undefined)).toEqual(defaultSpray);expect(normalizeSpray({on:true,amount:9})).toEqual({...defaultSpray,on:true,amount:.15});
  for(let i=0;i<40;i++){
   const spec=generate(`spray-${i}`),ids=sprayPartsOf(spec);
   expect(ids.length).toBeLessThanOrEqual(2);expect(new Set(ids).size).toBe(ids.length);for(const id of pixelPartsOf(spec))expect(ids).not.toContain(id);for(const id of ids)expect(isJoint(id),id).toBe(false);for(const id of ids)expect([0,flow],`${id} has pattern ${spec.parts[id].pattern}`).toContain(spec.parts[id].pattern);
@@ -609,11 +630,27 @@ it('spray-blurs two random parts when turned on: see-through copies in the part\
  }
 });
 
-it('draws the hip joints behind the body piece that carries them but over the thighs, in the shoulders\' shape',()=>{
+it('sprays the chosen places, hair with its back pieces and dangles, and keeps pixel parts pixel',()=>{
+ for(let i=0;i<20;i++){
+  const spec=generate(`spray-pick-${i}`),rig=createCharacter(spec),places={...defaultSpray.places,hair:true,forearms:true};
+  rig.setPixel({on:false,size:.035,fps:0});rig.setSpray({...defaultSpray,on:true,pick:'chosen',places});
+  const on=rig.sprays.filter(s=>s.meshes[0].visible).map(s=>s.part.name);
+  expect(on).toContain('hair_mesh');expect(on).toEqual(expect.arrayContaining(['forearm_L_mesh','forearm_R_mesh']));
+  for(const name of on)expect(['hair_mesh','hair_back','hair_back_accent','hair_front_accent','hair_dangle','forearm_L_mesh','forearm_R_mesh'],name).toContain(name);
+  for(const s of rig.sprays.filter(s=>s.part.name==='hair_dangle')){expect((s.part.material as MeshBasicMaterial).visible).toBe(false);expect(s.part.visible).toBe(true);expect(s.meshes[0].parent).toBe(s.part);}
+  rig.setPixel({on:true,size:.035,fps:0});
+  for(const px of rig.pixels){expect(px.part.visible).toBe(false);expect(rig.sprays.filter(s=>s.part===px.part&&s.meshes[0].visible)).toHaveLength(0);}
+  rig.setSpray({...defaultSpray,on:false,pick:'chosen',places});
+  for(const s of rig.sprays)expect(s.meshes.every(m=>!m.visible)).toBe(true);
+  rig.dispose();
+ }
+});
+
+it('draws the hip joints behind the body piece that carries them but over the thighs, in the shoulders\' shape unless it is round',()=>{
  for(let i=0;i<12;i++){
   const spec=generate(`hips-${i}`),rig=createCharacter(spec),carrier=rig.group.getObjectByName(spec.parts.spine_lower.variant===0?'spine_upper_mesh':'root_mesh')!;
   for(const side of ['L','R']){const hip=rig.group.getObjectByName(`hip_${side}_mesh`)!;expect(hip.renderOrder,`${i} ${side}`).toBeLessThan(carrier.renderOrder);expect(hip.renderOrder).toBeGreaterThan(rig.group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder);}
-  expect(partName(spec,bones.find(b=>b.id==='hip_L')!)).toBe(jointShapes[jointShapeOf(spec.parts.shoulder_L.variant)]);
+  const shoulder=jointShapeOf(spec.parts.shoulder_L.variant);expect(partName(spec,bones.find(b=>b.id==='hip_L')!)).toBe(jointShapes[shoulder===0||shoulder===4?hipShapeOf(spec):shoulder]);expect(['Sphere','Ring']).not.toContain(partName(spec,bones.find(b=>b.id==='hip_L')!));
   rig.dispose();
  }
 });
@@ -659,8 +696,10 @@ it('gives each character a body type, Geofolk today the most, kept in the seed a
  try{
   setRules({...testRules,bodyTypes:defaultRules.bodyTypes});
   const counts:Record<string,number>={};for(let i=0;i<600;i++){const id=bodyTypeOf({label:`bt-${i}`}).id;counts[id]=(counts[id]??0)+1;}
-  expect(Object.keys(counts).length).toBe(bodyTypes.length);
-  for(const b of bodyTypes)if(b.id!=='today')expect(counts.today,b.id).toBeGreaterThan(counts[b.id]*3);
+  expect(Object.keys(counts).length).toBe(liveBodyTypes.length);expect(counts.baby).toBeUndefined();
+  // Bobble Baby is retired: never drawn even with a share, and a seed that has it opens as today.
+  setRules(only('baby'));expect(bodyTypeOf({label:'bt-baby'}).id).toBe('today');expect(bodyTypeById('baby').id).toBe('today');setRules({...testRules,bodyTypes:defaultRules.bodyTypes});
+  for(const b of liveBodyTypes)if(b.id!=='today')expect(counts.today,b.id).toBeGreaterThan(counts[b.id]*3);
   // Kept in the seed; a seed from before body types gets the one its name draws.
   const spec=generate('typed');expect(decodeSeed(encodeSeed(spec)).bodyType).toBe(spec.bodyType);
   expect(decodeSeed(encodeSeed(spec).slice(0,-1)).bodyType).toBe(bodyTypeOf(spec).id);
@@ -668,7 +707,7 @@ it('gives each character a body type, Geofolk today the most, kept in the seed a
   const kept=Array.from({length:12},(_,i)=>generate(`re-${i}`,spec,new Set(),'hair'));for(const k of kept)expect(k.bodyType).toBe(spec.bodyType);
   // Each type: its build and shapes, and its sizes (a Brick is shorter and wider than today, a Strider taller).
   setRules(only('today'));const base=createCharacter(generate('bt-size')),today=base.group.userData.restHeight;base.dispose();
-  for(const [id,taller] of [['brick',false],['strider',true],['baby',false],['pole',true]] as const){
+  for(const [id,taller] of [['brick',false],['strider',true],['brute',false],['pole',true]] as const){
    setRules(only(id));const s=generate('bt-size'),type=bodyTypes.find(b=>b.id===id)!;expect(s.bodyType).toBe(id);
    expect(s.parts.spine_lower.variant,id).toBe(type.body!.build);expect(type.body!.top,id).toContain(s.parts.spine_upper.variant);
    const rig=createCharacter(s),h=rig.group.userData.restHeight;expect(h>today,`${id}: ${h.toFixed(2)} vs ${today.toFixed(2)}`).toBe(taller);
@@ -678,8 +717,40 @@ it('gives each character a body type, Geofolk today the most, kept in the seed a
  }finally{setRules(testRules);}
 });
 
+it('gives each character one curtain look by the rules\' shares, most of them none',()=>{
+ const counts:Record<string,number>=Object.fromEntries(curtainLooks.map(l=>[l.id,0]));
+ for(let i=0;i<2000;i++)counts[curtainLookOf(`look-${i}`,defaultRules.curtainLooks).id]++;
+ for(const l of curtainLooks)expect(Math.abs(counts[l.id]/2000*100-defaultRules.curtainLooks[l.id]),l.id).toBeLessThan(4);
+ expect(curtainLookOf('x',{...defaultRules.curtainLooks,none:0,hair:0,body:0,shirt:0,earring:0,pants:0,longShirt:100}).id).toBe('longShirt');
+ // Random: a look's settings (None turns them off); Custom and Off are left as they are.
+ const label=[...Array(200).keys()].map(i=>`look-${i}`).find(l=>curtainLookOf(l,defaultRules.curtainLooks).id==='shirt')!;
+ expect(curtainsFor(label,defaultCurtains,defaultRules.curtainLooks)).toMatchObject({on:true,density:23,places:{torso:true,head:false}});
+ const bare=[...Array(200).keys()].map(i=>`look-${i}`).find(l=>curtainLookOf(l,defaultRules.curtainLooks).id==='none')!;
+ expect(curtainsFor(bare,defaultCurtains,defaultRules.curtainLooks).on).toBe(false);
+ expect(curtainsFor(label,{...defaultCurtains,look:'custom'},defaultRules.curtainLooks)).toEqual({...defaultCurtains,look:'custom'});
+ expect(normalizeCurtains({}).look).toBe('random');expect(normalizeRules({}).curtainLooks).toEqual(defaultRules.curtainLooks);
+ const rig=createCharacter(generate(label));expect(new Set(rig.curtains().state().map(s=>s.side))).toEqual(new Set(['torso']));expect(rig.curtains().state().length).toBe(23);rig.dispose();
+});
+
+it('draws fingers and toes as circles, diamonds or triangles, and can hide the fingers',()=>{
+ expect(normalizeDigits(undefined)).toEqual(defaultDigits);expect(normalizeDigits({shape:'star',fingers:false})).toEqual({fingers:false,shape:'random'});
+ // Every shape stays inside the circle the physics uses; polygons land on their corners.
+ for(const shape of digitShapes){const rim=digitOutline(shape,1,Math.PI/2);expect(rim.length).toBe(24);for(const [x,y] of rim)expect(Math.hypot(x,y)).toBeLessThanOrEqual(1+1e-9);expect(rim[0][1]).toBeCloseTo(1);}
+ const rig=createCharacter(generate('digits')),toes=()=>rig.group.children.filter(o=>o.name.startsWith('toes_'));
+ for(const shape of digitShapes){
+  rig.setDigits({fingers:true,shape});const shown=toes().filter(o=>o.visible);
+  expect(shown.length).toBe(2);for(const o of shown)expect(o.userData.shape).toBe(shape);
+  rig.settleFingers();for(const m of rig.fingers.meshes)expect(m.visible).toBe(true);
+ }
+ rig.setDigits({fingers:false,shape:'triangle'});for(const m of rig.fingers.meshes)expect(m.visible).toBe(false);expect(toes().filter(o=>o.visible).length).toBe(2);
+ // Random: the character's own shape, the same every time.
+ rig.setDigits(defaultDigits);const first=toes().find(o=>o.visible)!.userData.shape;rig.setDigits({fingers:true,shape:'circle'});rig.setDigits(defaultDigits);expect(toes().find(o=>o.visible)!.userData.shape).toBe(first);
+ const seen=new Set([...Array(30).keys()].map(i=>{const r=createCharacter(generate(`digits-${i}`)),s=r.group.children.find(o=>o.name==='toes_L'&&o.visible)!.userData.shape;r.dispose();return s;}));expect(seen.size).toBe(3);
+ rig.dispose();
+});
+
 it('hangs a relaxed curtain of strands and shapes from both forearms, in one or random palette colours',()=>{
- const spec=generate('curtains'),rig=createCharacter(spec);
+ const spec=generate('curtains'),rig=createCharacter(spec);rig.setCurtains({...defaultCurtains,look:'custom'});
  const check=(label:string)=>{for(const strand of rig.curtains().state()){expect(strand.points[0].distanceTo(strand.anchor),label).toBeLessThan(1e-6);for(let i=1;i<strand.points.length;i++)expect(Math.abs(strand.points[i].distanceTo(strand.points[i-1])-strand.link),label).toBeLessThan(.002);}};
  const strands=rig.curtains().state();for(const place of ['forearm_L','forearm_R','torso','head'])expect(strands.filter(s=>s.side===place).length,place).toBe(7);
  rig.applyPose('reach');rig.settleFingers();check('settled');
@@ -690,7 +761,7 @@ it('hangs a relaxed curtain of strands and shapes from both forearms, in one or 
  for(let i=0;i<20;i++){rig.tick(1/60);check(`swing ${i}`);}
  const moved=rig.curtains().state().some((s,i)=>s.points.some((p,k)=>p.distanceTo(lag[i].points[k])>.005));expect(moved).toBe(true);
  const colours=rig.curtains().state().flatMap(s=>s.colours);for(const c of colours)expect(curtainColours).toContain(c);expect(new Set(colours).size).toBeGreaterThan(3);
- const none={head:false,torso:false,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false},base={on:true,colors:'random' as const,density:7,length:1,size:1,spacing:1,stiffness:0,places:{...none,forearms:true}};
+ const none={head:false,torso:false,pelvis:false,upperarms:false,forearms:false,thighs:false,shins:false},base={on:true,look:'custom' as const,colors:'random' as const,density:7,length:1,size:1,spacing:1,stiffness:0,places:{...none,forearms:true}};
  // Stiffness: after the same swing, stiff strands bend less than loose ones.
  const bendAfterSwing=(stiffness:number)=>{rig.setCurtains({...base,stiffness});rig.applyPose('reach');rig.settleFingers();rig.applyPose('stride');for(let i=0;i<8;i++)rig.tick(1/60);
   return rig.curtains().state().reduce((sum,st)=>{let b=0;for(let i=2;i<st.points.length;i++){const u=st.points[i-1].clone().sub(st.points[i-2]).normalize(),w=st.points[i].clone().sub(st.points[i-1]).normalize();b+=Math.acos(Math.min(1,u.dot(w)));}return sum+b;},0);};
@@ -719,7 +790,7 @@ it('reads older curtain switches into places',()=>{
 });
 
 it('lays bands, stripes and split halves flush over the piece under them (sharp corners), and draws the Bowtie on one whole square',()=>{
- for(const name of ['Bowtie','Cone','Top hat','Bucket']){
+ for(const name of ['Bowtie','Cone','Nón lá']){
   const style=hairStyles.find(s=>s.name===name)!,accents=[...style.back,...(style.front??[])].filter(p=>p.accent);
   expect(accents.length,name).toBeGreaterThan(0);for(const p of accents)expect(p.sharp?.every(Boolean),name).toBe(true);
   // Kept through placing it on a head.

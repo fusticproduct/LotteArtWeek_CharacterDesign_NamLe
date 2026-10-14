@@ -26,7 +26,13 @@ export function createDangles(group:THREE.Group,bone:THREE.Bone,placed:PlacedDan
   return {r:c.r,tip,rest:new THREE.Vector3(c.x,c.y,0),pos:new THREE.Vector3(),prev:new THREE.Vector3(),geometry,mesh};
  })}));
  const balls=chains.flatMap(c=>c.balls);
- const toGroup=()=>{group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
+ /**
+  * The figure does not move during one update or a settle, so its matrices are brought up to date once (`still`) and
+  * every step reads them as they are: recomputing the whole figure per step was most of a character's build time.
+  */
+ let frozen=false;
+ const still=<T,>(f:()=>T):T=>{group.updateMatrixWorld(true);frozen=true;try{return f();}finally{frozen=false;}};
+ const toGroup=()=>{if(!frozen)group.updateMatrixWorld(true);groupInverse.copy(group.matrixWorld).invert();frame.multiplyMatrices(groupInverse,bone.matrixWorld);};
  const simulate=(dt:number)=>{
   toGroup();
   for(const chain of chains){
@@ -54,9 +60,9 @@ export function createDangles(group:THREE.Group,bone:THREE.Bone,placed:PlacedDan
  };
  let pending=0;
  /** Advance by dt seconds (fixed steps, at most four per call) and redraw. */
- const update=(dt:number)=>{if(!balls.length)return;pending=Math.min(pending+dt,4*step);while(pending>=step){simulate(step);pending-=step;}draw();};
+ const update=(dt:number)=>{if(!balls.length)return;still(()=>{pending=Math.min(pending+dt,4*step);while(pending>=step){simulate(step);pending-=step;}draw();});};
  /** Put every circle at rest, then let the physics run a second: a still pose for pictures. */
- const settle=()=>{if(!balls.length)return;toGroup();for(const b of balls){b.pos.copy(b.rest).applyMatrix4(frame);b.prev.copy(b.pos);}for(let i=0;i<60;i++)simulate(step);draw();};
+ const settle=()=>{if(!balls.length)return;still(()=>{toGroup();for(const b of balls){b.pos.copy(b.rest).applyMatrix4(frame);b.prev.copy(b.pos);}for(let i=0;i<60;i++)simulate(step);draw();});};
  const dispose=()=>{for(const b of balls){b.geometry.dispose();(b.mesh.material as THREE.Material).dispose();group.remove(b.mesh);}};
  /** For the tests: each chain's anchor and circle centres and radii, in the group's space. */
  const state=()=>{toGroup();return chains.map(c=>({anchor:c.anchor.clone().applyMatrix4(frame),rope:c.rope,balls:c.balls.map(b=>({pos:b.pos.clone(),r:b.r}))}));};
