@@ -11,7 +11,7 @@ export function renderThumbnail(spec:CharacterSpec,look:ThumbnailLook,width:numb
  renderer??=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.toneMapping=THREE.NoToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setSize(width,height,false);
  const scene=new THREE.Scene();scene.background=new THREE.Color(stageColor(look.weavePalette,look.dark));
- const rig=createCharacter(spec,look.weavePalette,look.layerOrder,look.proportions);rig.setPaper(look.paper);
+ const rig=createCharacter(spec,look.weavePalette,look.layerOrder,look.proportions);rig.setPaper(look.paper);rig.setStage(stageColor(look.weavePalette,look.dark));
  if(look.pose==='dance'){const frame=danceFrame(danceTime);rig.applyAngles(frame.angles);rig.setDepth(frame.depth);}else rig.applyPose(look.pose);
  rig.settleFingers();
  scene.add(rig.group);

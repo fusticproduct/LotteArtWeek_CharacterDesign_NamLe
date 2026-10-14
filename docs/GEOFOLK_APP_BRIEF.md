@@ -823,3 +823,10 @@ Góp ý của anh Nam sau vòng 1: kiểu Ears giống chuột Mickey; gai Sunbu
 - Ragdoll (`src/hairPhysics.ts`): chuỗi hình tròn, hình đầu cách điểm buộc một đoạn dây, các hình sau chạm nhau; verlet với trọng lực, giảm chấn .92, kéo về dáng nghỉ 4%/lượt × 8 lượt (mềm hơn ngón tay), giữ đúng khoảng cách sau mỗi lượt. Ball top, Beanie, Plume, Antenna, Twin antennas.
 - Trong lượt này cũng có: ngón tay vẽ trên bàn tay (mục 52) và cách bàn tay một bán kính (mục 53).
 
+## 55. Lỗ donut mang màu nền (14/10/2026)
+
+Anh Nam: lỗ trong hình donut không được nhìn xuyên; tô bằng màu nền để trông như trong suốt; riêng bàn tay donut thì được nhìn xuyên.
+
+- Khối thân Donut và khớp Ring có thêm một miếng lấp (`<bone>_plug`) hình lỗ, nở thêm 1,5 mm, màu nền sân khấu, vẽ ngay dưới bộ phận (thứ tự −0,05) để mép bộ phận che đường nối. `rig.setStage(màu)` đổi màu khi đổi palette hoặc nền; ảnh ×6 dùng màu nền của chúng.
+- Bàn tay Ring là vòng 3D, giữ nguyên lỗ thật.
+

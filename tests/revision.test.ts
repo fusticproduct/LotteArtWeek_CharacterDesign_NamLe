@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf} from '../src/model';
+import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
@@ -487,4 +487,25 @@ it('swings ragdoll hair as the head moves, never stretching or overlapping, and 
   a.forEach((c,i)=>c.balls.forEach((ball,j)=>expect(ball.pos.distanceTo(b[i].balls[j].pos),`${name} at rest`).toBeLessThan(1e-3)));
   void rest;rig.dispose();
  }
+});
+
+it('fills Donut and Ring holes with the stage colour, just under their part, but leaves the Ring hand open',()=>{
+ const spec=generate('holes');spec.parts.spine_upper.variant=bodyShapes.indexOf('Donut');
+ for(const j of ['shoulder','elbow','knee'])for(const side of ['L','R'])spec.parts[`${j}_${side}`].variant=jointShapes.indexOf('Ring');
+ spec.parts.hand_L.variant=spec.parts.hand_R.variant=variants.hand.indexOf('Ring');
+ const rig=createCharacter(spec);
+ const torso=rig.group.getObjectByName('spine_upper_mesh');
+ const plugs=rig.group.children.filter(o=>o.name.endsWith('_plug')) as SkinnedMesh[];
+ const names=plugs.map(p=>p.name).sort();
+ for(const j of ['shoulder','elbow','knee'])for(const side of ['L','R'])expect(names).toContain(`${j}_${side}_plug`);
+ expect(torso).toBeDefined();if(bodyLayout(spec).top.holes?.length)expect(names).toContain('spine_upper_plug');
+ expect(names.some(n=>n.startsWith('hand_'))).toBe(false);
+ for(const plug of plugs){
+  const part=rig.group.getObjectByName(plug.userData.part)!;
+  expect(plug.renderOrder).toBeLessThan(part.renderOrder);expect(plug.renderOrder).toBeGreaterThan(part.renderOrder-.1);
+  expect((plug.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:'#000000'}).color.getHexString());
+ }
+ rig.setStage('#eae7e6');
+ for(const plug of plugs)expect((plug.material as MeshBasicMaterial).color.getHexString()).toBe(new MeshBasicMaterial({color:'#eae7e6'}).color.getHexString());
+ rig.dispose();
 });

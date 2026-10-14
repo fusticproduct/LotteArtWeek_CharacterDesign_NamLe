@@ -4,7 +4,7 @@ import {beveledCylinder,dome,frustum,puck,flare,bicone,taperedPill,sphere,facete
 import {bones,poseRotation,restHeight,patternedKinds,twoTone,isBeaded,defaultDepth,defaultProportions,single,patchwork,flow,jointShapeOf,jointSizeOf,type CharacterSpec,type BoneDefinition,type PartChoice,type Pose,type LayerDepth,type Proportions} from './model';
 
 import {drawWeave,drawPatchwork,drawFlow,patchworkUnits,weaveDensity,type WeavePaletteName} from './weave';
-import {partColors} from './themes';
+import {partColors,stageColor} from './themes';
 import {createFingers} from './fingers';
 import {hairStyles,placeHair} from './hair';
 import {createDangles} from './hairPhysics';
@@ -260,6 +260,22 @@ function footGeometry(v:number){
  g.scale(1,1,1.12);g.translate(0,0,.02);
  return g;
 }
+/**
+ * Donut holes (Nam, 2026-10-14): the hole of a Donut body piece or a Ring joint is filled with the stage colour, so it
+ * looks see-through but hides whatever is behind it. The plug is 1.5 mm wider than the hole and drawn just under its
+ * part, so no seam shows. The Ring hand (a 3D torus) stays truly open.
+ */
+function plugFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry|null {
+ const plug=(holes:Point2[][]|undefined,round:number)=>holes?.length?paper(holes.map(h=>{
+  const cx=h.reduce((s,q)=>s+q[0],0)/h.length,cy=h.reduce((s,q)=>s+q[1],0)/h.length,r=h.reduce((s,q)=>s+Math.hypot(q[0]-cx,q[1]-cy),0)/h.length,k=1+.0015/Math.max(r,1e-3);
+  return {outline:h.map(([x,y])=>[cx+(x-cx)*k,cy+(y-cy)*k] as Point2)};
+ }),round):null;
+ if(b.kind==='torso')return plug(body.top.holes,paperRound)?.translate(0,-body.pivot,0)??null;
+ if(b.kind==='pelvis')return plug(body.bottom?.holes,paperRound);
+ const joint=/^(shoulder|elbow|knee)_/.exec(b.id)?.[1] as 'shoulder'|'elbow'|'knee'|undefined;
+ if(joint&&jointShapeOf(p.variant)!==0)return plug(jointPiece(jointShapeOf(p.variant),jointRadius(spec,joint,prop)).holes,paperRound*.5);
+ return null;
+}
 function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry {
  const v=p.variant,L=b.length;
  const box=(x:number,y:number,z:number,r=.03)=>new RoundedBoxGeometry(x,y,z,4,r);
@@ -324,6 +340,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
+ const plugMaterial=new THREE.MeshBasicMaterial({color:stageColor(weavePalette,true),depthTest:false,depthWrite:false}),plugs:THREE.SkinnedMesh[]=[];
  bones.forEach((def,index)=>{
   const choice=spec.parts[def.id],shaped=geometryFor(def,choice,spec,proportions,body),geometry=choice.pattern===patchwork?planarUV(shaped):choice.pattern===flow?flowUV(shaped):shaped,count=geometry.getAttribute('position').count;
   const indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
@@ -331,6 +348,11 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
   const material=materialFor(def,choice,spec,weavePalette,colorOf,proportions);addPaper(material,geometry,paperAmount);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`${def.id}_mesh`;mesh.position.copy(map.get(def.id)!.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;mesh.userData={bone:def.id,asset:choice.variant};group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());
+  const hole=plugFor(def,choice,spec,proportions,body);
+  if(hole){
+   const n=hole.getAttribute('position').count;hole.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(n*4).map((_,i)=>i%4?0:index),4));hole.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(n*4).map((_,i)=>i%4?0:1),4));
+   const plug=new THREE.SkinnedMesh(hole,plugMaterial);plug.name=`${def.id}_plug`;plug.userData={part:mesh.name};plug.position.copy(mesh.position);plug.frustumCulled=false;group.add(plug);group.updateMatrixWorld(true);plug.bind(skeleton,plug.matrixWorld.clone());plugs.push(plug);
+  }
  });
  // Fingers and toes are circles of one size and one colour (the hands' accent), sized by the Fingers & toes slider.
  const digitRadius=.028*proportions.fingers,digitColor=colorOf(spec.parts.hand_L.accent);
@@ -367,6 +389,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
+  for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   const head=group.getObjectByName('head_mesh')!.renderOrder,hair=group.getObjectByName('hair_mesh')!.renderOrder;
   for(const extra of hairExtra)extra.renderOrder=extra.name==='hair_front_accent'?hair+.5:head-(extra.userData.accent?.4:.5);
   for(const dangle of dangles.meshes)dangle.renderOrder=head-.6;
@@ -417,6 +440,8 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const setLayerOrder=(order:LayerGroup[])=>restack({order});
  /** Paper grain and tone on or off (A5); a shared uniform, so no rebuild. */
  const setPaper=(on:boolean)=>{paperAmount.value=on?1:0;};
+ /** The stage colour shown through Donut and Ring holes (stageColor in themes.ts); a shared material, so no rebuild. */
+ const setStage=(color:string)=>{plugMaterial.color.set(color);};
  /** Live pose depth: which arm/leg is in front and which arms are behind the body (null = default stacking). */
  const setDepth=(depth:LayerDepth|null)=>restack({depth:depth??defaultDepth});
  const dispose=()=>{fingers.dispose();dangles.dispose();group.traverse(o=>{if(o instanceof THREE.SkinnedMesh){o.geometry.dispose();const m=o.material as THREE.MeshBasicMaterial;m.map?.dispose();m.dispose();}});skeleton.dispose();};
@@ -428,6 +453,6 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);dangles.update(dt);};
  /** Ragdoll fingers and hair: `tick(dt)` every frame; `settleFingers()` (both) before a still picture. */
  const settleFingers=()=>{fingers.settle();dangles.settle();};
- return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
+ return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,setStage,dispose,fingers,hair:dangles,tick,updateFingers:fingers.update,settleFingers};
 }
 export type CharacterRig=ReturnType<typeof createCharacter>;

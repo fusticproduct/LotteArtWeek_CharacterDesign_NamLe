@@ -21,6 +21,8 @@ function World(p:Props){
  useEffect(()=>{rig.applyPose(p.pose);posed.current=true;p.onReady({rig,renderer:gl,scene,camera});},[rig,p.pose,gl,scene,camera,p.onReady]);
  useEffect(()=>rig.setLayerOrder(p.layerOrder),[rig,p.layerOrder]);
  useEffect(()=>rig.setPaper(p.paper),[rig,p.paper]);
+ // Donut and Ring holes show the stage colour (rig.ts plugFor).
+ useEffect(()=>rig.setStage(stageColor(p.weavePalette,p.dark)),[rig,p.weavePalette,p.dark]);
  useEffect(()=>()=>rig.dispose(),[rig]);
  // Fit the figure to the viewport; re-fit when the canvas is resized, the camera is swapped in or the view is reset.
  const fitted=useRef('');
