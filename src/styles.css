@@ -48,3 +48,8 @@
 .rules-fixed ul{margin:0;padding-left:18px;font-size:12px;color:var(--muted);columns:2 320px;column-gap:28px}
 .rules-fixed li{margin-bottom:4px;break-inside:avoid}
 @media(max-width:760px){.rules-panel{margin:24px 12px 32px}.rules-head{flex-direction:column}}
+
+.rule-weights{display:grid;gap:3px}
+.rule-weights label{display:grid;grid-template-columns:92px 1fr 34px;align-items:center;gap:6px;font-size:11px}
+.rule-weights input{accent-color:var(--green);min-width:0}
+.rule-weights em{font:normal 11px 'Courier New',monospace;text-align:right;color:var(--muted)}

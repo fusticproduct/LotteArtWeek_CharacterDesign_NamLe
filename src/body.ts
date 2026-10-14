@@ -101,32 +101,35 @@ export function seatOn(top:Piece,bottom:Piece):Piece{
  const merged=[...upper,...lower].filter((v,i,all)=>{const n=all[(i+1)%all.length];return Math.hypot(v.p[0]-n.p[0],v.p[1]-n.p[1])>1e-7;});
  return {...top,outline:merged.map(v=>v.p),sharp:merged.map(v=>v.sharp)};
 }
-export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;}
+/** `crown`: the top line of the body; `shoulderY`: shoulder height (both move with a body type's body length). */
+export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;crown:number;shoulderY:number;}
 /**
  * Pieces of a character's body. The top piece hangs from the neck, the bottom piece stands on the body's bottom line,
  * and together they are just the seam overlap taller than that span, so the top piece sits on the bottom one with the
  * pivot where they meet. The build sets how the height is shared; a round piece or half circle takes no
  * more than its cap (so it never has to stretch) and the other piece grows to meet it. Torso height moves the share.
- * The piece that carries the hips reaches lower when the hip joints would not fit inside it.
+ * The piece that carries the hips reaches lower when the hip joints would not fit inside it. `length` (a body type's
+ * body height) moves the top line, so the body is that much taller or shorter; shapes are rebuilt, never stretched.
  */
-export function bodyLayout(spec:CharacterSpec,prop:Proportions=defaultProportions):BodyLayout{
+export function bodyLayout(spec:CharacterSpec,prop:Proportions=defaultProportions,length=1):BodyLayout{
+ const crown=bodyBottom+(bodyTop-bodyBottom)*length,shoulders=crown-(bodyTop-shoulderY);
  const build=spec.parts.spine_lower.variant,topShape=spec.parts.spine_upper.variant,bottomShape=spec.parts.root.variant,[topW,bottomW]=widths[build];
  // Lower the carrying piece's bottom, keeping its top, until both hip joints fit inside, a hip apart at most 0.105.
  const fit=(make:(lower:number)=>Piece)=>{
   for(let lower=bodyBottom;lower>-.36;lower-=.02){const piece=make(lower);for(let x=.105;x>=.07;x-=.005)if(holdsDisc(piece,[x,hipY],hipClearance))return {piece,hipX:x};}
   const piece=make(bodyBottom);let x=.105;while(x>.03&&!holdsDisc(piece,[x,hipY],hipClearance))x-=.005;return {piece,hipX:x};
  };
- if(build===single){const {piece,hipX}=fit(lower=>widen(shapeOutline(topShape,topW,lower,bodyTop-lower),topShape,prop.torsoWidth));return {build,pivot:.07,top:piece,bottom:null,hipX};}
- const span=bodyTop-bodyBottom,total=span+seamOverlap,[topRole,bottomRole]=roles[build];
+ if(build===single){const {piece,hipX}=fit(lower=>widen(shapeOutline(topShape,topW,lower,crown-lower),topShape,prop.torsoWidth));return {build,pivot:.07,top:piece,bottom:null,hipX,crown,shoulderY:shoulders};}
+ const span=crown-bodyBottom,total=span+seamOverlap,[topRole,bottomRole]=roles[build];
  const cap=(v:number,role:'big'|'small'|'pair')=>isRound(v)?caps[role].round:isHalf(v)?caps[role].half:Infinity;
  let topH=total*Math.min(.78,Math.max(.25,topShare[build]*prop.torsoHeight)),bottomH=total-topH;
  if(topH>cap(topShape,topRole)){topH=cap(topShape,topRole);bottomH=total-topH;}
  if(bottomH>cap(bottomShape,bottomRole as 'big'|'small'|'pair')){bottomH=cap(bottomShape,bottomRole as 'big'|'small'|'pair');topH=Math.min(cap(topShape,topRole),total-bottomH);}
  // Both capped and short of the span: the bottom piece grows past its cap rather than leave a gap.
  if(topH+bottomH<total)bottomH=total-topH;
- const pivot=bodyTop-topH+seamOverlap/2,seamTop=bodyBottom+bottomH;
- const top=widen(shapeOutline(topShape,topW,bodyTop-topH,topH),topShape,prop.torsoWidth);
+ const pivot=crown-topH+seamOverlap/2,seamTop=bodyBottom+bottomH;
+ const top=widen(shapeOutline(topShape,topW,crown-topH,topH),topShape,prop.torsoWidth);
  const {piece,hipX}=fit(lower=>widen(shapeOutline(bottomShape,bottomW,lower,seamTop-lower),bottomShape,prop.pelvis));
  // A round top piece has no corners to poke out, and a circle is never reshaped.
- return {build,pivot,top:isRound(topShape)?top:seatOn(top,piece),bottom:piece,hipX};
+ return {build,pivot,top:isRound(topShape)?top:seatOn(top,piece),bottom:piece,hipX,crown,shoulderY:shoulders};
 }

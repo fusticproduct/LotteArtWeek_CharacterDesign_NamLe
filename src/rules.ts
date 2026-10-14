@@ -19,13 +19,19 @@ export interface PatternRules {
  touching:boolean;
  /** Parts drawn on the pixel grid, and spray-blurred parts (when Spray blur is on); never joints. */
  pixel:number;spray:number;
+ /** Body type shares (bodyTypes.ts), 0–100 each; Geofolk today has the most by default. */
+ bodyTypes:Record<string,number>;
 }
-export const defaultRules:PatternRules={weave:1,twoTone:.55,checker:2,checkerApart:true,checkerStyles:[true,true,true,true],flow:4,flowApart:true,touching:true,pixel:2,spray:2};
+export const bodyTypeIds=['today','orb','baby','lolly','brick','wedge','brute','pear','hour','pole','strider'] as const;
+export const defaultBodyWeights:Record<string,number>=Object.fromEntries(bodyTypeIds.map(id=>[id,id==='today'?40:6]));
+export const defaultRules:PatternRules={weave:1,twoTone:.55,checker:2,checkerApart:true,checkerStyles:[true,true,true,true],flow:4,flowApart:true,touching:true,pixel:2,spray:2,bodyTypes:defaultBodyWeights};
 export const ruleRanges={weave:{min:0,max:2},twoTone:{min:0,max:1},checker:{min:0,max:6},flow:{min:0,max:8},pixel:{min:0,max:4},spray:{min:0,max:4}};
 export const normalizeRules=(value:unknown):PatternRules=>{
  const v=(value??{}) as Partial<PatternRules>,num=(k:keyof typeof ruleRanges,round=true)=>{const n=Number(v[k]),r=ruleRanges[k];if(!Number.isFinite(n))return defaultRules[k];const c=Math.min(r.max,Math.max(r.min,n));return round?Math.round(c):c;};
  const styles=Array.isArray(v.checkerStyles)&&v.checkerStyles.length===4?v.checkerStyles.map(Boolean):defaultRules.checkerStyles;
- return {weave:num('weave'),twoTone:num('twoTone',false),checker:num('checker'),checkerApart:v.checkerApart!==false,checkerStyles:styles.some(Boolean)?styles:defaultRules.checkerStyles,flow:num('flow'),flowApart:v.flowApart!==false,touching:v.touching!==false,pixel:num('pixel'),spray:num('spray')};
+ const weights=Object.fromEntries(bodyTypeIds.map(id=>{const n=Number((v.bodyTypes as Record<string,number>|undefined)?.[id]);return [id,Number.isFinite(n)?Math.min(100,Math.max(0,Math.round(n))):defaultBodyWeights[id]];}));
+ if(!Object.values(weights).some(w=>w>0))weights.today=100;
+ return {bodyTypes:weights,weave:num('weave'),twoTone:num('twoTone',false),checker:num('checker'),checkerApart:v.checkerApart!==false,checkerStyles:styles.some(Boolean)?styles:defaultRules.checkerStyles,flow:num('flow'),flowApart:v.flowApart!==false,touching:v.touching!==false,pixel:num('pixel'),spray:num('spray')};
 };
 export const sameRules=(a:PatternRules,b:PatternRules)=>JSON.stringify(a)===JSON.stringify(b);
 let current:PatternRules=defaultRules;

@@ -8,6 +8,9 @@ import {createRequire} from 'node:module';
 const validationDir=process.env.GEOFOLK_VALIDATION_DIR || 'work/validation';
 import {objBundle} from '../src/exports';
 import {unzipSync,strFromU8} from 'fflate';
+import {setRules,defaultRules} from '../src/rules';
+// The Geofolk of today only (bodyTypes.ts), so sizes and heights are the nominal ones.
+setRules({...defaultRules,bodyTypes:Object.fromEntries(Object.keys(defaultRules.bodyTypes).map(k=>[k,k==='today'?100:0]))});
 beforeAll(()=>{if(process.env.GEOFOLK_CANVAS_MODULE){const {createCanvas}=createRequire(import.meta.url)(process.env.GEOFOLK_CANVAS_MODULE);globalThis.document={createElement:()=>createCanvas(256,256)} as unknown as Document;}});
 describe('Character invariants',()=>{
  it('reproduces locked, rerolled and scaled characters from the full seed',()=>{const a=generate('test');const b=generate('next',a,new Set(['head','spine_upper']));b.density=9;expect(b.parts.head).toEqual(a.parts.head);expect(b.parts.spine_upper).toEqual(a.parts.spine_upper);expect(decodeSeed(encodeSeed(b))).toEqual(b);expect(generate('test')).toEqual(a);});

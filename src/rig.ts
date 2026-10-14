@@ -12,7 +12,8 @@ import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {createSpray,defaultSpray,type SpraySettings} from './spray';
 import {rules} from './rules';
-import {bodyLayout,bodyRound,hipBelow,shoulderBeside,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
+import {bodyTypeById,lengthScale,typedProportions} from './bodyTypes';
+import {bodyLayout,bodyRound,hipBelow,shoulderBeside,halfWidthAt,hipY,waistRadius,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -233,7 +234,7 @@ const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.
 /** Corner rounding of the flat (2D) parts, in metres. */
 const paperRound=bodyRound,markRound=.007;
 /** Shoulder ball centre: just outside the top piece at shoulder height, touching it (body.ts shoulderBeside), so the arms hang from the body whatever its shape or size and the joint is never drawn over it. */
-export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>shoulderBeside(layout.top,shoulderY,shoulderBall);
+export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>shoulderBeside(layout.top,layout.shoulderY,shoulderBall);
 /** Radius of a ball joint for a character: the type's base radius, its size and the Joints slider. */
 export const jointRadius=(spec:CharacterSpec,type:'shoulder'|'elbow'|'knee',prop:Proportions=defaultProportions)=>({shoulder:shoulderRadius,elbow:elbowRadius,knee:kneeRadius})[type]*jointSizeOf(spec.parts[`${type}_L`].variant)*prop.joints;
 /** A segment's end is this fraction of the joint it meets, so the joint covers it and the segment tapers from joint to joint. */
@@ -337,7 +338,8 @@ function plugFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportio
  return null;
 }
 function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry {
- const v=p.variant,L=b.length;
+ // A body type (bodyTypes.ts) lengthens or shortens the arm and leg segments and the neck.
+ const v=p.variant,L=b.length*(/^(upperarm|forearm|thigh|shin)_/.test(b.id)||b.id==='neck'?lengthScale(bodyTypeById(spec.bodyType),b.id):1);
  const box=(x:number,y:number,z:number,r=.03)=>new RoundedBoxGeometry(x,y,z,4,r);
  const cylinder=(top:number,bottom:number,h:number,n=64)=>{const c=beveledCylinder(top,bottom,h,n,Math.min(.012,h*.08));return n<16?faceted(c):c;};
  let g:THREE.BufferGeometry;
@@ -387,19 +389,21 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
  return g;
 }
 export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName='HFCD',layerOrder:LayerGroup[]=defaultLayerOrder,proportions:Proportions=defaultProportions) {
+ // Body type (bodyTypes.ts): scales the sliders' sizes and the arm, leg, neck and body lengths.
+ const type=bodyTypeById(spec.bodyType);proportions=typedProportions(proportions,type);
  const group=new THREE.Group();group.name='geofolk_character';
- const map=new Map<string,THREE.Bone>(),paperAmount={value:1},riso=risoUniforms(),decorate=(m:THREE.MeshBasicMaterial,g:THREE.BufferGeometry)=>addPaper(m,g,paperAmount,riso),colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions);
+ const map=new Map<string,THREE.Bone>(),paperAmount={value:1},riso=risoUniforms(),decorate=(m:THREE.MeshBasicMaterial,g:THREE.BufferGeometry)=>addPaper(m,g,paperAmount,riso),colorOf=partColors(spec,weavePalette),body=bodyLayout(spec,proportions,type.torsoL);
  // The waist pivot moves to the seam between the body pieces; neck and shoulders keep their height, shoulders and hips follow the pieces' edges.
  const place=(def:typeof bones[number],bone:THREE.Bone)=>{
   const side=Math.sign(def.headPosition[0]);
   if(def.id==='spine_lower')bone.position.y=body.pivot;
   else if(def.id==='spine_upper')bone.position.y=0;
-  else if(def.id==='neck')bone.position.y=bodyTop-.01-body.pivot;
-  else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,jointRadius(spec,'shoulder',proportions)),shoulderY-body.pivot,0);
+  else if(def.id==='neck')bone.position.y=body.crown-.01-body.pivot;
+  else if(def.id.startsWith('shoulder_'))bone.position.set(side*shoulderX(body,jointRadius(spec,'shoulder',proportions)),body.shoulderY-body.pivot,0);
   // Hips sit just outside the lower edge of the piece that carries them (body.ts hipBelow), touching it.
   else if(def.id.startsWith('hip_'))bone.position.set(side*body.hipX,hipBelow(body.bottom??body.top,body.hipX,jointRadius(spec,'knee',proportions)),0);
  };
- bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
+ bones.forEach(def=>{const bone=new THREE.Bone();bone.name=def.id;bone.position.fromArray(def.headPosition);if(/^(elbow|hand|knee|foot)_/.test(def.id)||def.id==='head')bone.position.y*=lengthScale(type,def.id);place(def,bone);bone.userData={length:def.length};map.set(def.id,bone);if(def.parent)map.get(def.parent)!.add(bone);else group.add(bone);});
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(bones.map(b=>map.get(b.id)!));
  const plugMaterial=new THREE.MeshBasicMaterial({color:stageColor(weavePalette,true),depthTest:false,depthWrite:false}),plugs:THREE.SkinnedMesh[]=[];
@@ -443,8 +447,10 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  });
  // Ragdoll chains (hairPhysics.ts): an antenna, a plume, a pompom.
  const dangles=createDangles(group,hairBone,placed.dangles,{main:colorOf(spec.parts.hair.color),accent:colorOf(spec.parts.hair.accent)},decorate);
- // Hips below the body piece lengthen the figure by as much as they drop below the old hip line (-0.03 m).
- group.userData={seed:spec.label,restHeight:restHeight+(-.03-map.get('hip_L')!.position.y),units:'meters',rigVersion:3,proportions};
+ // Rest height, measured: hips below the body piece and the body type both change it from the nominal 2.4 m.
+ let low=Infinity,high=-Infinity;const at=new THREE.Vector3();
+ for(const def of bones){if(def.kind==='hair')continue;const mesh=group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh,position=mesh.geometry.getAttribute('position');mesh.updateMatrixWorld(true);for(let i=0;i<position.count;i++){at.fromBufferAttribute(position,i).applyMatrix4(mesh.matrixWorld);low=Math.min(low,at.y);high=Math.max(high,at.y);}}
+ group.userData={seed:spec.label,restHeight:Number.isFinite(high-low)?high-low:restHeight,units:'meters',rigVersion:3,proportions,bodyType:type.id};
  let stacking={order:layerOrder,depth:defaultDepth},stackKey='';
  /** Re-stack the parts without rebuilding the character; cheap to call every frame. */
  const restack=(next:Partial<typeof stacking>)=>{

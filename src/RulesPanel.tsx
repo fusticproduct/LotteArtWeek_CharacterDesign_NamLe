@@ -2,6 +2,7 @@ import type {ReactNode} from 'react';
 import {Minus,Plus,RotateCcw} from 'lucide-react';
 import {ruleRanges,sameRules,type PatternRules} from './rules';
 import {checkerStyles} from './rig';
+import {bodyTypes} from './bodyTypes';
 interface Props {value:PatternRules;saved:PatternRules;onChange:(next:PatternRules)=>void;}
 type CountKey='weave'|'checker'|'flow'|'pixel'|'spray';
 /** A count with − and + buttons. */
@@ -27,6 +28,7 @@ export default function RulesPanel({value,saved,onChange}:Props){
   {title:'Gradient (Flow)',text:'Parts with a sliding linear gradient: hands, feet or arm and leg segments (never the head). Fewer if no more fit the other rules.',control:<div className="rule-stack">{count('flow','gradient parts')}<Toggle on={value.flowApart} label="Never a mirrored pair" onChange={v=>set('flowApart',v)}/></div>},
   {title:'Touching parts',text:'Two parts that touch are never both patterned (weave, checker or gradient): a joint, like a shoulder or a knee, must sit between them.',control:<Toggle on={value.touching} label="On" onChange={v=>set('touching',v)}/>},
   {title:'Pixel parts',text:'Parts drawn on the pixel grid: plain arm or leg segments first, then plain hands or feet, then two-tone segments. Never joints.',control:count('pixel','pixel parts')},
+  {title:'Body types',text:'How often each body type comes up in Generate (share of the total). Geofolk today is the most common by default. A rerolled single part keeps the body type.',control:<div className="rule-weights">{bodyTypes.map(b=>{const total=Object.values(value.bodyTypes).reduce((a,c)=>a+c,0)||1,w=value.bodyTypes[b.id]??0;return <label key={b.id}><span>{b.name}</span><input type="range" min={0} max={100} step={1} value={w} onChange={e=>set('bodyTypes',{...value.bodyTypes,[b.id]:Number(e.target.value)})}/><em>{Math.round(w/total*100)}%</em></label>;})}</div>},
   {title:'Spray parts',text:'Parts drawn spray-blurred while Spray blur is on: the head, body pieces, arm and leg segments, hands or feet, only in a plain colour or a gradient. Never joints, pixel parts, weave, checker or two-tone.',control:count('spray','spray parts')},
  ];
  return <section className="rules-panel" aria-labelledby="rules-title">

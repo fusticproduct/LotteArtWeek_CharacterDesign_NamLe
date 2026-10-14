@@ -9,6 +9,9 @@ import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
 import {normalizeSpray,defaultSpray} from '../src/spray';
 import {normalizeRiso,defaultRiso} from '../src/riso';
 import {setRules,defaultRules,normalizeRules} from '../src/rules';
+import {bodyTypes,bodyTypeOf} from '../src/bodyTypes';
+// Tests see the Geofolk of today unless they set body types themselves (bodyTypes.ts).
+const testRules={...defaultRules,bodyTypes:Object.fromEntries(Object.keys(defaultRules.bodyTypes).map(k=>[k,k==='today'?100:0]))};setRules(testRules);
 import {normalizeSettings} from '../src/settings';
 import {bodyLayout,holdsDisc,seamOverlap,waistRadius,shoulderY,isRound,isHalf} from '../src/body';
 import {partColors,paletteLooks} from '../src/themes';
@@ -47,7 +50,7 @@ it('gives shoulders, elbows and knees one of five shapes (no triangle), mirrored
  expect(after.parts.elbow_L.variant).not.toBe(before.parts.elbow_L.variant);expect(after.parts.knee_L).toEqual(before.parts.knee_L);expect(after.parts.elbow_L.color).toBe(before.parts.elbow_L.color);
  // A version-3 seed opens with spheres and a version-4 seed with its shapes, both at size M, as they were drawn.
  const spec=generate('joint-v3');spec.parts.knee_L.variant=spec.parts.knee_R.variant=3;
- expect(decodeSeed(encodeSeed(spec).replace('~6','~3')).parts.knee_L.variant).toBe(5);expect(decodeSeed(encodeSeed(spec).replace('~6','~4')).parts.knee_L.variant).toBe(8);
+ expect(decodeSeed(encodeSeed(spec).replace('~7','~3')).parts.knee_L.variant).toBe(5);expect(decodeSeed(encodeSeed(spec).replace('~7','~4')).parts.knee_L.variant).toBe(8);
  for(const id of ['thigh_L','thigh_R','shin_L','shin_R'])expect(bones.find(b=>b.id===id)!.length).toBeCloseTo(.4*1.5);
 });
 it('produces subdivided beveled round surfaces with finite normals and exact bounds',()=>{
@@ -229,10 +232,10 @@ it('restacks limbs from camera depth only after the cue holds for a few frames',
  // A one-frame blip the other way does not flip it back.
  state=updateLayers(state,{arm:-.6});state=updateLayers(state,nearRight);expect(state.layers.frontArm).toBe('R');
 });
-it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 6',()=>{
+it('reads version-1 and version-2 seeds onto the body catalogue as a Big top build, and writes version 7',()=>{
  const spec=generate('legacy-torso');spec.parts.root.variant=5;spec.parts.spine_lower.variant=0;
  const packed=encodeSeed(spec).split('~')[1],at=(id:string)=>bones.findIndex(b=>b.id===id),swap=(p:string,id:string,v:number)=>p.slice(0,2+at(id)*4)+v.toString(36)+p.slice(3+at(id)*4);
- expect(packed[0]).toBe('6');
+ expect(packed[0]).toBe('7');
  // Version 1 → 2: Bowl→Bowl, Stack→Column, Donut→Donut, Vase→Funnel; then onto the body shapes: Bowl, Block, Donut, Funnel.
  for(const [old,now] of [[0,2],[7,1],[9,6],[10,4]]){const v1='1'+swap(packed,'spine_upper',old).slice(1);const s=decodeSeed(`legacy-torso~${v1}`);expect(s.parts.spine_upper.variant).toBe(now);expect(s.parts.spine_lower.variant).toBe(2);}
  // Version 2: Orb torso → Circle; pelvis Diamond → Diamond, Puck → Block, Tire → Donut (a small piece, so it becomes a Circle).
@@ -630,7 +633,7 @@ it('follows the pattern rules: counts, mirrored pairs, touching parts, weave, pi
   setRules({...defaultRules,checker:6,checkerApart:false,touching:false});
   let mirrored=0;for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork)).toBe(6);if(spec.parts.upperarm_L.pattern===patchwork&&spec.parts.upperarm_R.pattern===patchwork)mirrored++;}
   expect(mirrored).toBeGreaterThan(0);
- }finally{setRules(defaultRules);}
+ }finally{setRules(testRules);}
 });
 
 it('seats the top piece cleanly on the bottom one: nothing of it below the top line of the bottom piece pokes out beside it',()=>{
@@ -648,4 +651,28 @@ it('draws every part in the same see-through pass, so the layer order alone deci
  const rig=createCharacter(generate('one-pass'));rig.setSpray({on:true,amount:.05});
  rig.group.traverse(o=>{const m=(o as SkinnedMesh).material as MeshBasicMaterial|undefined;if(m)expect(m.transparent,o.name).toBe(true);});
  rig.dispose();
+});
+
+it('gives each character a body type, Geofolk today the most, kept in the seed and through single-part rerolls',()=>{
+ const only=(id:string)=>({...testRules,bodyTypes:Object.fromEntries(bodyTypes.map(b=>[b.id,b.id===id?100:0]))});
+ try{
+  setRules({...testRules,bodyTypes:defaultRules.bodyTypes});
+  const counts:Record<string,number>={};for(let i=0;i<600;i++){const id=bodyTypeOf({label:`bt-${i}`}).id;counts[id]=(counts[id]??0)+1;}
+  expect(Object.keys(counts).length).toBe(bodyTypes.length);
+  for(const b of bodyTypes)if(b.id!=='today')expect(counts.today,b.id).toBeGreaterThan(counts[b.id]*3);
+  // Kept in the seed; a seed from before body types gets the one its name draws.
+  const spec=generate('typed');expect(decodeSeed(encodeSeed(spec)).bodyType).toBe(spec.bodyType);
+  expect(decodeSeed(encodeSeed(spec).slice(0,-1)).bodyType).toBe(bodyTypeOf(spec).id);
+  // A single-part reroll keeps the type (the name changes); Generate draws a new one.
+  const kept=Array.from({length:12},(_,i)=>generate(`re-${i}`,spec,new Set(),'hair'));for(const k of kept)expect(k.bodyType).toBe(spec.bodyType);
+  // Each type: its build and shapes, and its sizes (a Brick is shorter and wider than today, a Strider taller).
+  setRules(only('today'));const base=createCharacter(generate('bt-size')),today=base.group.userData.restHeight;base.dispose();
+  for(const [id,taller] of [['brick',false],['strider',true],['baby',false],['pole',true]] as const){
+   setRules(only(id));const s=generate('bt-size'),type=bodyTypes.find(b=>b.id===id)!;expect(s.bodyType).toBe(id);
+   expect(s.parts.spine_lower.variant,id).toBe(type.body!.build);expect(type.body!.top,id).toContain(s.parts.spine_upper.variant);
+   const rig=createCharacter(s),h=rig.group.userData.restHeight;expect(h>today,`${id}: ${h.toFixed(2)} vs ${today.toFixed(2)}`).toBe(taller);
+   expect(rig.map.get('elbow_L')!.position.y).toBeCloseTo(-.3*type.arms,6);expect(rig.map.get('foot_L')!.position.y).toBeCloseTo(-.6*type.legs,6);
+   rig.dispose();
+  }
+ }finally{setRules(testRules);}
 });

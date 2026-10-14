@@ -2,6 +2,7 @@ import paletteData from './palette.json';
 import savedProportions from './proportions.json';
 import {hairStyleNames,hairStyles,liveHair} from './hair';
 import {rules} from './rules';
+import {bodyTypeOf,bodyTypeById,bodyTypes} from './bodyTypes';
 export const palette = paletteData.colors;
 export const color = (id: string) => palette.find(c => c.id === id)!.hex;
 export const theme = {paper:color('neutral_1'),ink:color('dark_1'),green:color('green_1'),blue:color('blue_1'),pink:color('pink_2')};
@@ -154,7 +155,8 @@ const flowFits=(parts:Record<string,PartChoice>,id:string,chosen:string[])=>!(te
 const spotOrder=['upperarm_L','shin_R','forearm_R','thigh_L','forearm_L','shin_L','upperarm_R','thigh_R'];
 const patchworkSpots=(parts:Record<string,PartChoice>)=>{const plainBelow=parts.spine_lower.variant!==0&&!parts.root.pattern;return spotOrder.filter(id=>!id.startsWith('thigh')||plainBelow||!rules().touching);};
 export interface PartChoice {variant:number;color:number;accent:number;pattern:number;}
-export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;}
+/** `bodyType`: the proportion type (bodyTypes.ts), kept in the seed from version 7. */
+export interface CharacterSpec {version:1;label:string;parts:Record<string,PartChoice>;density:number;bodyType?:string;}
 /** Preset poses; 'dance' plays the recorded motion in src/dance.ts and rests in the idle pose for exports. */
 export type Pose = 'idle'|'reach'|'stride'|'dance';
 /** Live stacking from camera depth: which arm and leg are drawn in front, and which arms tuck behind the body. */
@@ -223,7 +225,7 @@ export function normalizeSpec(spec:CharacterSpec):CharacterSpec{
  for(const id of Object.keys(parts))if(parts[id].pattern===flow&&!flows.includes(id))parts[id].pattern=0;
  for(const id of flowOrder)if(flows.length<rules().flow&&flowFits(parts,id,flows))flows.push(id);
  for(const id of flows)parts[id].pattern=flow;
- return {...spec,parts};
+ return {...spec,parts,bodyType:bodyTypeById(spec.bodyType??bodyTypeOf(spec).id).id};
 }
 /**
  * A character's colour scheme (A1): two body colours spread over the limbs by `layout`, an accent for hands, feet
@@ -350,6 +352,15 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   if(b.id.endsWith('_R')&&mirrorsShape(b.id)&&parts[twin!])variant=parts[twin!].variant;
   parts[b.id]={variant,color:dark,accent:dark,pattern};
  }
+ // Body type (bodyTypes.ts): kept when a single part is rerolled, drawn anew otherwise; its preferred build and body
+ // shapes go in unless the user locked them (drawn from their own stream, so the rest of the character is unchanged).
+ const bodyType=previous&&onlyLinked?bodyTypeById(previous.bodyType).id:bodyTypeOf({label}).id,prefs=bodyTypeById(bodyType).body;
+ if(prefs&&!(previous&&onlyLinked)){
+  const pr=rng(`${label}|body type shapes`),pick=(a:number[])=>a[Math.floor(pr()*a.length)];
+  if(!frozen.has('spine_lower'))parts.spine_lower.variant=prefs.build;
+  if(!frozen.has('spine_upper'))parts.spine_upper.variant=pick(prefs.top);
+  if(prefs.bottom&&!frozen.has('root'))parts.root.variant=pick(prefs.bottom);
+ }
  fitBody(parts,frozen,lockedLinked,onlyLinked,random);
  // The three joint types never all share one size: one that may change takes another size.
  const sizeIndex=(type:string)=>Math.floor(parts[`${type}_L`].variant/jointShapes.length),types=['shoulder','elbow','knee'];
@@ -374,7 +385,7 @@ export function generate(label:string, previous?:CharacterSpec, locked:Set<strin
   for(const id of onlyLinked){parts[id].color=previous.parts[id].color;parts[id].accent=previous.parts[id].accent;}
  }
  else paint(parts,frozen,random);
- return normalizeSpec({version:1,label,parts,density:previous?.density??3});
+ return normalizeSpec({version:1,label,parts,density:previous?.density??3,bodyType});
 }
 /** New colours, same shapes: a fresh scheme for every part that is not locked. `salt` varies the draw. */
 export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:string=randomLabel()):CharacterSpec{
@@ -382,11 +393,12 @@ export function recolor(spec:CharacterSpec,locked:Set<string>=new Set(),salt:str
  paint(parts,new Set(bones.filter(b=>lockedLinked.has(b.id)).map(b=>b.id)),rng(`${spec.label}|colours|${salt}`));
  return normalizeSpec({...spec,parts});
 }
-export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~6${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}`;}
+export function encodeSeed(spec:CharacterSpec) {return `${spec.label}~7${spec.density.toString(36)}${bones.map(b=>{const p=spec.parts[b.id];return [p.variant,p.color,p.accent,p.pattern].map(n=>n.toString(36)).join('');}).join('')}${Math.max(0,bodyTypes.findIndex(t=>t.id===spec.bodyType)).toString(36)}`;}
 /**
  * Seed versions: 1 = the turned 3D catalogue (11 torsos), 2 = flat head, torso and face mark, 3 = body pieces and builds,
  * 4 = joint shapes (older seeds open with sphere joints, as they were drawn), 5 = joint sizes (older seeds open with
- * size M, as they were drawn), 6 = hair (a new last slot; older seeds get hair from their label).
+ * size M, as they were drawn), 6 = hair (a new last slot; older seeds get hair from their label), 7 = the body type, one
+ * last character after the parts (a seed without it gets the type its label draws).
  * A version-1 torso maps to the nearest version-2 one (Bowl→Bowl, Goblet/Martini/Cup/Vase→Funnel, Mushroom→Fan,
  * Hourglass/Stack→Column, Diamond/Orb→Orb, Donut→Donut); heads and marks keep their index. Older torsos and pelvises
  * then map onto the body catalogue as a Big top build (big torso over a small pelvis, like before):
@@ -399,9 +411,11 @@ export function decodeSeed(input:string):CharacterSpec {
  const seed=input.trim();if(!seed||seed.length>600)throw new Error('Enter a seed between 1 and 600 characters.');
  if(!seed.includes('~'))return generate(seed);
  const [label,packed,...rest]=seed.split('~');
- const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2);
+ const order=[bones,...legacyOrders].find(o=>packed?.length===o.length*4+2||packed?.length===o.length*4+3);
  const version=packed?.[0];
- if(rest.length||!label||!order||!['1','2','3','4','5','6'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ if(rest.length||!label||!order||!['1','2','3','4','5','6','7'].includes(version)||!/^[a-z0-9]+$/.test(packed))throw new Error('This character seed is incomplete. Copy the full seed.');
+ const typed=packed.length===order.length*4+3,bodyType=typed?bodyTypes[parseInt(packed[packed.length-1],36)]?.id:undefined;
+ if(typed&&!bodyType)throw new Error('This seed contains an unknown body type.');
  const density=parseInt(packed[1],36);if(density<2||density>12)throw new Error('Invalid pattern scale in seed.');
  // Joints missing from older seeds are derived from the label so they stay deterministic.
  const fallback=generate(label),parts:Record<string,PartChoice>=Object.fromEntries(bones.filter(b=>!order.includes(b)).map(b=>[b.id,fallback.parts[b.id]]));
@@ -412,10 +426,10 @@ export function decodeSeed(input:string):CharacterSpec {
   if(old&&b.kind==='torso')variant=torsoV3[version==='1'?legacyTorso[variant]:variant];
   if(old&&b.kind==='pelvis')variant=pelvisV3[variant];
   if(old&&b.id==='spine_lower')variant=bigTop;
-  if(isBallJoint(b.id)&&version!=='5'&&version!=='6')variant=(version==='4'?variant:0)+jointShapes.length;
+  if(isBallJoint(b.id)&&!['5','6','7'].includes(version))variant=(version==='4'?variant:0)+jointShapes.length;
   parts[b.id]={variant,color:c,accent,pattern};
  });
- return normalizeSpec({version:1,label,parts,density});
+ return normalizeSpec({version:1,label,parts,density,bodyType});
 }
 export function randomLabel(){const values=new Uint32Array(2);crypto.getRandomValues(values);return `folk-${values[0].toString(36)}${values[1].toString(36).slice(0,3)}`;}
 /** Preset poses. The figure is 2D, so every pose is an in-plane (Z) rotation. */

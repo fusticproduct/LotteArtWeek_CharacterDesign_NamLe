@@ -32,7 +32,9 @@ const rules=s=>{
  const int=(k,min,max)=>{const v=s?.[k];if(!Number.isInteger(v)||v<min||v>max)throw new Error(`Invalid rule ${k}`);return v;};
  if(!s||typeof s.checkerApart!=='boolean'||typeof s.flowApart!=='boolean'||typeof s.touching!=='boolean'||!Array.isArray(s.checkerStyles)||s.checkerStyles.length!==4||!s.checkerStyles.every(v=>typeof v==='boolean')||!s.checkerStyles.some(Boolean))throw new Error('Invalid rules');
  const twoTone=Number(s.twoTone);if(!Number.isFinite(twoTone)||twoTone<0||twoTone>1)throw new Error('Invalid rule twoTone');
- return {weave:int('weave',0,2),twoTone:Math.round(twoTone*100)/100,checker:int('checker',0,6),checkerApart:s.checkerApart,checkerStyles:s.checkerStyles,flow:int('flow',0,8),flowApart:s.flowApart,touching:s.touching,pixel:int('pixel',0,4),spray:int('spray',0,4)};
+ const ids=['today','orb','baby','lolly','brick','wedge','brute','pear','hour','pole','strider'];
+ if(!s.bodyTypes||!ids.every(id=>Number.isInteger(s.bodyTypes[id])&&s.bodyTypes[id]>=0&&s.bodyTypes[id]<=100)||!ids.some(id=>s.bodyTypes[id]>0))throw new Error('Invalid body types');
+ return {bodyTypes:Object.fromEntries(ids.map(id=>[id,s.bodyTypes[id]])),weave:int('weave',0,2),twoTone:Math.round(twoTone*100)/100,checker:int('checker',0,6),checkerApart:s.checkerApart,checkerStyles:s.checkerStyles,flow:int('flow',0,8),flowApart:s.flowApart,touching:s.touching,pixel:int('pixel',0,4),spray:int('spray',0,4)};
 };
 const palettes=['HFCD','XMAS','TET'],groups=['arms','head','torso','neck','pelvis','legs'];
 
