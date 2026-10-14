@@ -92,10 +92,11 @@ export const defaultProportions:Proportions={head:1,torsoWidth:1,torsoHeight:1,p
 export const proportionRange={min:.5,max:1.5};
 /**
  * Pattern look settings kept with the proportions (per browser, in the undo history) but shown under Pattern scale in
- * the Parts panel: Checker scale (patchwork cell size) and Flow speed (how fast the gradients slide; 0 stops them).
+ * the Parts panel: Checker scale (patchwork cell size) and Flow speed (how fast the gradients slide; 0 stops them,
+ * below 0 they slide the other way).
  */
 export const patternKeys=['checker','flowSpeed'] as const;
-const ranges:Partial<Record<typeof proportionKeys[number],{min:number;max:number}>>={checker:{min:.4,max:2.5},flowSpeed:{min:0,max:3}};
+const ranges:Partial<Record<typeof proportionKeys[number],{min:number;max:number}>>={checker:{min:.4,max:2.5},flowSpeed:{min:-3,max:3}};
 export const rangeOf=(key:typeof proportionKeys[number])=>ranges[key]??proportionRange;
 export const normalizeProportions=(value:unknown):Proportions=>Object.fromEntries(proportionKeys.map(k=>{const v=Number((value as Partial<Proportions>|null)?.[k]),r=rangeOf(k);return [k,Number.isFinite(v)?Math.min(r.max,Math.max(r.min,v)):1];})) as Proportions;
 /** Project default set with the Proportions tab's "Save as default" (src/proportions.json). The rig itself defaults to 100%. */

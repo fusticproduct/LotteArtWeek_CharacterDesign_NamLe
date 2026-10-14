@@ -397,7 +397,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const flows=bones.filter(def=>spec.parts[def.id].pattern===flow).map(def=>({map:((group.getObjectByName(`${def.id}_mesh`) as THREE.SkinnedMesh).material as THREE.MeshBasicMaterial).map,phase:seedAngle(`${spec.label}|${def.id}|phase`)/(Math.PI*2)}));
  let clock=0;
  /** Advance the moving parts by dt seconds: the flow gradients and the ragdoll fingers. */
- const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=(f.phase+clock*proportions.flowSpeed/flowPeriod)%1;fingers.update(dt);};
+ const tick=(dt:number)=>{clock+=dt;for(const f of flows)if(f.map)f.map.offset.x=((f.phase+clock*proportions.flowSpeed/flowPeriod)%1+1)%1;fingers.update(dt);};
  /** Ragdoll fingers: `updateFingers(dt)` every frame; `settleFingers()` before a still picture. */
  return {group,skeleton,map,applyPose,applyAngles,setLayerOrder,setDepth,setPaper,dispose,fingers,tick,updateFingers:fingers.update,settleFingers:fingers.settle};
 }

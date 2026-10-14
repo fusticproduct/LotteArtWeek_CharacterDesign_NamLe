@@ -420,7 +420,7 @@ it('puts a sliding flow gradient on four random parts, never a mirrored pair and
 });
 
 it('scales the patchwork cells with Checker scale and the flow speed with Flow speed (0 stops it)',()=>{
- expect(normalizeProportions({checker:9,flowSpeed:-1})).toMatchObject({checker:2.5,flowSpeed:0});
+ expect(normalizeProportions({checker:9,flowSpeed:-5})).toMatchObject({checker:2.5,flowSpeed:-3});expect(normalizeProportions({flowSpeed:-1.5}).flowSpeed).toBe(-1.5);
  const spec=generate('sliders'),id=bones.find(b=>spec.parts[b.id].pattern===flow)!.id,spot=bones.find(b=>spec.parts[b.id].pattern===patchwork)!.id;
  const offsetAfter=(flowSpeed:number)=>{const rig=createCharacter(spec,'HFCD',undefined,{...defaultProportions,flowSpeed}),map=((rig.group.getObjectByName(`${id}_mesh`) as SkinnedMesh).material as MeshBasicMaterial).map;const before=map?.offset.x??0;rig.tick(3);const moved=(map?.offset.x??0)-before;rig.dispose();return {moved,map};};
  // Node has no canvas, so textures are only built in the browser; there the offset moves unless Flow speed is 0.
