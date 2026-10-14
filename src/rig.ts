@@ -315,11 +315,25 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   return a;
  };
  /** Live pose: local in-plane (Z) rotation per bone, in radians; bones left out go straight. */
+ /**
+  * Feet (Nam, 2026-10-14): a foot on or near the floor lies flat on it; a raised foot follows its shin, so a dancing
+  * character steps and kicks freely. The floor is the lower foot's sole; between 5 and 20 cm above it a foot eases
+  * from flat to free.
+  */
+ const footHeight=.16*proportions.feet,snapNear=.05,snapFar=.2,ankle=new THREE.Vector3();
+ const settleFeet=()=>{
+  group.updateMatrixWorld(true);
+  const feet=['L','R'].map(side=>{const e=map.get(`shin_${side}`)!.matrixWorld.elements,foot=map.get(`foot_${side}`)!;return {foot,shin:Math.atan2(e[1],e[0]),sole:foot.getWorldPosition(ankle).y-footHeight};});
+  const floor=Math.min(...feet.map(f=>f.sole));
+  for(const f of feet){const t=Math.min(1,Math.max(0,(f.sole-floor-snapNear)/(snapFar-snapNear)));f.foot.rotation.z=-f.shin*(1-t*t*(3-2*t));}
+ };
  // The upper arm hangs 2 cm off the shoulder's centre; undo the shoulder's half turn on that offset so the arm's pivot stays put.
  const rest=new Map(bones.map(def=>[def.id,map.get(def.id)!.position.clone()])),zAxis=new THREE.Vector3(0,0,1);
  const applyAngles=(angles:Record<string,number>)=>{
   const a=halfway(unbent(angles));bones.forEach(def=>map.get(def.id)!.rotation.set(0,0,a[def.id]??0));
-  for(const side of ['L','R'])map.get(`upperarm_${side}`)!.position.copy(rest.get(`upperarm_${side}`)!).applyAxisAngle(zAxis,-(a[`shoulder_${side}`]??0));ground();};
+  for(const side of ['L','R'])map.get(`upperarm_${side}`)!.position.copy(rest.get(`upperarm_${side}`)!).applyAxisAngle(zAxis,-(a[`shoulder_${side}`]??0));
+  settleFeet();ground();
+ };
  // Preset poses only turn in the picture plane (Z), so they go through the same path.
  const applyPose=(pose:Pose)=>applyAngles(Object.fromEntries(bones.map(def=>[def.id,poseRotation(def.id,pose)[2]])));
  const setLayerOrder=(order:LayerGroup[])=>restack({order});

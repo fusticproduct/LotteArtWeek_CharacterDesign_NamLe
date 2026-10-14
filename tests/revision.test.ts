@@ -92,6 +92,7 @@ it('never stretches a circle, donut or half circle, at any slider setting, and n
   }
  }
  for(const build of [1,2,3])for(const skirt of [3,4,5])expect(bottomShapes(build)).not.toContain(skirt);
+ expect(topShapes(0)).toEqual([0,1,6,7]);
  // A seed with a skirt or a V below opens with a stand-in (Dome → Bowl, Funnel → Block); a Single half circle becomes a Circle.
  const s=generate('skirt');s.parts.spine_lower.variant=2;s.parts.root.variant=3;s.parts.spine_upper.variant=1;expect(decodeSeed(encodeSeed(s)).parts.root.variant).toBe(2);
  s.parts.root.variant=4;expect(decodeSeed(encodeSeed(s)).parts.root.variant).toBe(1);
@@ -304,5 +305,16 @@ it('turns every joint halfway between the segment before it and the segment afte
  rig.applyAngles({thigh_L:.4,shin_L:.6,upperarm_L:1,forearm_L:.5});
  expect(turn('thigh_L')).toBeCloseTo(.4,9);expect(turn('shin_L')).toBeCloseTo(1,9);expect(turn('knee_L')).toBeCloseTo(.7,9);expect(turn('hip_L')).toBeCloseTo(.2,9);
  expect(turn('upperarm_L')).toBeCloseTo(1,9);expect(turn('forearm_L')).toBeCloseTo(1.5,9);expect(turn('elbow_L')).toBeCloseTo(1.25,9);expect(turn('shoulder_L')).toBeCloseTo(.5,9);
+ rig.dispose();
+});
+
+it('lays a foot on or near the floor flat, and lets a raised foot follow its shin',()=>{
+ const rig=createCharacter(generate('feet')),turn=(id:string)=>{const e=rig.map.get(id)!.matrixWorld.elements;return Math.atan2(e[1],e[0]);};
+ // Standing on the left leg, the right leg kicked up high.
+ rig.applyAngles({thigh_L:.1,shin_L:-.15,thigh_R:-1.3,shin_R:.6});
+ expect(turn('foot_L')).toBeCloseTo(0,6);expect(turn('foot_R')).toBeCloseTo(turn('shin_R'),6);expect(Math.abs(turn('foot_R'))).toBeGreaterThan(.5);
+ // A small step: both feet are within a few centimetres of the floor, so both lie flat.
+ rig.applyAngles({thigh_L:.05,shin_L:.25,thigh_R:-.05});
+ expect(turn('foot_L')).toBeCloseTo(0,6);expect(turn('foot_R')).toBeCloseTo(0,6);
  rig.dispose();
 });

@@ -677,3 +677,8 @@ Anh Nam: khớp luôn lấy góc trung bình của đoạn trước và đoạn 
 
 - Mỗi khớp (vai, khuỷu, hông, gối) nhận nửa góc gập, đoạn sau nhận nửa còn lại, nên hướng tay chân không đổi (có test).
 - Bắp tay gắn lệch tâm vai 2 cm; vị trí đó được xoay ngược lại theo góc của vai, nên điểm xoay của tay vẫn đứng yên.
+
+## 34. Bàn chân hút sàn; thân 1 khối không A-line/Funnel (14/10/2026)
+
+- Anh Nam lúc đầu muốn bàn chân luôn phẳng trên sàn, rồi đổi: chỉ khi gần sàn mới hút phẳng, có một khoảng chuyển để khi người nhảy thì nhân vật nhảy tự do. Làm: sàn là đế của bàn chân thấp hơn; bàn chân cách sàn dưới 5 cm nằm phẳng, trên 20 cm xoay theo ống chân, ở giữa chuyển mượt (smoothstep). Bộ giải Live pose vẫn đưa bàn chân ngang; rig quyết định.
+- Thân 1 khối không còn A-line hay Funnel: nửa dưới của chúng chính là cái váy / chữ V không được ở dưới. Thân 1 khối giờ là Circle, Block, Donut hoặc Diamond.

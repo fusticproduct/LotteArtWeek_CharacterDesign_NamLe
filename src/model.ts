@@ -63,9 +63,10 @@ export const pairPartners=(top:number)=>[...new Set([top,mirrorShape(top)])].fil
 const pairTops=(bottom:number)=>allShapes.filter(top=>pairPartners(top).includes(bottom));
 /**
  * Shapes each piece may take in a build. No skirt below; no Donut as the small piece (its hole would shrink to a dot);
- * a Single body is never a half circle (one true half circle that tall would be 1.5 m wide).
+ * a Single body is never a half circle (one true half circle that tall would be 1.5 m wide), nor an A-line or Funnel
+ * (its lower half would be the skirt or the V that is never allowed below).
  */
-export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&(v===2||v===3))&&!(build===bigBottom&&v===donut)&&!(build===pair&&!pairPartners(v).length));
+export const topShapes=(build:number)=>allShapes.filter(v=>!(build===single&&v>=2&&v<=5)&&!(build===bigBottom&&v===donut)&&!(build===pair&&!pairPartners(v).length));
 export const bottomShapes=(build:number)=>allShapes.filter(v=>!skirts.includes(v)&&!(build===bigTop&&v===donut));
 export const variants:Record<SlotKind,string[]>={
  // Head, body pieces and face mark are flat 2D shapes (seed version 3); the other parts are still turned 3D shapes.
