@@ -917,3 +917,13 @@ Anh Nam: pixel hóa 2 bộ phận, không bao giờ là khớp; liệt kê toàn
 ## 66. Khớp vai ngoài thân (14/10/2026)
 
 Anh Nam: khớp vai cũng không được chạm (đè) lên thân, như khớp đùi. `shoulderBeside(piece, y, r)` (body.ts): từ mép thân ở độ cao vai đẩy ra một bán kính, rồi tiếp tục ra ngoài từng 0,5 mm tới khi đĩa khớp cách mọi cạnh ít nhất r. Trước đây tâm khớp chỉ cách mép 3/4 bán kính nên khớp đè lên thân.
+
+## 67. Góc sạch (14/10/2026)
+
+Anh Nam gửi ảnh các góc nhỏ thò ra chỗ hai hình chồng nhau và muốn hình sạch.
+
+- Mối nối hai khối thân (`seatOn`, body.ts): khối trên giữ nguyên phía trên đường đỉnh của khối dưới; phía dưới đường đó chỉ giữ phần nằm trong khối dưới (tính theo khối dưới đã bo góc như lúc vẽ). Không còn mẩu góc thò ra bên cạnh; chỗ khối trên rộng hơn là một gờ thẳng. Khối trên hình tròn không bị cắt (tròn không có góc, và hình tròn không bao giờ bị biến dạng).
+- Mũ/mái cắt từ hình đầu (hair.ts): vẫn nở ra quanh đầu nhưng giảm dần về 0 ở đường cắt, nên hai đầu mũ nằm đúng trên mép đầu; hai góc đó không bo (`sharp`) để khớp mép đầu.
+- Beanie: thân mũ hẹp hơn vành 6 px mỗi bên, không lộ góc ở góc bo của vành.
+- `roundCorners`/`paper` nhận danh sách góc không bo; `clipConvex` cắt một hình bằng một hình lồi.
+

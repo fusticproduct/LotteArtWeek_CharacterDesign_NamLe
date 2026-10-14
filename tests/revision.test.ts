@@ -103,7 +103,9 @@ it('never stretches a circle, donut or half circle, at any slider setting, and n
   for(const [piece,shape] of [[layout.top,body.top],[layout.bottom,body.bottom]] as const){
    if(!piece||!(isRound(shape)||isHalf(shape)))continue;
    const xs=piece.outline.map(p=>p[0]),ys=piece.outline.map(p=>p[1]),w=Math.max(...xs)-Math.min(...xs),h=Math.max(...ys)-Math.min(...ys);
-   expect(w/h,`${JSON.stringify(body)} h${torsoHeight} w${width}`).toBeCloseTo(isRound(shape)?1:2,2);
+   // A half circle on top of another piece loses the 1.4 cm sliver of its flat side that hung outside the piece below
+   // (seatOn), so it is measured a little less exactly.
+   expect(w/h,`${JSON.stringify(body)} h${torsoHeight} w${width}`).toBeCloseTo(isRound(shape)?1:2,piece===layout.top&&layout.bottom&&isHalf(shape)?1:2);
   }
  }
  for(const build of [1,2,3])for(const skirt of [3,4,5])expect(bottomShapes(build)).not.toContain(skirt);
@@ -625,4 +627,15 @@ it('follows the pattern rules: counts, mirrored pairs, touching parts, weave, pi
   let mirrored=0;for(let i=0;i<20;i++){const spec=generate(`rules-${i}`);expect(count(spec,patchwork)).toBe(6);if(spec.parts.upperarm_L.pattern===patchwork&&spec.parts.upperarm_R.pattern===patchwork)mirrored++;}
   expect(mirrored).toBeGreaterThan(0);
  }finally{setRules(defaultRules);}
+});
+
+it('seats the top piece cleanly on the bottom one: nothing of it below the top line of the bottom piece pokes out beside it',()=>{
+ const inside=(poly:[number,number][],[x,y]:[number,number])=>{let hit=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)hit=!hit;}return hit;};
+ const base=generate('seat');
+ for(const body of everyBody()){
+  const layout=bodyLayout(withBody(base,body));if(!layout.bottom||isRound(body.top))continue;
+  const s=Math.max(...layout.bottom.outline.map(p=>p[1]));
+  const near=(poly:[number,number][],[x,y]:[number,number])=>poly.some((a,i)=>{const b=poly[(i+1)%poly.length],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(a[0]+dx*t-x,a[1]+dy*t-y)<1e-4;});
+  for(const [x,y] of layout.top.outline)if(y<s-1e-6)expect(inside(layout.bottom.outline as [number,number][],[x,y])||near(layout.bottom.outline as [number,number][],[x,y]),`${JSON.stringify(body)} at ${x.toFixed(3)},${y.toFixed(3)}`).toBe(true);
+ }
 });

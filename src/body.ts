@@ -1,4 +1,4 @@
-import {ellipse2d,type Point2} from './geometry';
+import {signedArea,clipConvex,roundCorners,ellipse2d,type Point2} from './geometry';
 import {defaultProportions,single,donut,type CharacterSpec,type Proportions} from './model';
 /**
  * Layout of the body pieces (see bodyShapes in model.ts), in the pelvis (root) bone's space at rest.
@@ -24,7 +24,8 @@ const caps={big:{round:.8,half:.45},small:{round:.56,half:.3},pair:{round:.8,hal
 const roles=[['big',''],['pair','pair'],['big','small'],['small','big']] as const;
 /** Hip joints (balls of radius 0.045) sit this far inside the piece that carries them. */
 const hipClearance=.055;
-export interface Piece {outline:Point2[];holes?:Point2[][]}
+/** `sharp`: outline corners left unrounded (where a piece meets another exactly). */
+export interface Piece {outline:Point2[];holes?:Point2[][];sharp?:boolean[]}
 /** Rounded rectangle with corner radius r. */
 const roundedBox=(w:number,y0:number,h:number,r:number):Point2[]=>[
  ...ellipse2d(w/2-r,y0+r,r,r,-Math.PI/2,0,8),...ellipse2d(w/2-r,y0+h-r,r,r,0,Math.PI/2,8),
@@ -75,6 +76,31 @@ export const shoulderBeside=(piece:Piece,y:number,r:number)=>{
  while(inPolygon(piece.outline,[x,y])||edgeDistance(piece.outline,[x,y])<r-1e-6)x+=.0005;
  return x;
 };
+/** Corner rounding of the flat parts (m); rig.ts draws with it, so the seam below matches the drawn bottom piece. */
+export const bodyRound=.022;
+/**
+ * Clean seam (Nam, 2026-10-14): the top piece reaches the seam overlap down into the bottom piece, and where the bottom
+ * piece is narrower or curved there, the top piece's lower corners used to poke out beside it as small slivers. Now
+ * the top piece keeps its shape above the bottom piece's top line and, below it, only what lies inside the bottom
+ * piece as drawn (rounded corners and all), so the two read as one clean silhouette: a straight ledge where the top
+ * piece is wider, the bottom piece's own edge below.
+ */
+export function seatOn(top:Piece,bottom:Piece):Piece{
+ const s=Math.max(...bottom.outline.map(p=>p[1])),ccw=(p:Point2[])=>signedArea(p)>0?p:[...p].reverse();
+ const cut=(keepAbove:boolean)=>clipConvex(top.outline,keepAbove?[[-9,s],[9,s],[9,9],[-9,9]]:[[-9,-9],[9,-9],[9,s],[-9,s]]);
+ const above=ccw(cut(true)),inside=ccw(clipConvex(cut(false),roundCorners(bottom.outline,bodyRound).map(v=>[v.x,v.y] as Point2)));
+ if(above.length<3||inside.length<3)return top;
+ // Above: from its lower right corner round the top to its lower left; inside: from its upper left round the bottom to its upper right.
+ const on=(p:Point2)=>Math.abs(p[1]-s)<1e-9,pick=(p:Point2[],want:(a:Point2,b:Point2)=>boolean)=>p.reduce((best,q,i)=>on(q)&&(best<0||want(q,p[best]))?i:best,-1);
+ // (When a part meets the line at a single point, as a circle's top does, the walk goes all the way round from it.)
+ const walk=(p:Point2[],from:number,to:number)=>{const out:Point2[]=[];for(let i=from,n=0;n<p.length;i=(i+1)%p.length,n++){out.push(p[i]);if(i===to&&(n>0||from!==to))break;}return out;};
+ const a0=pick(above,(q,b)=>q[0]>b[0]),a1=pick(above,(q,b)=>q[0]<b[0]),b0=pick(inside,(q,b)=>q[0]<b[0]),b1=pick(inside,(q,b)=>q[0]>b[0]);
+ if(a0<0||a1<0||b0<0||b1<0)return top;
+ const own=(p:Point2)=>top.outline.some(q=>Math.hypot(q[0]-p[0],q[1]-p[1])<1e-9);
+ const upper=walk(above,a0,a1).map(p=>({p,sharp:false})),lower=walk(inside,b0,b1).map(p=>({p,sharp:!own(p)}));
+ const merged=[...upper,...lower].filter((v,i,all)=>{const n=all[(i+1)%all.length];return Math.hypot(v.p[0]-n.p[0],v.p[1]-n.p[1])>1e-7;});
+ return {...top,outline:merged.map(v=>v.p),sharp:merged.map(v=>v.sharp)};
+}
 export interface BodyLayout {build:number;pivot:number;top:Piece;bottom:Piece|null;hipX:number;}
 /**
  * Pieces of a character's body. The top piece hangs from the neck, the bottom piece stands on the body's bottom line,
@@ -101,5 +127,6 @@ export function bodyLayout(spec:CharacterSpec,prop:Proportions=defaultProportion
  const pivot=bodyTop-topH+seamOverlap/2,seamTop=bodyBottom+bottomH;
  const top=widen(shapeOutline(topShape,topW,bodyTop-topH,topH),topShape,prop.torsoWidth);
  const {piece,hipX}=fit(lower=>widen(shapeOutline(bottomShape,bottomW,lower,seamTop-lower),bottomShape,prop.pelvis));
- return {build,pivot,top,bottom:piece,hipX};
+ // A round top piece has no corners to poke out, and a circle is never reshaped.
+ return {build,pivot,top:isRound(topShape)?top:seatOn(top,piece),bottom:piece,hipX};
 }

@@ -19,7 +19,8 @@ import {ellipse2d,type Point2} from './geometry';
  * Pieces marked accent take the hair's second colour.
  */
 export const design={cx:100,cy:112,r:38};
-export interface HairPiece {points:Point2[];accent?:boolean;}
+/** `sharp`: corners left unrounded (a cap's ends, which land exactly on the head's outline). */
+export interface HairPiece {points:Point2[];accent?:boolean;sharp?:boolean[];}
 /** `left`/`right`: design y of the cut line at the head's left and right edge; `grow`: px around the head. */
 export interface HairCap {left:number;right:number;grow:number;}
 /**
@@ -85,7 +86,8 @@ export const hairStyles:HairStyle[]=[
  {name:'Jet',group:'Helmet',back:[],front:[half(cx,100,44),wing,mirror(wing)]},
  // Totem: a bowl, flat side up, carrying a diamond that touches it at one point.
  {name:'Saucer',group:'Totem',sits:true,back:[bowl(cx,60,38),piece([[cx,10],[124,35],[cx,60],[76,35]],true)]},
- {name:'Beanie',group:'Hat',back:[],front:[half(cx,80,42),box(58,80,84,20),roundBox(54,84,92,18,6,true)]},
+ // The hat sits 6 px inside the cuff's ends, so no corner of it shows past the cuff's rounded corners.
+ {name:'Beanie',group:'Hat',back:[],front:[half(cx,80,40),box(60,80,80,20),roundBox(54,84,92,18,6,true)]},
  {name:'Flame',group:'Hair',back:[symmetric([...curve([62,104],[46,70],[66,36]),...curve([66,36],[74,62],[86,66]).slice(1),...curve([86,66],[86,38],[cx,12]).slice(1)])]},
  {name:'Fin',group:'Hair',back:[roundBox(84,26,32,72,16)]},
  {name:'Flat top',group:'Hair',back:[box(60,38,80,50)],cap:cap(cy-20)},
@@ -167,8 +169,8 @@ export function placeHair(style:HairStyle,outline:Point2[],markTop:number,size=1
  };
  /** The same, for anchors: x is kept just inside the head. */
  const topAt=(x:number)=>{const top=headTop(Math.min(maxX-.01,Math.max(minX+.01,x)));return Number.isFinite(top)?top:maxY;};
- let back=style.back.map(p=>({points:p.points.map(map),accent:!!p.accent}));
- let front=(style.front??[]).map(p=>({points:p.points.map(map),accent:!!p.accent}));
+ let back:HairPiece[]=style.back.map(p=>({points:p.points.map(map),accent:!!p.accent}));
+ let front:HairPiece[]=(style.front??[]).map(p=>({points:p.points.map(map),accent:!!p.accent}));
  let dangles:PlacedDangle[]=(style.dangles??[]).map(d=>{
   const [x,y]=map(d.anchor),anchor:Point2=d.onHead?[x,topAt(x)-d.anchor[1]*unit]:[x,y];
   return {anchor,dir:[-Math.sin(d.angle),Math.cos(d.angle)],rope:d.rope*unit,radii:d.radii.map(v=>v*unit),accent:d.accent,tip:d.tip?.map(([px,py])=>[px*unit,-py*unit] as Point2)};
@@ -209,8 +211,11 @@ export function placeHair(style:HairStyle,outline:Point2[],markTop:number,size=1
  }
  if(style.cap){
   const left:Point2=[minX-1,Math.max(map([cx-r,style.cap.left])[1],floor)],right:Point2=[maxX+1,Math.max(map([cx+r,style.cap.right])[1],floor)];
-  const grow=1+style.cap.grow/r*size,kept=clip(outline,left,right,[mx,maxY+1]);
-  if(kept.length>2)front.unshift({points:kept.map(([x,y])=>[mx+(x-mx)*grow,my+(y-my)*grow] as Point2),accent:false});
+  // The cap grows a little round the head, but not at the cut: there it tapers back to the head's own outline, so its
+  // two ends land exactly on the head's edge and no small corner pokes out (Nam, 2026-10-14). The ends stay sharp.
+  const grow=1+style.cap.grow/r*size,kept=clip(outline,left,right,[mx,maxY+1]),ramp=Math.max(.012,style.cap.grow*unit*4);
+  const above=([x,y]:Point2)=>{const t=(x-left[0])/(right[0]-left[0]);return y-(left[1]+(right[1]-left[1])*t);};
+  if(kept.length>2)front.unshift({points:kept.map(p=>{const k=(grow-1)*Math.min(1,Math.max(0,above(p)/ramp));return [p[0]+(p[0]-mx)*k,p[1]+(p[1]-my)*k] as Point2;}),accent:false,sharp:kept.map(p=>above(p)<1e-6)});
  }
  if(style.band){
   // A headband: the head between two level lines, a little wider than the head, never below the mark.

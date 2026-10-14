@@ -12,7 +12,7 @@ import {createDangles} from './hairPhysics';
 import {createPixelPart,defaultPixel,type PixelSettings} from './pixelate';
 import {createSpray,defaultSpray,type SpraySettings} from './spray';
 import {rules} from './rules';
-import {bodyLayout,hipBelow,shoulderBeside,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
+import {bodyLayout,bodyRound,hipBelow,shoulderBeside,halfWidthAt,shoulderY,hipY,waistRadius,bodyTop,type BodyLayout} from './body';
 
 /**
  * 2D look: every part is a flat, unlit colour drawn in a fixed layer order (painter's algorithm),
@@ -228,7 +228,7 @@ function planarUV(g:THREE.BufferGeometry){
 /** Stacks several pieces; each entry is [geometry, y offset]. */
 const stack=(...pieces:[THREE.BufferGeometry,number][])=>mergeGeometries(pieces.map(([g,y])=>{g.translate(0,y,0);return g;}));
 /** Corner rounding of the flat (2D) parts, in metres. */
-const paperRound=.022,markRound=.007;
+const paperRound=bodyRound,markRound=.007;
 /** Shoulder ball centre: just outside the top piece at shoulder height, touching it (body.ts shoulderBeside), so the arms hang from the body whatever its shape or size and the joint is never drawn over it. */
 export const shoulderX=(layout:BodyLayout,shoulderBall:number=shoulderRadius)=>shoulderBeside(layout.top,shoulderY,shoulderBall);
 /** Radius of a ball joint for a character: the type's base radius, its size and the Joints slider. */
@@ -376,7 +376,7 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
   g=footGeometry(v);g.computeBoundingBox();const min=g.boundingBox!.min.y,max=g.boundingBox!.max.y;g.translate(0,-max,0);g.scale(1,.16/(max-min),1);g.scale(prop.feet,prop.feet,prop.feet);
  } else if(b.kind==='hair'){
   // The hair bone's own mesh is the front (cap or helmet) in the hair colour; a style without one keeps a speck hidden in the head's centre.
-  const front=hairOn(spec,prop).front.filter(p=>!p.accent);g=front.length?paper(front.map(p=>({outline:p.points})),paperRound):sphere(.001).translate(0,.15,0);
+  const front=hairOn(spec,prop).front.filter(p=>!p.accent);g=front.length?paper(front.map(p=>({outline:p.points,sharp:p.sharp})),paperRound):sphere(.001).translate(0,.15,0);
  } else {
   // The face-mark bone sits at a fixed height; move the mark to where it reads best on the chosen head.
   g=paper(markOutlines[v],markRound,.02);g.scale(prop.head,prop.head,prop.head);g.translate(0,headOutlines[spec.parts.head.variant].markY*prop.head-b.headPosition[1],0);
@@ -432,7 +432,7 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
  const hairBone=map.get('hair')!,hairIndex=bones.findIndex(b=>b.id==='hair'),placed=hairOn(spec,proportions);
  const hairExtra=([['hair_back',placed.back,false],['hair_back_accent',placed.back,true],['hair_front_accent',placed.front,true]] as const).flatMap(([name,all,accent])=>{
   const pieces=all.filter(p=>p.accent===accent);if(!pieces.length)return [];
-  const geometry=paper(pieces.map(p=>({outline:p.points})),paperRound),count=geometry.getAttribute('position').count;
+  const geometry=paper(pieces.map(p=>({outline:p.points,sharp:p.sharp})),paperRound),count=geometry.getAttribute('position').count;
   geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(new Uint16Array(count*4).map((_,i)=>i%4?0:hairIndex),4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(new Float32Array(count*4).map((_,i)=>i%4?0:1),4));
   const material=new THREE.MeshBasicMaterial({color:colorOf(accent?spec.parts.hair.accent:spec.parts.hair.color),depthTest:false,depthWrite:false});decorate(material,geometry);
   const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=name;mesh.userData={accent};mesh.position.copy(hairBone.getWorldPosition(new THREE.Vector3()));mesh.frustumCulled=false;group.add(mesh);group.updateMatrixWorld(true);mesh.bind(skeleton,mesh.matrixWorld.clone());

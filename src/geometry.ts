@@ -88,12 +88,13 @@ export function ellipse2d(cx:number,cy:number,rx:number,ry:number,from=0,to=Math
  return Array.from({length:full?steps:steps+1},(_,i)=>{const a=from+(to-from)*i/steps;return [cx+rx*Math.cos(a),cy+ry*Math.sin(a)] as Point2;});
 }
 /** Rounds every sharp corner of a closed outline with a small quadratic fillet; gentle bends (sampled curves) are left alone. */
-export function roundCorners(points:Point2[],radius:number,steps=6){
+/** `sharp[i]` keeps corner i as it is (a corner that must meet another shape exactly). */
+export function roundCorners(points:Point2[],radius:number,steps=6,sharp?:boolean[]){
  const p=points.map(([x,y])=>new THREE.Vector2(x,y)),n=p.length,out:THREE.Vector2[]=[];
  for(let i=0;i<n;i++){
   const corner=p[i],u=p[(i+n-1)%n].clone().sub(corner),v=p[(i+1)%n].clone().sub(corner),lu=u.length(),lv=v.length();
   u.normalize();v.normalize();const angle=Math.acos(THREE.MathUtils.clamp(u.dot(v),-1,1));
-  if(!radius||angle>Math.PI*.85){out.push(corner.clone());continue;}
+  if(!radius||angle>Math.PI*.85||sharp?.[i]){out.push(corner.clone());continue;}
   // Fillet ends sit `d` along each edge, never past 45% of an edge so neighbouring fillets cannot overlap.
   const d=Math.min(radius/Math.tan(angle/2),lu*.45,lv*.45),a=corner.clone().addScaledVector(u,d),b=corner.clone().addScaledVector(v,d);
   for(let s=0;s<=steps;s++){const t=s/steps;out.push(a.clone().multiplyScalar((1-t)*(1-t)).addScaledVector(corner,2*(1-t)*t).addScaledVector(b,t*t));}
@@ -101,8 +102,20 @@ export function roundCorners(points:Point2[],radius:number,steps=6){
  return out;
 }
 /** Flat cut-paper part: outlines (with optional holes) with rounded corners, extruded `depth` thick and centred on z = 0 so exports get a solid card. */
-export function paper(pieces:{outline:Point2[];holes?:Point2[][]}[],round:number,depth=.03){
- const shapes=pieces.map(({outline,holes=[]})=>{const shape=new THREE.Shape(roundCorners(outline,round));shape.holes=holes.map(h=>new THREE.Path(roundCorners(h,round)));return shape;});
+export function paper(pieces:{outline:Point2[];holes?:Point2[][];sharp?:boolean[]}[],round:number,depth=.03){
+ const shapes=pieces.map(({outline,holes=[],sharp})=>{const shape=new THREE.Shape(roundCorners(outline,round,6,sharp));shape.holes=holes.map(h=>new THREE.Path(roundCorners(h,round)));return shape;});
  const g=new THREE.ExtrudeGeometry(shapes,{depth,bevelEnabled:false,curveSegments:4});g.translate(0,0,-depth/2);
  return g;
+}
+
+/** Signed area (positive when the points run counter-clockwise, y up). */
+export const signedArea=(p:Point2[])=>p.reduce((s,[x,y],i)=>{const [u,v]=p[(i+1)%p.length];return s+x*v-u*y;},0)/2;
+/** The part of a polygon inside a convex polygon (Sutherland–Hodgman over every edge of `convex`). */
+export function clipConvex(subject:Point2[],convex:Point2[]):Point2[]{
+ const ccw=signedArea(convex)>0?convex:[...convex].reverse();let out=subject;
+ for(let i=0;i<ccw.length&&out.length;i++){
+  const a=ccw[i],b=ccw[(i+1)%ccw.length],side=(p:Point2)=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]),input=out;out=[];
+  for(let j=0;j<input.length;j++){const p=input[j],q=input[(j+1)%input.length],sp=side(p),sq=side(q);if(sp>=0)out.push(p);if(sp*sq<0){const t=sp/(sp-sq);out.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t]);}}
+ }
+ return out;
 }
