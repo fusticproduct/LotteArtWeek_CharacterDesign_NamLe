@@ -35,6 +35,12 @@ export type HairGroup='Helmet'|'Hat'|'Totem'|'Robot'|'Hair';
 export interface HairStyle {name:string;group:HairGroup;back:HairPiece[];cap?:HairCap;band?:{top:number;bottom:number;grow:number};front?:HairPiece[];cover?:boolean;sits?:boolean;dangles?:HairDangle[];retired?:string;}
 const {cx,cy,r}=design;
 const piece=(points:Point2[],accent=false):HairPiece=>({points,accent});
+/**
+ * An inlay: a piece laid exactly over another (a band, a stripe, half of a split square). Its corners stay sharp, so its
+ * edges run flush with the piece under it: no rounded corner leaves a sliver of the colour below or a gap to the
+ * background (Nam, 2026-10-14).
+ */
+const inlay=(points:Point2[],accent=true):HairPiece=>({points,accent,sharp:points.map(()=>true)});
 const circle=(x:number,y:number,radius:number,accent=false)=>piece(ellipse2d(x,y,radius,radius,0,Math.PI*2,48),accent);
 const box=(x:number,y:number,w:number,h:number,accent=false)=>piece([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],accent);
 /** Rounded box with corner radius k (y down). */
@@ -94,10 +100,10 @@ export const hairStyles:HairStyle[]=[
  {name:'Helmet',group:'Helmet',back:[roundBox(50,64,100,94,42)],cap:cap(cy-12)},
  {name:'Halo',group:'Hair',back:[piece([...arc(-.15,Math.PI+.15,66,cx,104),...arc(Math.PI+.15,-.15,50,cx,116)])]},
  {name:'Plume',group:'Helmet',back:[],front:[half(cx,100,44)],dangles:[{anchor:[cx,62],angle:0,rope:12,radii:[15,13,11],accent:[true,true,true]}]},
- {name:'Bucket',group:'Hat',back:[],front:[piece([[60,92],[68,52],[132,52],[140,92]]),piece([[60,92],[62.4,80],[137.6,80],[140,92]],true),piece([[44,104],[56,92],[144,92],[156,104]])]},
+ {name:'Bucket',group:'Hat',back:[],front:[piece([[60,92],[68,52],[132,52],[140,92]]),inlay([[60,92],[62.4,80],[137.6,80],[140,92]]),piece([[44,104],[56,92],[144,92],[156,104]])]},
  {name:'Blocks',group:'Robot',back:[],retired:'Slab'},
  // Winter headwear: a top hat resting on the head, a band round its crown.
- {name:'Top hat',group:'Hat',sits:true,back:[box(64,30,72,54),box(64,64,72,12,true),roundBox(44,82,112,10,5)]},
+ {name:'Top hat',group:'Hat',sits:true,back:[box(64,30,72,54),inlay([[64,64],[136,64],[136,76],[64,76]]),roundBox(44,82,112,10,5)]},
  {name:'Ball top',group:'Hair',back:[],cap:cap(cy-18),dangles:[{anchor:[cx,70],angle:0,rope:20,radii:[32],accent:[false]}]},
  {name:'Knight',group:'Robot',back:[],retired:'Visor'},
  // Retired: Nam saw bunny ears in it.
@@ -105,7 +111,7 @@ export const hairStyles:HairStyle[]=[
  {name:'Crown',group:'Hat',back:[piece([[56,96],[56,48],[76,72],[88,28],[cx,62],[112,28],[124,72],[144,48],[144,96]])]},
  {name:'Gem',group:'Totem',back:[piece([[cx,10],[138,52],[cx,94],[62,52]])]},
  // A striped cone resting on the head.
- {name:'Cone',group:'Hat',sits:true,back:[cone,piece([[68.8,74],[73.7,64],[126.3,64],[131.2,74]],true),piece([[82.4,46],[86.3,38],[113.7,38],[117.6,46]],true)]},
+ {name:'Cone',group:'Hat',sits:true,back:[cone,inlay([[68.8,74],[73.7,64],[126.3,64],[131.2,74]]),inlay([[82.4,46],[86.3,38],[113.7,38],[117.6,46]])]},
  {name:'Antenna',group:'Robot',back:[roundBox(88,62,24,20,6)],dangles:[{anchor:[cx,66],angle:0,rope:7,radii:[8,8,15],accent:[false,false,true]}]},
  {name:'Twin antennas',group:'Robot',back:[],retired:'Antenna'},
  {name:'Gear',group:'Robot',back:[],retired:'Crown'},
@@ -113,7 +119,9 @@ export const hairStyles:HairStyle[]=[
  // Totems: a slab resting on the head; four balls in a square; a square split into an hourglass of two colours.
  {name:'Slab',group:'Totem',sits:true,back:[roundBox(46,56,108,22,4)]},
  {name:'Quad',group:'Totem',sits:true,back:[[81,60],[119,60],[81,22],[119,22]].map(([x,y])=>circle(x,y,19))},
- {name:'Bowtie',group:'Totem',sits:true,back:[piece([[62,16],[138,16],[cx,54]]),piece([[62,92],[cx,54],[138,92]]),piece([[62,16],[cx,54],[62,92]],true),piece([[138,16],[138,92],[cx,54]],true)]},
+ {name:'Bowtie',group:'Totem',sits:true,// One whole square in the main colour, the two accent triangles laid over it: no seams between the four triangles,
+ // and every corner sharp so the triangles' points meet the square's corners exactly.
+ back:[inlay([[62,16],[138,16],[138,92],[62,92]],false),inlay([[62,16],[cx,54],[62,92]]),inlay([[138,16],[138,92],[cx,54]])]},
  // Ragdoll: a star on an antenna above a cap (the punk heads).
  {name:'Asterisk',group:'Robot',back:[],retired:'Star'},
  {name:'Star',group:'Robot',back:[],cap:cap(cy-14),dangles:[{anchor:[cx,72],angle:0,rope:6,radii:[7,7,23],accent:[false,false,true],tip:star(23)}]},
@@ -169,8 +177,8 @@ export function placeHair(style:HairStyle,outline:Point2[],markTop:number,size=1
  };
  /** The same, for anchors: x is kept just inside the head. */
  const topAt=(x:number)=>{const top=headTop(Math.min(maxX-.01,Math.max(minX+.01,x)));return Number.isFinite(top)?top:maxY;};
- let back:HairPiece[]=style.back.map(p=>({points:p.points.map(map),accent:!!p.accent}));
- let front:HairPiece[]=(style.front??[]).map(p=>({points:p.points.map(map),accent:!!p.accent}));
+ let back:HairPiece[]=style.back.map(p=>({...p,points:p.points.map(map),accent:!!p.accent}));
+ let front:HairPiece[]=(style.front??[]).map(p=>({...p,points:p.points.map(map),accent:!!p.accent}));
  let dangles:PlacedDangle[]=(style.dangles??[]).map(d=>{
   const [x,y]=map(d.anchor),anchor:Point2=d.onHead?[x,topAt(x)-d.anchor[1]*unit]:[x,y];
   return {anchor,dir:[-Math.sin(d.angle),Math.cos(d.angle)],rope:d.rope*unit,radii:d.radii.map(v=>v*unit),accent:d.accent,tip:d.tip?.map(([px,py])=>[px*unit,-py*unit] as Point2)};
