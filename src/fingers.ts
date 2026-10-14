@@ -16,8 +16,8 @@ const fingerDefs:FingerDef[]=[
 ];
 /** Simulation points per finger, ribbon samples, tip cap steps; tip width; gravity (m/s²); velocity kept per step; inward curl per segment (rad); fixed step (s). */
 const points=5,samples=14,capSteps=7,tipWidth=.022,gravity=-9.8,damping=.9,curl=.05,step=1/60;
-/** Pull towards the rest shape per pass at the finger's root; it weakens towards the tip, so fingers are floppy (ragdoll). */
-const shapeHold=.05;
+/** Pull towards the rest shape per pass at the finger's root, weaker towards the tip: stiff fingers that still swing a little (Nam asked for much stiffer, 2026-10-14). */
+const shapeHold=.3;
 /** Where the fingers leave the hand, in the hand bone's space: around the centre of the hand shapes. */
 const handCentre=new THREE.Vector3(0,-.045,0),rootReach=.055;
 export interface FingerHand {side:'L'|'R';bone:THREE.Bone;color:string;}
