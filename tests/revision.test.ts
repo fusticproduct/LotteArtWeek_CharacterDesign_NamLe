@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {PerspectiveCamera,Box3,Vector3,Mesh,MeshBasicMaterial,DoubleSide,Raycaster,SkinnedMesh} from 'three';
 import {OrbitControls} from 'three-stdlib';
 import {orbitMouseButtons} from '../src/controls';
-import {bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
+import {partName,bones,generate,recolor,decodeSeed,encodeSeed,variants,twoTone,isBeaded,pairedSegment,poseRotation,defaultProportions,isJoint,linkedIds,palette,pairPartners,topShapes,bottomShapes,patchwork,flow,normalizeProportions,jointShapeOf,jointSizeOf,jointSizes,twinOf,bodyShapes,jointShapes} from '../src/model';
 import {tether,fingerGap} from '../src/fingers';
 import {hairStyles,placeHair,restCircles} from '../src/hair';
 import {pixelSize,normalizePixel,defaultPixel} from '../src/pixelate';
@@ -62,11 +62,12 @@ it('keeps both hip joints inside the body piece that carries them, for every bod
   const layout=bodyLayout(withBody(base,body));expect(layout.hipX).toBeLessThanOrEqual(.105+1e-9);
   expect(holdsDisc(layout.bottom??layout.top,[layout.hipX,-.03],.05),JSON.stringify(body)).toBe(true);
  }
- // Every hip variant is the same hidden ball of radius 0.045, placed where the layout says.
- for(let hipVariant=0;hipVariant<4;hipVariant++){
+ // Every hip variant draws the same joint (the shoulders' shape at the knees' size), placed where the layout says.
+ const sizes=[0,1,2,3].map(hipVariant=>{
   const spec=withBody(base,{build:1,top:6,bottom:6});spec.parts.hip_L={...spec.parts.hip_L,variant:hipVariant};const rig=createCharacter(spec),g=(rig.group.getObjectByName('hip_L_mesh') as SkinnedMesh).geometry;
-  g.computeBoundingSphere();expect(g.boundingSphere!.radius).toBeCloseTo(.045,3);expect(rig.map.get('hip_L')!.position.x).toBeCloseTo(bodyLayout(spec).hipX,9);rig.dispose();
- }
+  g.computeBoundingSphere();expect(rig.map.get('hip_L')!.position.x).toBeCloseTo(bodyLayout(spec).hipX,9);const radius=g.boundingSphere!.radius;rig.dispose();return radius;
+ });
+ for(const r of sizes)expect(r).toBeCloseTo(sizes[0],6);
 });
 it('stacks two body pieces without overlapping them, keeps them touching at any bend and slider setting, and never bends a Single body',()=>{
  const base=generate('seams');
@@ -591,6 +592,18 @@ it('spray-blurs two random parts when turned on: grainy copies in the part\'s la
    for(const m of spray.meshes){expect(m.visible).toBe(true);expect(m.renderOrder).toBe(spray.part.renderOrder);const mat=m.material as MeshBasicMaterial;expect(mat.alphaHash).toBe(true);expect(mat.transparent).toBe(false);expect(mat.opacity).toBeLessThan(.2);}
   }
   rig.setSpray({on:false,amount:.08});for(const spray of rig.sprays)expect(spray.part.visible).toBe(true);
+  rig.dispose();
+ }
+});
+
+it('draws the hip joints over the body piece that carries them and over the thighs, in the shoulders\' shape',()=>{
+ for(let i=0;i<12;i++){
+  const spec=generate(`hips-${i}`),rig=createCharacter(spec),carrier=rig.group.getObjectByName(spec.parts.spine_lower.variant===0?'spine_upper_mesh':'root_mesh')!;
+  for(const order of [defaultLayerOrder,['legs','pelvis','torso','neck','head','arms'] as typeof defaultLayerOrder]){
+   rig.setLayerOrder(order);
+   for(const side of ['L','R']){const hip=rig.group.getObjectByName(`hip_${side}_mesh`)!;expect(hip.renderOrder,`${i} ${side}`).toBeGreaterThan(carrier.renderOrder);expect(hip.renderOrder).toBeGreaterThan(rig.group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder);}
+  }
+  expect(partName(spec,bones.find(b=>b.id==='hip_L')!)).toBe(jointShapes[jointShapeOf(spec.parts.shoulder_L.variant)]);
   rig.dispose();
  }
 });

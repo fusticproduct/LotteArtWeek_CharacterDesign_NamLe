@@ -327,6 +327,7 @@ function plugFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportio
  if(b.kind==='pelvis')return plug(body.bottom?.holes,paperRound);
  const joint=/^(shoulder|elbow|knee)_/.exec(b.id)?.[1] as 'shoulder'|'elbow'|'knee'|undefined;
  if(joint&&jointShapeOf(p.variant)!==0)return plug(jointPiece(jointShapeOf(p.variant),jointRadius(spec,joint,prop)).holes,paperRound*.5);
+ if(b.id.startsWith('hip_')){const shape=jointShapeOf(spec.parts[`shoulder_${b.id.slice(-1)}`].variant);if(shape!==0)return plug(jointPiece(shape,jointRadius(spec,'knee',prop)).holes,paperRound*.5);}
  return null;
 }
 function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Proportions,body:BodyLayout):THREE.BufferGeometry {
@@ -349,8 +350,9 @@ function geometryFor(b:BoneDefinition,p:PartChoice,spec:CharacterSpec,prop:Propo
  } else if(b.kind==='connector'){
   const hip=b.id.startsWith('hip'),r=hip?.045:b.id==='neck'?.055:jointRadius(spec,b.id.startsWith('knee')?'knee':b.id.startsWith('elbow')?'elbow':'shoulder',prop);
   // Shoulder and knee are the only ball joints: the limb segments beside them carry no caps of their own.
-  // Hip joints are hidden inside the body, so every hip variant is a plain ball that fits there.
-  if(hip)g=sphere(r);
+  // Hip joints (Nam, 2026-10-14) are drawn over the body piece that carries them and over the thigh, so the body never
+  // hides them. They take the shoulders' shape (and, as joint type 0, their colour) at the knees' size, which fits the thigh.
+  if(hip){const shape=jointShapeOf(spec.parts[`shoulder_${b.id.slice(-1)}`].variant),k=jointRadius(spec,'knee',prop);g=shape===0?sphere(k):paper([jointPiece(shape,k)],paperRound*.5);}
   else if(b.id.startsWith('shoulder')||b.id.startsWith('knee')||b.id.startsWith('elbow')){const shape=jointShapeOf(v);g=shape===0?sphere(r):paper([jointPiece(shape,r)],paperRound*.5);}
   else g=v===0?sphere(r):v===1?puck(r,r*1.3,r*.5).translate(0,-r*.65,0):v===2?cylinder(r,r,hip?.065:L):new THREE.CapsuleGeometry(r,hip?.015:L*.25,10,32);
   if(b.id==='neck'){if(v<2)g.scale(1,Math.max(1,L/r*.65),1);g.translate(0,L*.4,0);}
@@ -442,6 +444,9 @@ export function createCharacter(spec:CharacterSpec,weavePalette:WeavePaletteName
   drawOrder(stacking.order,stacking.depth).forEach((id,rank)=>{(group.getObjectByName(`${id}_mesh`) as THREE.SkinnedMesh).renderOrder=rank;});
   for(const finger of fingers.meshes)finger.renderOrder=group.getObjectByName(`hand_${finger.userData.side}_mesh`)!.renderOrder+.5;
   for(const toe of toes)toe.renderOrder=group.getObjectByName(`foot_${toe.userData.side}_mesh`)!.renderOrder+.5;
+  // Hips over both the piece that carries them and the thigh, whatever the layer order.
+  const carrier=group.getObjectByName(body.bottom?'root_mesh':'spine_upper_mesh')!.renderOrder;
+  for(const side of ['L','R'])group.getObjectByName(`hip_${side}_mesh`)!.renderOrder=Math.max(carrier,group.getObjectByName(`thigh_${side}_mesh`)!.renderOrder)+.3;
   for(const plug of plugs)plug.renderOrder=group.getObjectByName(plug.userData.part)!.renderOrder-.05;
   if(pixel)pixel.mesh.renderOrder=pixel.part.renderOrder;
   for(const spray of sprays)for(const m of spray.meshes)m.renderOrder=spray.part.renderOrder;

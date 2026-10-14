@@ -891,3 +891,10 @@ Anh Nam gửi ảnh tranh phun sơn và muốn một hàm làm mờ có nhiễu 
 - `src/spray.ts`: 20 bản mờ (16% mỗi bản, ở giữa cộng lại ~97%) và 6 hạt bắn (5%, xa hơn), mỗi bản lệch cố định theo hướng ngẫu nhiên nhân với Blur amount (đẩy trong shader sau khi skin). Độ trong suốt dùng alpha hash (bỏ điểm ảnh theo nhiễu gắn với bộ phận), nên vẫn là vật thể đục: đúng thứ tự lớp, hạt dính theo bộ phận. Mesh gốc ẩn khi bật (vẫn dùng cho xuất file); miếng lấp lỗ donut cũng ẩn theo.
 - Mặc định tắt (`spray` trong `src/settings.json`).
 
+## 63. Khớp hông nhìn thấy được (14/10/2026)
+
+Anh Nam: khối thân dưới không bao giờ che khớp của đùi.
+
+- Thứ tự vẽ: mỗi khớp hông nằm trên cả khối thân mang nó (khối dưới, hoặc khối trên của Single) và đùi, với mọi thứ tự lớp (`restack`, rig.ts).
+- Hình: khớp hông lấy hình khớp vai (Sphere, Square, Diamond, Hexagon, Ring; Ring có lỗ lấp màu nền) ở cỡ khớp gối; màu vẫn là màu khớp loại 0 (như vai). Vị trí giữ nguyên trong khối thân (test `holdsDisc` vẫn đúng). Luật hoa văn của đùi giữ như cũ.
+

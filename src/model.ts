@@ -117,7 +117,8 @@ const jointVariants=jointSizeNames.flatMap(size=>jointShapes.map(shape=>`${shape
 const isBallJoint=(id:string)=>/^(shoulder|elbow|knee)_/.test(id);
 export const variantNames=(bone:BoneDefinition)=>isBallJoint(bone.id)?jointVariants:bone.id==='spine_lower'?bodyBuilds:variants[bone.kind];
 /** Name shown for a part; a Single body has no bottom piece. */
-export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
+/** Hip joints take the shoulders' shape (rig.ts), so their row names that shape. */
+export const partName=(spec:CharacterSpec,bone:BoneDefinition)=>bone.id.startsWith('hip_')?jointShapes[jointShapeOf(spec.parts[`shoulder_${bone.id.slice(-1)}`].variant)]:bone.id==='root'&&spec.parts.spine_lower.variant===single?'None':variantNames(bone)[spec.parts[bone.id].variant]??variantNames(bone)[0];
 export const patterns=['Solid','Checker','Stripes','Gradient','Weave','Two-tone','Patchwork','Flow'] as const;
 /** Two-tone (index 5) splits a limb segment into two colour layers; it is the only texture allowed on arms and legs. */
 export const twoTone=5;
